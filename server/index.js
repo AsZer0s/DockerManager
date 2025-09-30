@@ -57,10 +57,7 @@ const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: [
-      `http://localhost:${process.env.PORT || 3000}`,
-      `http://127.0.0.1:${process.env.PORT || 3000}`
-    ],
+    origin: true, // 允许所有来源
     methods: ["GET", "POST"],
     credentials: true
   }
@@ -72,15 +69,16 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://telegram.org"],
       imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", "ws:", "wss:"]
+      connectSrc: ["'self'", "ws:", "wss:", "https://telegram.org"],
+      objectSrc: ["'none'"]
     }
   }
 }));
 
 app.use(cors({
-  origin: `http://localhost:${process.env.PORT || 3000}`,
+  origin: true, // 允许所有来源
   credentials: true
 }));
 
