@@ -54,16 +54,16 @@ async function checkServerStatus(server) {
 // 获取完整的服务器信息（包括解密后的敏感信息）
 async function getFullServerInfo(serverId) {
   try {
-    const result = await database.query(
-      'SELECT * FROM servers WHERE id = $1 AND is_active = true',
+    const result = await database.db.get(
+      'SELECT * FROM servers WHERE id = ? AND is_active = 1',
       [serverId]
     );
     
-    if (result.rows.length === 0) {
+    if (!result) {
       return null;
     }
     
-    const server = result.rows[0];
+    const server = result;
     
     // 解密敏感信息
     if (server.password_encrypted) {
@@ -162,19 +162,19 @@ const authenticateToken = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     // 获取用户信息
-    const result = await database.query(
-      'SELECT * FROM users WHERE id = $1 AND is_active = true',
+    const result = await database.db.get(
+      'SELECT * FROM users WHERE id = ? AND is_active = 1',
       [decoded.userId]
     );
 
-    if (result.rows.length === 0) {
+    if (!result) {
       return res.status(401).json({
         error: '令牌无效',
         message: '用户不存在或已禁用'
       });
     }
 
-    req.user = result.rows[0];
+    req.user = result;
     next();
   } catch (error) {
     return res.status(401).json({
@@ -263,17 +263,17 @@ router.get('/statistics',
   async (req, res) => {
     try {
       // 获取服务器总数
-      const serverCountResult = await database.query(
-        'SELECT COUNT(*) as total FROM servers WHERE is_active = true'
+      const serverCountResult = await database.db.get(
+        'SELECT COUNT(*) as total FROM servers WHERE is_active = 1'
       );
 
       // 获取所有活跃服务器并检查状态
-      const allServersResult = await database.query(
-        'SELECT id, name, host, port FROM servers WHERE is_active = true'
+      const allServersResult = await database.db.all(
+        'SELECT id, name, host, port FROM servers WHERE is_active = 1'
       );
 
       // 并行检查每个服务器的状态
-      const statusChecks = allServersResult.rows.map(server => checkServerStatus(server));
+      const statusChecks = allServersResult.map(server => checkServerStatus(server));
       const statuses = await Promise.all(statusChecks);
       
       let onlineCount = 0;
@@ -288,28 +288,28 @@ router.get('/statistics',
       });
 
       // 获取用户权限统计
-      const permissionStatsResult = await database.query(`
+      const permissionStatsResult = await database.db.get(`
         SELECT 
           COUNT(DISTINCT user_id) as total_users_with_permissions,
           COUNT(*) as total_permissions,
-          SUM(CASE WHEN can_view = true THEN 1 ELSE 0 END) as view_permissions,
-          SUM(CASE WHEN can_control = true THEN 1 ELSE 0 END) as control_permissions,
-          SUM(CASE WHEN can_ssh = true THEN 1 ELSE 0 END) as ssh_permissions
+          SUM(CASE WHEN can_view = 1 THEN 1 ELSE 0 END) as view_permissions,
+          SUM(CASE WHEN can_control = 1 THEN 1 ELSE 0 END) as control_permissions,
+          SUM(CASE WHEN can_ssh = 1 THEN 1 ELSE 0 END) as ssh_permissions
         FROM user_server_permissions
       `);
 
       // 获取最近创建的服务器
-      const recentServersResult = await database.query(`
+      const recentServersResult = await database.db.all(`
         SELECT s.name, s.host, s.port, s.created_at, u.username as created_by
         FROM servers s
         LEFT JOIN users u ON s.created_by = u.id
-        WHERE s.is_active = true
+        WHERE s.is_active = 1
         ORDER BY s.created_at DESC
         LIMIT 5
       `);
 
       // 获取服务器使用情况统计
-      const serverUsageResult = await database.query(`
+      const serverUsageResult = await database.db.all(`
         SELECT 
           s.id,
           s.name,
@@ -317,7 +317,7 @@ router.get('/statistics',
           COUNT(p.user_id) as user_count
         FROM servers s
         LEFT JOIN user_server_permissions p ON s.id = p.server_id
-        WHERE s.is_active = true
+        WHERE s.is_active = 1
         GROUP BY s.id, s.name, s.host
         ORDER BY user_count DESC
         LIMIT 10
@@ -325,17 +325,17 @@ router.get('/statistics',
 
       res.json({
         overview: {
-          totalServers: parseInt(serverCountResult.rows[0].total),
+          totalServers: parseInt(serverCountResult.total),
           onlineServers: onlineCount,
           offlineServers: offlineCount,
-          totalUsersWithPermissions: parseInt(permissionStatsResult.rows[0].total_users_with_permissions),
-          totalPermissions: parseInt(permissionStatsResult.rows[0].total_permissions),
-          viewPermissions: parseInt(permissionStatsResult.rows[0].view_permissions),
-          controlPermissions: parseInt(permissionStatsResult.rows[0].control_permissions),
-          sshPermissions: parseInt(permissionStatsResult.rows[0].ssh_permissions)
+          totalUsersWithPermissions: parseInt(permissionStatsResult.total_users_with_permissions),
+          totalPermissions: parseInt(permissionStatsResult.total_permissions),
+          viewPermissions: parseInt(permissionStatsResult.view_permissions),
+          controlPermissions: parseInt(permissionStatsResult.control_permissions),
+          sshPermissions: parseInt(permissionStatsResult.ssh_permissions)
         },
-        recentServers: recentServersResult.rows,
-        serverUsage: serverUsageResult.rows,
+        recentServers: recentServersResult,
+        serverUsage: serverUsageResult,
         generatedAt: new Date().toISOString()
       });
     } catch (error) {
@@ -427,12 +427,12 @@ router.post('/',
       const { name, host, port, username, password, private_key, description } = req.body;
 
       // 检查服务器是否已存在
-      const existingServer = await database.query(
-        'SELECT id FROM servers WHERE host = $1 AND port = $2 AND is_active = true',
+      const existingServer = await database.db.get(
+        'SELECT id FROM servers WHERE host = ? AND port = ? AND is_active = 1',
         [host, port]
       );
 
-      if (existingServer.rows.length > 0) {
+      if (existingServer) {
         return res.status(400).json({
           error: '服务器已存在',
           message: '该主机和端口的服务器已存在'
@@ -676,11 +676,11 @@ router.post('/:id/test-connection',
       if (req.user.role === 'admin') {
         hasPermission = true;
       } else {
-        const permissionResult = await database.query(
-          'SELECT id FROM user_server_permissions WHERE user_id = $1 AND server_id = $2 AND can_view = true',
+        const permissionResult = await database.db.get(
+          'SELECT id FROM user_server_permissions WHERE user_id = ? AND server_id = ? AND can_view = 1',
           [req.user.id, serverId]
         );
-        hasPermission = permissionResult.rows.length > 0;
+        hasPermission = !!permissionResult;
       }
 
       if (!hasPermission) {
@@ -763,11 +763,11 @@ router.get('/:id/containers',
       if (req.user.role === 'admin') {
         hasPermission = true;
       } else {
-        const permissionResult = await database.query(
-          'SELECT can_view FROM user_server_permissions WHERE user_id = $1 AND server_id = $2',
+        const permissionResult = await database.db.get(
+          'SELECT can_view FROM user_server_permissions WHERE user_id = ? AND server_id = ?',
           [req.user.id, serverId]
         );
-        hasPermission = permissionResult.rows.length > 0 && permissionResult.rows[0].can_view;
+        hasPermission = permissionResult && permissionResult.can_view;
       }
 
       if (!hasPermission) {
@@ -809,12 +809,12 @@ router.get('/:id/permissions',
       const serverId = parseInt(req.params.id);
 
       // 检查服务器是否存在
-      const serverResult = await database.query(
-        'SELECT name FROM servers WHERE id = $1 AND is_active = true',
+      const serverResult = await database.db.get(
+        'SELECT name FROM servers WHERE id = ? AND is_active = 1',
         [serverId]
       );
 
-      if (serverResult.rows.length === 0) {
+      if (!serverResult) {
         return res.status(404).json({
           error: '服务器不存在',
           message: '未找到指定的服务器'
@@ -822,7 +822,7 @@ router.get('/:id/permissions',
       }
 
       // 获取用户权限列表
-      const permissionsResult = await database.query(`
+      const permissionsResult = await database.db.all(`
         SELECT 
           p.id,
           p.user_id,
@@ -837,15 +837,15 @@ router.get('/:id/permissions',
           p.updated_at
         FROM user_server_permissions p
         JOIN users u ON p.user_id = u.id
-        WHERE p.server_id = $1 AND u.is_active = true
+        WHERE p.server_id = ? AND u.is_active = 1
         ORDER BY u.username
       `, [serverId]);
 
       res.json({
         serverId,
-        serverName: serverResult.rows[0].name,
-        permissions: permissionsResult.rows,
-        total: permissionsResult.rows.length
+        serverName: serverResult.name,
+        permissions: permissionsResult,
+        total: permissionsResult.length
       });
     } catch (error) {
       logger.error('获取服务器权限列表失败:', error);
@@ -879,12 +879,12 @@ router.post('/:id/permissions',
       const { userId, canView, canControl, canSsh, hideSensitiveInfo = false } = req.body;
 
       // 检查服务器是否存在
-      const serverResult = await database.query(
-        'SELECT name FROM servers WHERE id = $1 AND is_active = true',
+      const serverResult = await database.db.get(
+        'SELECT name FROM servers WHERE id = ? AND is_active = 1',
         [serverId]
       );
 
-      if (serverResult.rows.length === 0) {
+      if (!serverResult) {
         return res.status(404).json({
           error: '服务器不存在',
           message: '未找到指定的服务器'
@@ -905,12 +905,12 @@ router.post('/:id/permissions',
       }
 
       // 检查权限是否已存在
-      const existingPermission = await database.query(
-        'SELECT id FROM user_server_permissions WHERE user_id = $1 AND server_id = $2',
+      const existingPermission = await database.db.get(
+        'SELECT id FROM user_server_permissions WHERE user_id = ? AND server_id = ?',
         [userId, serverId]
       );
 
-      if (existingPermission.rows.length > 0) {
+      if (existingPermission) {
         return res.status(400).json({
           error: '权限已存在',
           message: '该用户已拥有此服务器的权限'
@@ -918,20 +918,16 @@ router.post('/:id/permissions',
       }
 
       // 创建权限
-      const result = await database.query(`
+      const result = await database.db.run(`
         INSERT INTO user_server_permissions 
         (user_id, server_id, can_view, can_control, can_ssh, hide_sensitive_info)
-        VALUES ($1, $2, $3, $4, $5, $6)
-        RETURNING *
+        VALUES (?, ?, ?, ?, ?, ?)
       `, [userId, serverId, canView, canControl, canSsh, hideSensitiveInfo]);
 
-      const permission = result.rows[0];
-
-      logger.info(`管理员 ${req.user.username} 为用户 ${userResult.rows[0].username} 分配服务器 ${serverResult.rows[0].name} 权限`);
+      logger.info(`管理员 ${req.user.username} 为用户分配服务器权限`);
 
       res.status(201).json({
-        message: '权限分配成功',
-        permission
+        message: '权限分配成功'
       });
     } catch (error) {
       logger.error('分配服务器权限失败:', error);
@@ -1109,11 +1105,11 @@ router.get('/:id/status',
       if (req.user.role === 'admin') {
         hasPermission = true;
       } else {
-        const permissionResult = await database.query(
-          'SELECT can_view FROM user_server_permissions WHERE user_id = $1 AND server_id = $2',
+        const permissionResult = await database.db.get(
+          'SELECT can_view FROM user_server_permissions WHERE user_id = ? AND server_id = ?',
           [req.user.id, serverId]
         );
-        hasPermission = permissionResult.rows.length > 0 && permissionResult.rows[0].can_view;
+        hasPermission = permissionResult && permissionResult.can_view;
       }
 
       if (!hasPermission) {

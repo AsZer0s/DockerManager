@@ -54,6 +54,9 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 const app = express();
+
+app.set('trust proxy', true);
+
 const server = createServer(app);
 const io = new Server(server, {
   cors: {

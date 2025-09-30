@@ -58,11 +58,12 @@ const Dashboard: React.FC = () => {
     refetchInterval: 30000,
   })
 
-  // 获取系统统计信息
+  // 获取系统统计信息（仅管理员）
   const { data: systemStats } = useQuery({
     queryKey: ['system-stats'],
     queryFn: () => monitoringAPI.getMonitoringStats(),
     refetchInterval: 60000, // 1分钟刷新一次
+    enabled: user?.role === 'admin', // 只有管理员才调用这个 API
   })
 
   const servers = serversData?.data.servers || []
