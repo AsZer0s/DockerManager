@@ -599,16 +599,23 @@ async function getUserServers(userId) {
 
 async function checkServerStatus(serverId) {
   try {
+    // 获取服务器信息
     const server = await database.db.get(
-      'SELECT status FROM servers WHERE id = ? AND is_active = 1',
+      'SELECT * FROM servers WHERE id = ? AND is_active = 1',
       [serverId]
     );
     
     if (!server) {
+      logger.warn(`服务器 ${serverId} 不存在或未激活`);
       return false;
     }
     
-    return server.status === '在线';
+    // 使用监控服务实时检查服务器连接状态
+    const monitoringService = (await import('../services/monitoringService.js')).default;
+    const isOnline = await monitoringService.checkServerConnection(serverId);
+    
+    logger.info(`服务器 ${server.name} (${serverId}) 状态检测: ${isOnline ? '在线' : '离线'}`);
+    return isOnline;
   } catch (error) {
     logger.error('检查服务器状态失败:', error);
     return false;
