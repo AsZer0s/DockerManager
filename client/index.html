@@ -88,9 +88,33 @@
               `;
             }
 
+            // 发送日志到服务器
+            async function sendLogToServer(level, message, data = null) {
+              try {
+                await fetch('/api/telegram-webapp/log', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    level: level,
+                    message: message,
+                    data: data,
+                    timestamp: new Date().toISOString(),
+                    userAgent: navigator.userAgent,
+                    url: window.location.href
+                  }),
+                });
+              } catch (error) {
+                console.error('发送日志失败:', error);
+              }
+            }
+
             // 获取用户信息并认证
             async function fetchUserInfoByTelegram(userId) {
               try {
+                await sendLogToServer('info', '开始用户认证', { userId: userId });
+                
                 const response = await fetch('/api/telegram-webapp/auth', {
                   method: 'POST',
                   headers: {
@@ -105,11 +129,14 @@
                 if (data.success) {
                   window.authToken = data.token;
                   window.userInfo = data.user;
+                  await sendLogToServer('info', '用户认证成功', { userId: userId, username: data.user.username });
                   return data;
                 } else {
+                  await sendLogToServer('error', '用户认证失败', { userId: userId, error: data.message });
                   throw new Error(data.message || '认证失败');
                 }
               } catch (error) {
+                await sendLogToServer('error', '用户认证异常', { userId: userId, error: error.message });
                 console.error('认证失败:', error);
                 throw error;
               }
@@ -118,6 +145,8 @@
             // 获取服务器列表
             async function fetchEmbyServers(userId) {
               try {
+                await sendLogToServer('info', '开始获取服务器列表', { userId: userId });
+                
                 const response = await fetch('/api/telegram-webapp/servers', {
                   headers: {
                     'Authorization': `Bearer ${window.authToken}`
@@ -127,11 +156,14 @@
                 const data = await response.json();
                 if (data.success) {
                   window.serversList = data.servers;
+                  await sendLogToServer('info', '获取服务器列表成功', { userId: userId, serverCount: data.servers.length });
                   return data.servers;
                 } else {
+                  await sendLogToServer('error', '获取服务器列表失败', { userId: userId, error: data.message });
                   throw new Error(data.message || '获取服务器列表失败');
                 }
               } catch (error) {
+                await sendLogToServer('error', '获取服务器列表异常', { userId: userId, error: error.message });
                 console.error('获取服务器列表失败:', error);
                 throw error;
               }
@@ -140,6 +172,8 @@
             // 获取站点设置
             async function fetchSiteSettings() {
               try {
+                await sendLogToServer('info', '开始获取站点设置');
+                
                 const response = await fetch('/api/settings/site', {
                   headers: {
                     'Authorization': `Bearer ${window.authToken}`
@@ -149,23 +183,30 @@
                 const data = await response.json();
                 if (data.success) {
                   window.siteSettings = data.settings;
+                  await sendLogToServer('info', '获取站点设置成功');
                   return data.settings;
                 } else {
+                  await sendLogToServer('warn', '获取站点设置失败', { error: data.message });
                   console.warn('获取站点设置失败:', data.message);
                   return null;
                 }
               } catch (error) {
+                await sendLogToServer('warn', '获取站点设置异常', { error: error.message });
                 console.warn('获取站点设置失败:', error);
                 return null;
               }
             }
 
             const initializeData = async () => {
+              await sendLogToServer('info', '开始初始化 Telegram Web App');
+              
               // 等待一小段时间确保Telegram WebApp完全加载
               await new Promise(resolve => setTimeout(resolve, 100));
               
               // 初始化 Telegram WebApp
               if (window.Telegram?.WebApp) {
+                await sendLogToServer('info', '检测到 Telegram WebApp 环境');
+                
                 const webApp = window.Telegram.WebApp;
                 webApp.ready();
                 webApp.expand();
@@ -173,6 +214,8 @@
                 const telegramUserData = webApp.initDataUnsafe?.user;
                 
                 if (telegramUserData) {
+                  await sendLogToServer('info', '获取到 Telegram 用户数据', { userId: telegramUserData.id, username: telegramUserData.first_name });
+                  
                   // 设置全局变量供 React 组件使用
                   window.telegramUserData = telegramUserData;
                   window.telegramWebApp = webApp;
@@ -182,6 +225,8 @@
                     const userInfo = getUserInfo();
                     
                     if (userInfo.user_id) {
+                      await sendLogToServer('info', '开始执行初始化操作', { userId: userInfo.user_id });
+                      
                       // 执行所有初始化操作
                       await Promise.all([
                         fetchUserInfoByTelegram(userInfo.user_id),
@@ -189,17 +234,21 @@
                         fetchSiteSettings()
                       ]);
                       
+                      await sendLogToServer('info', '初始化完成，继续加载 React 应用');
                       console.log('初始化完成，继续加载 React 应用');
                       return true;
                     } else {
+                      await sendLogToServer('error', '无法获取用户ID');
                       showError('无法获取用户ID，请从Telegram机器人菜单重新打开');
                       return false;
                     }
                   } catch (error) {
+                    await sendLogToServer('error', '初始化过程中发生错误', { error: error.message });
                     showError('加载数据失败，请重试');
                     return false;
                   }
                 } else {
+                  await sendLogToServer('error', '无法获取 Telegram 用户信息');
                   showError('无法获取Telegram用户信息，请确保在Telegram中正确打开此应用');
                   return false;
                 }
@@ -210,6 +259,8 @@
                                        !document.referrer.includes('telegram');
                 
                 if (isDesktopBrowser) {
+                  await sendLogToServer('warn', '桌面浏览器访问 Telegram Web App');
+                  
                   // 桌面浏览器访问，显示友好提示
                   document.body.innerHTML = `
                     <div style="
@@ -249,6 +300,7 @@
                   `;
                   return false;
                 } else {
+                  await sendLogToServer('error', 'Telegram WebApp 未正确加载');
                   showError('Telegram WebApp未正确加载，请重新打开');
                   return false;
                 }

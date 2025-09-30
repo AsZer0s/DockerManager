@@ -127,6 +127,48 @@ const authenticateTelegramWebApp = async (req, res, next) => {
 };
 
 /**
+ * @route POST /api/telegram-webapp/log
+ * @desc 接收前端日志
+ * @access Public
+ */
+router.post('/log', async (req, res) => {
+  try {
+    const { level, message, data, timestamp, userAgent, url } = req.body;
+    
+    // 构建日志消息
+    let logMessage = `[Telegram WebApp] ${message}`;
+    if (data) {
+      logMessage += ` | 数据: ${JSON.stringify(data)}`;
+    }
+    if (userAgent) {
+      logMessage += ` | UA: ${userAgent}`;
+    }
+    if (url) {
+      logMessage += ` | URL: ${url}`;
+    }
+    
+    // 根据日志级别输出
+    switch (level) {
+      case 'error':
+        logger.error(logMessage);
+        break;
+      case 'warn':
+        logger.warn(logMessage);
+        break;
+      case 'info':
+      default:
+        logger.info(logMessage);
+        break;
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('处理前端日志失败:', error);
+    res.status(500).json({ success: false, error: '日志处理失败' });
+  }
+});
+
+/**
  * @route POST /api/telegram-webapp/auth
  * @desc 验证 Telegram Web App 用户身份
  * @access Public
