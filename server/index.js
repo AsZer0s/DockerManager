@@ -21,6 +21,8 @@ import monitoringService from './services/monitoringService.js';
 import websocketService from './services/websocketService.js';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
+import { open } from 'sqlite';
+import sqlite3 from 'sqlite3';
 
 // 路由导入
 import authRoutes from './routes/auth.js';
@@ -186,9 +188,6 @@ async function initializeDatabase() {
 
 // 创建数据库表结构
 async function createDatabaseSchema(dbPath) {
-  const { open } = await import('sqlite');
-  const sqlite3 = await import('sqlite3');
-  
   const db = await open({
     filename: dbPath,
     driver: sqlite3.Database
@@ -441,9 +440,6 @@ async function createDatabaseSchema(dbPath) {
 
 // 创建管理员账户
 async function createAdminUser(dbPath) {
-  const { open } = await import('sqlite');
-  const sqlite3 = await import('sqlite3');
-  
   const db = await open({
     filename: dbPath,
     driver: sqlite3.Database
