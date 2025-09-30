@@ -147,18 +147,26 @@ const TelegramWebApp: React.FC = () => {
 
 
   const loadContainers = async (serverId: number) => {
+    if (!user) return;
+    
     try {
-      const response = await fetch(`/api/telegram-webapp/containers/${serverId}`, {
+      const response = await fetch(`/api/telegram-webapp/servers/${serverId}/containers`, {
+        method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          user_id: user.id.toString()
+        })
       });
 
       const data = await response.json();
       
       if (data.success) {
         setContainers(data.containers);
+        console.log(`加载服务器 ${serverId} 的容器列表成功`, { count: data.containers.length });
       } else {
+        console.error('加载容器列表失败:', data.message);
         setError(data.message || '加载容器列表失败');
       }
     } catch (err) {

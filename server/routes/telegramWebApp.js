@@ -379,6 +379,41 @@ router.get('/servers/:serverId/containers', authenticateTelegramWebApp, async (r
 });
 
 /**
+ * @route POST /api/telegram-webapp/servers/:serverId/containers
+ * @desc 获取指定服务器的容器列表（POST 方式）
+ * @access Private (Telegram Web App)
+ */
+router.post('/servers/:serverId/containers', authenticateTelegramWebApp, async (req, res) => {
+  try {
+    const serverId = parseInt(req.params.serverId);
+    
+    // 检查用户是否有权限访问此服务器
+    const hasPermission = await checkUserServerPermission(req.user.id, serverId);
+    if (!hasPermission) {
+      return res.status(403).json({
+        error: '权限不足',
+        message: '您没有权限访问此服务器'
+      });
+    }
+
+    // 获取容器列表
+    const containers = await dockerService.getContainers(serverId);
+    
+    res.json({
+      success: true,
+      containers: containers,
+      total: containers.length
+    });
+  } catch (error) {
+    logger.error('获取容器列表失败:', error);
+    res.status(500).json({
+      error: '获取容器列表失败',
+      message: '服务器内部错误'
+    });
+  }
+});
+
+/**
  * @route GET /api/telegram-webapp/containers/:serverId/:containerId
  * @desc 获取容器详细信息
  * @access Private (Telegram Web App)
@@ -624,11 +659,31 @@ async function checkServerStatus(serverId) {
 
 async function checkUserServerPermission(userId, serverId) {
   try {
+    // 首先检查用户是否是管理员
+    const user = await database.db.get(
+      'SELECT role FROM users WHERE id = ? AND is_active = 1',
+      [userId]
+    );
+
+    if (!user) {
+      logger.error('用户不存在:', userId);
+      return false;
+    }
+
+    // 如果是管理员，默认有所有权限
+    if (user.role === 'admin') {
+      logger.info(`管理员用户 ${userId} 访问服务器 ${serverId} 权限检查: 通过`);
+      return true;
+    }
+
+    // 普通用户检查具体权限
     const permission = await database.db.get(
       'SELECT can_view FROM user_server_permissions WHERE user_id = ? AND server_id = ?',
       [userId, serverId]
     );
-    return permission && permission.can_view;
+    const hasPermission = permission && permission.can_view;
+    logger.info(`普通用户 ${userId} 访问服务器 ${serverId} 权限检查: ${hasPermission ? '通过' : '拒绝'}`);
+    return hasPermission;
   } catch (error) {
     logger.error('检查用户服务器权限失败:', error);
     return false;
@@ -637,11 +692,31 @@ async function checkUserServerPermission(userId, serverId) {
 
 async function checkUserServerControlPermission(userId, serverId) {
   try {
+    // 首先检查用户是否是管理员
+    const user = await database.db.get(
+      'SELECT role FROM users WHERE id = ? AND is_active = 1',
+      [userId]
+    );
+
+    if (!user) {
+      logger.error('用户不存在:', userId);
+      return false;
+    }
+
+    // 如果是管理员，默认有所有权限
+    if (user.role === 'admin') {
+      logger.info(`管理员用户 ${userId} 控制服务器 ${serverId} 权限检查: 通过`);
+      return true;
+    }
+
+    // 普通用户检查具体权限
     const permission = await database.db.get(
       'SELECT can_control FROM user_server_permissions WHERE user_id = ? AND server_id = ?',
       [userId, serverId]
     );
-    return permission && permission.can_control;
+    const hasPermission = permission && permission.can_control;
+    logger.info(`普通用户 ${userId} 控制服务器 ${serverId} 权限检查: ${hasPermission ? '通过' : '拒绝'}`);
+    return hasPermission;
   } catch (error) {
     logger.error('检查用户服务器控制权限失败:', error);
     return false;
