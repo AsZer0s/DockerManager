@@ -521,7 +521,7 @@ async function initializeServices() {
     if (process.env.NODE_ENV === 'production') {
       server.listen(PORT, () => {
         console.log(`✅ Web 服务器运行在端口 ${PORT}`);
-        console.log(`✅ API 服务器运行在端口 ${PORT}`);
+        console.log(`✅ API 服务器运行在端口 ${API_PORT}`);
       });
     } else {
       // 开发环境：只启动 API 服务器

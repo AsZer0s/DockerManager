@@ -652,11 +652,11 @@ const Servers: React.FC = () => {
           </Form.Item>
 
           {authType === 'password' ? (
-            <Form.Item
-              name="password"
-              label="密码"
-              rules={[{ required: true, message: '请输入密码' }]}
-            >
+          <Form.Item
+            name="password"
+            label="密码"
+            rules={[{ required: true, message: '请输入密码' }]}
+          >
               <Input.Password 
                 placeholder="请输入SSH密码" 
                 style={{ width: '100%' }}
@@ -680,7 +680,7 @@ const Servers: React.FC = () => {
                   lineHeight: '1.4'
                 }}
               />
-            </Form.Item>
+          </Form.Item>
           )}
 
           <Form.Item

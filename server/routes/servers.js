@@ -206,7 +206,7 @@ router.get('/', authenticateToken, async (req, res) => {
     let params = [];
 
     let servers;
-    
+
     if (req.user.role === 'admin') {
       // 管理员可以看到所有服务器
       servers = await database.db.all(`

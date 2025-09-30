@@ -57,7 +57,7 @@ class TelegramBotService {
           }
         });
       } else {
-        this.bot = new Telegraf(token);
+      this.bot = new Telegraf(token);
       }
       this.setupEventHandlers();
       this.isInitialized = true;
@@ -424,7 +424,7 @@ class TelegramBotService {
 
       // 立即确认回调查询，避免超时
       try {
-        await ctx.answerCbQuery();
+      await ctx.answerCbQuery();
       } catch (error) {
         // 忽略回调查询超时错误，继续处理
         if (error.description && error.description.includes('query is too old')) {
@@ -694,15 +694,15 @@ class TelegramBotService {
       // 控制按钮（需要控制权限）
       if (hasControlPermission) {
         if (this.isContainerRunning(container)) {
-          buttons.push([
-            Markup.button.callback('⏹️ 停止', `container_${serverId}_${containerId}_stop`),
-            Markup.button.callback('🔄 重启', `container_${serverId}_${containerId}_restart`)
-          ]);
-        } else {
-          buttons.push([
-            Markup.button.callback('▶️ 启动', `container_${serverId}_${containerId}_start`)
-          ]);
-        }
+        buttons.push([
+          Markup.button.callback('⏹️ 停止', `container_${serverId}_${containerId}_stop`),
+          Markup.button.callback('🔄 重启', `container_${serverId}_${containerId}_restart`)
+        ]);
+      } else {
+        buttons.push([
+          Markup.button.callback('▶️ 启动', `container_${serverId}_${containerId}_start`)
+        ]);
+      }
       }
 
       // 查看按钮（需要查看权限）
