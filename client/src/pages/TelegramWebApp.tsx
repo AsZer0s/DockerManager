@@ -79,57 +79,45 @@ const TelegramWebApp: React.FC = () => {
     const initializeData = async () => {
       setLoading(true);
       
-      // 等待一小段时间确保Telegram WebApp完全加载
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // 检查是否被内联脚本阻止加载
+      if ((window as any).stopReactApp) {
+        setError('应用初始化失败');
+        setLoading(false);
+        return;
+      }
       
-      // 初始化 Telegram WebApp
-      if ((window as any).Telegram?.WebApp) {
-        const webApp = (window as any).Telegram.WebApp;
-        webApp.ready();
-        webApp.expand();
+      // 使用内联脚本设置的全局变量
+      const telegramUserData = (window as any).telegramUserData;
+      const webApp = (window as any).telegramWebApp;
+      
+      if (telegramUserData && webApp) {
+        setUser(telegramUserData);
         
-        const telegramUserData = webApp.initDataUnsafe?.user;
-        
-        if (telegramUserData) {
-          setUser(telegramUserData);
-          
-          try {
-            const response = await fetch('/api/telegram-webapp/auth', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                initData: webApp.initData,
-                user: telegramUserData
-              }),
-            });
+        try {
+          const response = await fetch('/api/telegram-webapp/auth', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              initData: webApp.initData,
+              user: telegramUserData
+            }),
+          });
 
-            const data = await response.json();
+          const data = await response.json();
 
-            if (data.success) {
-              setToken(data.token);
-              await loadServers(data.token);
-            } else {
-              setError(data.message || '认证失败');
-            }
-          } catch (error) {
-            setError('加载数据失败，请重试');
+          if (data.success) {
+            setToken(data.token);
+            await loadServers(data.token);
+          } else {
+            setError(data.message || '认证失败');
           }
-        } else {
-          setError('无法获取Telegram用户信息，请确保在Telegram中正确打开此应用');
+        } catch (error) {
+          setError('加载数据失败，请重试');
         }
       } else {
-        // 检查是否在桌面浏览器中访问
-        const isDesktopBrowser = !navigator.userAgent.includes('Telegram') && 
-                               !window.location.search.includes('tgWebAppData') &&
-                               !document.referrer.includes('telegram');
-        
-        if (isDesktopBrowser) {
-          setError('此应用只能在 Telegram 中打开，请通过 Telegram 机器人访问');
-        } else {
-          setError('Telegram WebApp未正确加载，请重新打开');
-        }
+        setError('Telegram WebApp 未正确初始化');
       }
       
       setLoading(false);

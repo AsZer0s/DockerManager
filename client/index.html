@@ -11,74 +11,164 @@
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://telegram.org; object-src 'none';">
     <!-- Telegram Web App Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <!-- 严格的 Telegram Web App 检测 - 仅对 /telegram-webapp 路径生效 -->
+    <!-- Telegram Web App 检测和初始化 - 仅对 /telegram-webapp 路径生效 -->
     <script>
         (function() {
           // 只对 /telegram-webapp 路径进行检测
           if (window.location.pathname === '/telegram-webapp') {
-            // 检查是否在 Telegram Web App 环境中
-            const isTelegramWebApp = (
-              typeof window.Telegram !== 'undefined' &&
-              typeof window.Telegram.WebApp !== 'undefined' &&
-              window.Telegram.WebApp.initData
-            );
-            
-            // 检查是否在桌面浏览器中访问
-            const isDesktopBrowser = !navigator.userAgent.includes('Telegram') && 
-                                   !window.location.search.includes('tgWebAppData') &&
-                                   !document.referrer.includes('telegram');
-            
-            if (!isTelegramWebApp) {
-              if (isDesktopBrowser) {
-                // 桌面浏览器访问，显示友好提示
-                document.body.innerHTML = `
-                  <div style="
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                    display: flex; 
-                    justify-content: center; 
-                    align-items: center; 
-                    height: 100vh; 
-                    margin: 0; 
-                    background: #f5f5f5;
-                  ">
+            const initializeData = async () => {
+              // 等待一小段时间确保Telegram WebApp完全加载
+              await new Promise(resolve => setTimeout(resolve, 100));
+              
+              // 初始化 Telegram WebApp
+              if (window.Telegram?.WebApp) {
+                const webApp = window.Telegram.WebApp;
+                webApp.ready();
+                webApp.expand();
+                
+                const telegramUserData = webApp.initDataUnsafe?.user;
+                
+                if (telegramUserData) {
+                  // 设置全局变量供 React 组件使用
+                  window.telegramUserData = telegramUserData;
+                  window.telegramWebApp = webApp;
+                  
+                  // 继续加载 React 应用
+                  return true;
+                } else {
+                  // 无法获取用户信息
+                  document.body.innerHTML = `
                     <div style="
-                      text-align: center; 
-                      background: white; 
-                      padding: 40px; 
-                      border-radius: 12px; 
-                      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-                      max-width: 400px;
+                      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                      display: flex; 
+                      justify-content: center; 
+                      align-items: center; 
+                      height: 100vh; 
+                      margin: 0; 
+                      background: #f5f5f5;
                     ">
-                      <div style="font-size: 48px; margin-bottom: 20px;">📱</div>
-                      <h1 style="color: #333; margin-bottom: 16px;">Telegram Web App</h1>
-                      <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">此应用只能在 Telegram 中打开</p>
-                      <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">请通过 Telegram 机器人访问此应用</p>
-                      <a href="https://t.me/DockerManger_Bot" style="
-                        display: inline-block; 
-                        background: #0088cc; 
-                        color: white; 
-                        padding: 12px 24px; 
-                        text-decoration: none; 
-                        border-radius: 8px; 
-                        font-weight: 500;
-                      " onmouseover="this.style.background='#006699'" onmouseout="this.style.background='#0088cc'">
-                        打开 Telegram 机器人
-                      </a>
+                      <div style="
+                        text-align: center; 
+                        background: white; 
+                        padding: 40px; 
+                        border-radius: 12px; 
+                        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+                        max-width: 400px;
+                      ">
+                        <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
+                        <h1 style="color: #333; margin-bottom: 16px;">无法获取用户信息</h1>
+                        <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">请确保在 Telegram 中正确打开此应用</p>
+                        <a href="https://t.me/DockerManger_Bot" style="
+                          display: inline-block; 
+                          background: #0088cc; 
+                          color: white; 
+                          padding: 12px 24px; 
+                          text-decoration: none; 
+                          border-radius: 8px; 
+                          font-weight: 500;
+                        " onmouseover="this.style.background='#006699'" onmouseout="this.style.background='#0088cc'">
+                          打开 Telegram 机器人
+                        </a>
+                      </div>
                     </div>
-                  </div>
-                `;
-              } else {
-                // 可能是 Telegram 环境但初始化失败
-                try {
-                  window.stop();
-                } catch (e) {
-                  document.execCommand('Stop');
+                  `;
+                  return false;
                 }
-                document.documentElement.innerHTML = '';
-                document.title = 'Telegram Web App 初始化失败';
-                throw new Error("Telegram Web App 初始化失败");
+              } else {
+                // 检查是否在桌面浏览器中访问
+                const isDesktopBrowser = !navigator.userAgent.includes('Telegram') && 
+                                       !window.location.search.includes('tgWebAppData') &&
+                                       !document.referrer.includes('telegram');
+                
+                if (isDesktopBrowser) {
+                  // 桌面浏览器访问，显示友好提示
+                  document.body.innerHTML = `
+                    <div style="
+                      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                      display: flex; 
+                      justify-content: center; 
+                      align-items: center; 
+                      height: 100vh; 
+                      margin: 0; 
+                      background: #f5f5f5;
+                    ">
+                      <div style="
+                        text-align: center; 
+                        background: white; 
+                        padding: 40px; 
+                        border-radius: 12px; 
+                        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+                        max-width: 400px;
+                      ">
+                        <div style="font-size: 48px; margin-bottom: 20px;">📱</div>
+                        <h1 style="color: #333; margin-bottom: 16px;">Telegram Web App</h1>
+                        <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">此应用只能在 Telegram 中打开</p>
+                        <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">请通过 Telegram 机器人访问此应用</p>
+                        <a href="https://t.me/DockerManger_Bot" style="
+                          display: inline-block; 
+                          background: #0088cc; 
+                          color: white; 
+                          padding: 12px 24px; 
+                          text-decoration: none; 
+                          border-radius: 8px; 
+                          font-weight: 500;
+                        " onmouseover="this.style.background='#006699'" onmouseout="this.style.background='#0088cc'">
+                          打开 Telegram 机器人
+                        </a>
+                      </div>
+                    </div>
+                  `;
+                  return false;
+                } else {
+                  // 可能是 Telegram 环境但初始化失败
+                  document.body.innerHTML = `
+                    <div style="
+                      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                      display: flex; 
+                      justify-content: center; 
+                      align-items: center; 
+                      height: 100vh; 
+                      margin: 0; 
+                      background: #f5f5f5;
+                    ">
+                      <div style="
+                        text-align: center; 
+                        background: white; 
+                        padding: 40px; 
+                        border-radius: 12px; 
+                        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+                        max-width: 400px;
+                      ">
+                        <div style="font-size: 48px; margin-bottom: 20px;">❌</div>
+                        <h1 style="color: #333; margin-bottom: 16px;">初始化失败</h1>
+                        <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">Telegram WebApp 未正确加载，请重新打开</p>
+                        <button onclick="window.location.reload()" style="
+                          display: inline-block; 
+                          background: #0088cc; 
+                          color: white; 
+                          padding: 12px 24px; 
+                          border: none;
+                          border-radius: 8px; 
+                          font-weight: 500;
+                          cursor: pointer;
+                        " onmouseover="this.style.background='#006699'" onmouseout="this.style.background='#0088cc'">
+                          重新加载
+                        </button>
+                      </div>
+                    </div>
+                  `;
+                  return false;
+                }
               }
-            }
+            };
+            
+            // 执行初始化
+            initializeData().then(success => {
+              if (!success) {
+                // 如果初始化失败，阻止 React 应用加载
+                window.stopReactApp = true;
+              }
+            });
           }
         })();
     </script>
