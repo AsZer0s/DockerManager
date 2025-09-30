@@ -34,12 +34,75 @@ function verifyTelegramWebAppData(initData, botToken) {
   }
 }
 
+// 中间件：验证 JWT Token
+const authenticateJWT = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({
+        error: '未授权',
+        message: '缺少认证令牌'
+      });
+    }
+
+    const token = authHeader.substring(7);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    // 查找数据库中的用户
+    const user = await database.db.get(
+      'SELECT * FROM users WHERE id = ? AND is_active = 1',
+      [decoded.userId]
+    );
+
+    if (!user) {
+      return res.status(403).json({
+        error: '用户不存在',
+        message: '用户已被删除或禁用'
+      });
+    }
+
+    req.user = user;
+    req.telegramUser = { id: decoded.telegramId };
+    next();
+  } catch (error) {
+    logger.error('JWT 认证失败:', error);
+    return res.status(401).json({
+      error: '认证失败',
+      message: '令牌无效或已过期'
+    });
+  }
+};
+
 // 中间件：验证 Telegram Web App 认证
 const authenticateTelegramWebApp = async (req, res, next) => {
   try {
+    // 首先尝试 JWT 认证（用于 GET 请求）
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const token = authHeader.substring(7);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        
+        const user = await database.db.get(
+          'SELECT * FROM users WHERE id = ? AND is_active = 1',
+          [decoded.userId]
+        );
+
+        if (user) {
+          req.user = user;
+          req.telegramUser = { id: decoded.telegramId };
+          next();
+          return;
+        }
+      } catch (jwtError) {
+        // JWT 认证失败，继续尝试其他方式
+        logger.warn('JWT 认证失败，尝试其他认证方式:', jwtError.message);
+      }
+    }
+
+    // 尝试从请求体获取 user_id（用于 POST 请求）
     const { user_id, chat_id, message_id, initData } = req.body;
     
-    // 优先使用 user_id 方式认证
     if (user_id) {
       logger.info(`使用 user_id 认证: ${user_id}`);
       
@@ -212,6 +275,39 @@ router.post('/auth', authenticateTelegramWebApp, async (req, res) => {
  * @access Private (Telegram Web App)
  */
 router.get('/servers', authenticateTelegramWebApp, async (req, res) => {
+  try {
+    const servers = await getUserServers(req.user.id);
+    
+    // 检查服务器状态
+    const serversWithStatus = await Promise.all(servers.map(async (server) => {
+      const status = await checkServerStatus(server.id);
+      return {
+        ...server,
+        status: status ? 'online' : 'offline',
+        statusIcon: status ? '🟢' : '🔴'
+      };
+    }));
+
+    res.json({
+      success: true,
+      servers: serversWithStatus,
+      total: serversWithStatus.length
+    });
+  } catch (error) {
+    logger.error('获取服务器列表失败:', error);
+    res.status(500).json({
+      error: '获取服务器列表失败',
+      message: '服务器内部错误'
+    });
+  }
+});
+
+/**
+ * @route POST /api/telegram-webapp/servers
+ * @desc 获取用户可访问的服务器列表（POST 方式）
+ * @access Private (Telegram Web App)
+ */
+router.post('/servers', authenticateTelegramWebApp, async (req, res) => {
   try {
     const servers = await getUserServers(req.user.id);
     

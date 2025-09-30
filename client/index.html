@@ -148,9 +148,13 @@
                 await sendLogToServer('info', '开始获取服务器列表', { userId: userId });
                 
                 const response = await fetch('/api/telegram-webapp/servers', {
+                  method: 'POST',
                   headers: {
-                    'Authorization': `Bearer ${window.authToken}`
-                  }
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    user_id: userId
+                  })
                 });
 
                 const data = await response.json();
@@ -169,31 +173,16 @@
               }
             }
 
-            // 获取站点设置
+            // 获取站点设置（暂时跳过，因为 API 不存在）
             async function fetchSiteSettings() {
               try {
-                await sendLogToServer('info', '开始获取站点设置');
-                
-                const response = await fetch('/api/settings/site', {
-                  headers: {
-                    'Authorization': `Bearer ${window.authToken}`
-                  }
-                });
-
-                const data = await response.json();
-                if (data.success) {
-                  window.siteSettings = data.settings;
-                  await sendLogToServer('info', '获取站点设置成功');
-                  return data.settings;
-                } else {
-                  await sendLogToServer('warn', '获取站点设置失败', { error: data.message });
-                  console.warn('获取站点设置失败:', data.message);
-                  return null;
-                }
+                await sendLogToServer('info', '跳过获取站点设置（API 不存在）');
+                window.siteSettings = {}; // 设置默认值
+                return {};
               } catch (error) {
                 await sendLogToServer('warn', '获取站点设置异常', { error: error.message });
                 console.warn('获取站点设置失败:', error);
-                return null;
+                return {};
               }
             }
 
