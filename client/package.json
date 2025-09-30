@@ -1,0 +1,46 @@
+{
+  "name": "docker-manager-client",
+  "version": "1.0.0",
+  "description": "Docker Manager 前端界面",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --ext js,jsx,ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "lint:fix": "eslint . --ext js,jsx,ts,tsx --fix"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.20.1",
+    "axios": "^1.6.2",
+    "socket.io-client": "^4.7.4",
+    "antd": "^5.12.8",
+    "@ant-design/icons": "^5.2.6",
+    "echarts": "^5.4.3",
+    "echarts-for-react": "^3.0.2",
+    "dayjs": "^1.11.10",
+    "lodash": "^4.17.21",
+    "react-query": "^3.39.3",
+    "zustand": "^4.4.7",
+    "react-hook-form": "^7.48.2",
+    "react-hot-toast": "^2.4.1",
+        "@xterm/xterm": "^5.3.0",
+        "@xterm/addon-fit": "^0.9.0",
+        "@xterm/addon-web-links": "^0.11.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "@types/lodash": "^4.14.202",
+    "@typescript-eslint/eslint-plugin": "^6.14.0",
+    "@typescript-eslint/parser": "^6.14.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "eslint": "^8.55.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.5",
+    "typescript": "^5.2.2",
+    "vite": "^5.4.0"
+  }
+}

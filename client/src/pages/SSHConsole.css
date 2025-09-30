@@ -1,0 +1,224 @@
+.ssh-console {
+  padding: 20px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.ssh-console .ant-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.ssh-console .ant-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+
+.terminal-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #1e1e1e;
+  color: #ffffff;
+  font-family: 'Courier New', 'Monaco', 'Menlo', monospace;
+  font-size: 14px;
+  line-height: 1.4;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.terminal-output {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  max-height: calc(100vh - 200px);
+  background: #1e1e1e;
+}
+
+.terminal-line {
+  margin: 0;
+  padding: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+  min-height: 1.4em;
+}
+
+.terminal-line:last-child {
+  margin-bottom: 0;
+}
+
+.terminal-input {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  background: #2d2d2d;
+  border-top: 1px solid #404040;
+  min-height: 40px;
+}
+
+.prompt {
+  color: #00ff00;
+  font-weight: bold;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.command-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  padding: 0;
+  margin: 0;
+}
+
+.command-input::placeholder {
+  color: #666666;
+}
+
+.command-input:focus {
+  outline: none;
+}
+
+/* 滚动条样式 */
+.terminal-output::-webkit-scrollbar {
+  width: 8px;
+}
+
+.terminal-output::-webkit-scrollbar-track {
+  background: #2d2d2d;
+}
+
+.terminal-output::-webkit-scrollbar-thumb {
+  background: #555555;
+  border-radius: 4px;
+}
+
+.terminal-output::-webkit-scrollbar-thumb:hover {
+  background: #777777;
+}
+
+/* 命令提示符样式 */
+.terminal-line:has-text("$ ") {
+  color: #00ff00;
+}
+
+/* 错误信息样式 */
+.terminal-line:has-text("! ") {
+  color: #ff4444;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .ssh-console {
+    padding: 10px;
+  }
+  
+  .terminal-output {
+    font-size: 12px;
+    padding: 12px;
+  }
+  
+  .terminal-input {
+    padding: 6px 12px;
+    min-height: 36px;
+  }
+}
+
+/* 终端动画效果 */
+.terminal-output {
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* 光标闪烁效果 */
+.command-input::after {
+  content: '|';
+  animation: blink 1s infinite;
+  color: #00ff00;
+}
+
+@keyframes blink {
+  0%, 50% {
+    opacity: 1;
+  }
+  51%, 100% {
+    opacity: 0;
+  }
+}
+
+/* 选择框样式优化 */
+.ssh-console .ant-select {
+  background: #ffffff;
+}
+
+.ssh-console .ant-select .ant-select-selector {
+  border-radius: 4px;
+}
+
+/* 按钮组样式 */
+.ssh-console .ant-space {
+  flex-wrap: wrap;
+}
+
+.ssh-console .ant-btn {
+  border-radius: 4px;
+}
+
+/* 卡片标题样式 */
+.ssh-console .ant-card-head {
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.ssh-console .ant-card-head-title {
+  font-weight: 600;
+}
+
+/* 终端内容高亮 */
+.terminal-line {
+  position: relative;
+}
+
+.terminal-line:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* 命令历史高亮 */
+.terminal-line.command-history {
+  color: #ffff00;
+  background: rgba(255, 255, 0, 0.1);
+}
+
+/* 错误信息高亮 */
+.terminal-line.error {
+  color: #ff6666;
+  background: rgba(255, 102, 102, 0.1);
+}
+
+/* 成功信息高亮 */
+.terminal-line.success {
+  color: #66ff66;
+  background: rgba(102, 255, 102, 0.1);
+}
+
+/* 信息提示高亮 */
+.terminal-line.info {
+  color: #6666ff;
+  background: rgba(102, 102, 255, 0.1);
+}

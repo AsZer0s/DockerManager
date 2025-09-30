@@ -1,0 +1,25 @@
+{
+  "name": "docker-manager-telegram-web",
+  "version": "1.0.0",
+  "description": "Docker 管理 Telegram 机器人 + Web 系统",
+  "main": "server/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
+    "all": "concurrently \"npm run init\" \"npm run server:dev\" \"npm run client:dev\"",
+    "server:dev": "cd server && npm run dev",
+    "client:dev": "cd client && npm run dev",
+    "build": "cd client && npm run build",
+    "start": "cd server && npm start",
+    "init": "cd server && node init-admin.js"
+  },
+  "keywords": ["docker", "telegram", "bot", "web", "management"],
+  "author": "Zer0Teams",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

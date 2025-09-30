@@ -1,0 +1,20 @@
+services:
+  app:
+    build: .
+    container_name: docker-manager-app
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_WEBAPP_URL=${TELEGRAM_WEBAPP_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - TGBOT_PROXY=${TGBOT_PROXY}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - docker-manager-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  docker-manager-data:
