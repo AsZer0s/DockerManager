@@ -558,6 +558,30 @@ router.get('/containers/:serverId/:containerId/stats', authenticateTelegramWebAp
 // 辅助函数
 async function getUserServers(userId) {
   try {
+    // 首先检查用户是否是管理员
+    const user = await database.db.get(
+      'SELECT role FROM users WHERE id = ? AND is_active = 1',
+      [userId]
+    );
+
+    if (!user) {
+      logger.error('用户不存在:', userId);
+      return [];
+    }
+
+    // 如果是管理员，返回所有服务器
+    if (user.role === 'admin') {
+      const servers = await database.db.all(`
+        SELECT s.*, 1 as can_view, 1 as can_control, 1 as can_ssh, 0 as hide_sensitive_info
+        FROM servers s
+        WHERE s.is_active = 1
+        ORDER BY s.name
+      `);
+      logger.info(`管理员用户 ${userId} 获取所有服务器: ${servers.length} 个`);
+      return servers;
+    }
+
+    // 普通用户，只返回有权限的服务器
     const servers = await database.db.all(`
       SELECT s.*, p.can_view, p.can_control, p.can_ssh, p.hide_sensitive_info
       FROM servers s
@@ -565,6 +589,7 @@ async function getUserServers(userId) {
       WHERE p.user_id = ? AND s.is_active = 1 AND p.can_view = 1
       ORDER BY s.name
     `, [userId]);
+    logger.info(`普通用户 ${userId} 获取有权限的服务器: ${servers.length} 个`);
     return servers;
   } catch (error) {
     logger.error('获取用户服务器失败:', error);
