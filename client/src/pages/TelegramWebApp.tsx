@@ -94,12 +94,17 @@ const TelegramWebApp: React.FC = () => {
         const authToken = (window as any).authToken;
         const userInfo = (window as any).userInfo;
         const serversList = (window as any).serversList;
+        const telegramUserData = (window as any).telegramUserData;
         
-        if (authToken && userInfo && serversList) {
+        if (authToken && userInfo && serversList && telegramUserData) {
           setToken(authToken);
-          setUser(userInfo);
+          setUser(telegramUserData);
           setServers(serversList);
-          console.log('使用内联脚本准备的数据初始化完成');
+          console.log('使用内联脚本准备的数据初始化完成', {
+            telegramUser: telegramUserData,
+            backendUser: userInfo,
+            serversCount: serversList.length
+          });
           setLoading(false);
           return;
         }
@@ -114,6 +119,7 @@ const TelegramWebApp: React.FC = () => {
         authToken: (window as any).authToken,
         userInfo: (window as any).userInfo,
         serversList: (window as any).serversList,
+        telegramUserData: (window as any).telegramUserData,
         stopReactApp: (window as any).stopReactApp
       });
       setError('数据初始化超时，请刷新页面重试');
