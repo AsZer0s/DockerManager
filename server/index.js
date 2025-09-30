@@ -517,10 +517,18 @@ async function initializeServices() {
     const PORT = 3000;
     const API_PORT = 3001;
     
-    server.listen(API_PORT, () => {
-      console.log(`✅ API 服务器运行在端口 ${API_PORT}`);
-    });
-
+    // 在生产环境中，主服务器同时处理 API 和 Web 请求
+    if (process.env.NODE_ENV === 'production') {
+      server.listen(PORT, () => {
+        console.log(`✅ Web 服务器运行在端口 ${PORT}`);
+        console.log(`✅ API 服务器运行在端口 ${PORT}`);
+      });
+    } else {
+      // 开发环境：只启动 API 服务器
+      server.listen(API_PORT, () => {
+        console.log(`✅ API 服务器运行在端口 ${API_PORT}`);
+      });
+    }
 
     // 延迟启动其他服务，避免阻塞主服务器启动
     setTimeout(async () => {
