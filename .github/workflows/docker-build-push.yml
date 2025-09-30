@@ -14,6 +14,9 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     
     steps:
     - name: Checkout code
@@ -35,13 +38,11 @@ jobs:
       with:
         images: ${{ env.IMAGE_NAME }}
         tags: |
-          type=ref,event=branch
-          type=ref,event=pr
           type=semver,pattern={{version}}
-          type=semver,pattern={{major}}.{{minor}}
           type=raw,value=latest,enable={{is_default_branch}}
           
     - name: Build and push Docker image
+      id: build
       uses: docker/build-push-action@v5
       with:
         context: .
@@ -52,24 +53,39 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
         
-    - name: Image digest
-      run: echo ${{ steps.build.outputs.digest }}
+    - name: Build info
+      if: github.event_name != 'pull_request'
+      run: |
+        echo "🏗️ Build completed successfully!"
+        echo "📦 Image: ${{ env.IMAGE_NAME }}"
+        echo "🏷️ Tags: ${{ steps.meta.outputs.tags }}"
+        echo "🔧 Platforms: linux/amd64,linux/arm64"
+        echo "📋 Digest: ${{ steps.build.outputs.digest }}"
+      
+    - name: Wait for image availability
+      if: github.event_name != 'pull_request'
+      run: |
+        echo "Waiting for image to be available on Docker Hub..."
+        sleep 30
       
   security-scan:
     runs-on: ubuntu-latest
     needs: build-and-push
     if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      security-events: write
     
     steps:
     - name: Run Trivy vulnerability scanner
       uses: aquasecurity/trivy-action@master
       with:
-        image-ref: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+        image-ref: ${{ env.IMAGE_NAME }}:latest
         format: 'sarif'
         output: 'trivy-results.sarif'
         
     - name: Upload Trivy scan results to GitHub Security tab
-      uses: github/codeql-action/upload-sarif@v2
+      uses: github/codeql-action/upload-sarif@v3
       if: always()
       with:
         sarif_file: 'trivy-results.sarif'
