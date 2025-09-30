@@ -41,13 +41,23 @@ const TelegramDebug: React.FC = () => {
     const hasWebAppData = window.location.search.includes('tgWebAppData');
     const hasTelegramReferrer = document.referrer.includes('telegram');
     const hasTelegramObject = !!(window as any).Telegram?.WebApp;
+    const hasInitData = !!(window as any).Telegram?.WebApp?.initData;
+    
+    // 使用严格的检测逻辑
+    const isStrictTelegram = (
+      typeof (window as any).Telegram !== 'undefined' &&
+      typeof (window as any).Telegram.WebApp !== 'undefined' &&
+      !!(window as any).Telegram.WebApp.initData
+    );
     
     return {
       hasTelegramUA,
       hasWebAppData,
       hasTelegramReferrer,
       hasTelegramObject,
-      overall: hasTelegramUA || hasWebAppData || hasTelegramReferrer || hasTelegramObject
+      hasInitData,
+      isStrictTelegram,
+      overall: isStrictTelegram
     };
   };
 
@@ -61,10 +71,12 @@ const TelegramDebug: React.FC = () => {
         <Card title="环境检测结果">
           <Space direction="vertical">
             <Text strong>总体检测: {environment.overall ? '✅ 是 Telegram 环境' : '❌ 不是 Telegram 环境'}</Text>
+            <Text>严格检测: {environment.isStrictTelegram ? '✅' : '❌'}</Text>
             <Text>User Agent 包含 Telegram: {environment.hasTelegramUA ? '✅' : '❌'}</Text>
             <Text>URL 包含 tgWebAppData: {environment.hasWebAppData ? '✅' : '❌'}</Text>
             <Text>Referrer 包含 telegram: {environment.hasTelegramReferrer ? '✅' : '❌'}</Text>
             <Text>window.Telegram.WebApp 存在: {environment.hasTelegramObject ? '✅' : '❌'}</Text>
+            <Text>initData 存在: {environment.hasInitData ? '✅' : '❌'}</Text>
           </Space>
         </Card>
 

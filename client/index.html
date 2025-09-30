@@ -9,6 +9,27 @@
     <meta name="keywords" content="Docker,容器管理,服务器监控,SSH,Telegram机器人" />
     <!-- Telegram Web App Script -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- 严格的 Telegram Web App 检测 -->
+    <script>
+        (function() {
+          if (
+            typeof window.Telegram === 'undefined' ||
+            typeof window.Telegram.WebApp === 'undefined' ||
+            !window.Telegram.WebApp.initData
+          ) {
+            try {
+              window.stop();
+            } catch (e) {
+              document.execCommand('Stop');
+            }
+        
+            document.documentElement.innerHTML = '';
+            document.title = '非法访问';
+        
+            throw new Error("非法访问");
+          }
+        })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

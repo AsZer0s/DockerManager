@@ -87,14 +87,22 @@ const TelegramWebApp: React.FC = () => {
           attempts++;
         }
         
-        // 检查是否在 Telegram Web App 环境中
-        if ((window as any).Telegram?.WebApp) {
-          const tg = (window as any).Telegram.WebApp;
-          tg.ready();
-          tg.expand();
+        // 使用更严格的检测方法
+        if (
+          typeof (window as any).Telegram === 'undefined' ||
+          typeof (window as any).Telegram.WebApp === 'undefined' ||
+          !(window as any).Telegram.WebApp.initData
+        ) {
+          setError('请在 Telegram 中打开此应用');
+          return;
+        }
+        
+        const tg = (window as any).Telegram.WebApp;
+        tg.ready();
+        tg.expand();
 
-          const initData = tg.initData;
-          const user = tg.initDataUnsafe?.user;
+        const initData = tg.initData;
+        const user = tg.initDataUnsafe?.user;
 
           if (user) {
             setUser(user);
@@ -118,24 +126,6 @@ const TelegramWebApp: React.FC = () => {
           } else {
             setError('无法获取 Telegram 用户信息');
           }
-        } else {
-          console.log('Telegram Web App 未检测到');
-          console.log('window.Telegram:', (window as any).Telegram);
-          console.log('User Agent:', navigator.userAgent);
-          console.log('URL:', window.location.href);
-          
-          // 检查是否在 Telegram 环境中（备用检测方法）
-          const isTelegram = navigator.userAgent.includes('Telegram') || 
-                           window.location.search.includes('tgWebAppData') ||
-                           document.referrer.includes('telegram');
-          
-          if (isTelegram) {
-            console.log('检测到 Telegram 环境，但 Web App 脚本未加载');
-            setError('Telegram Web App 脚本加载失败，请刷新页面重试');
-          } else {
-            setError('请在 Telegram 中打开此应用');
-          }
-        }
       } catch (err) {
         console.error('初始化失败:', err);
         setError('初始化失败，请重试');
