@@ -1149,23 +1149,39 @@ class DockerService {
 
   async updateContainerInDatabase(serverId, container) {
     try {
-      await database.db.run(`
-        INSERT INTO containers (server_id, container_id, name, image, status, created_at)
-        VALUES (?, ?, ?, ?, ?, ?)
-        ON CONFLICT (server_id, container_id)
-        DO UPDATE SET
-          name = excluded.name,
-          image = excluded.image,
-          status = excluded.status,
-          updated_at = CURRENT_TIMESTAMP
-      `, [
-        serverId,
-        container.id,
-        container.name,
-        container.image,
-        container.status,
-        container.created
-      ]);
+      // 首先检查容器是否已存在
+      const existing = await database.db.get(
+        'SELECT id FROM containers WHERE server_id = ? AND container_id = ?',
+        [serverId, container.id]
+      );
+
+      if (existing) {
+        // 更新现有记录
+        await database.db.run(`
+          UPDATE containers 
+          SET name = ?, image = ?, status = ?, updated_at = CURRENT_TIMESTAMP
+          WHERE server_id = ? AND container_id = ?
+        `, [
+          container.name,
+          container.image,
+          container.status,
+          serverId,
+          container.id
+        ]);
+      } else {
+        // 插入新记录
+        await database.db.run(`
+          INSERT INTO containers (server_id, container_id, name, image, status, created_at)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `, [
+          serverId,
+          container.id,
+          container.name,
+          container.image,
+          container.status,
+          container.created
+        ]);
+      }
     } catch (error) {
       logger.error('更新容器数据库记录失败:', error);
     }

@@ -455,6 +455,48 @@ router.get('/containers/:serverId/:containerId', authenticateTelegramWebApp, asy
 });
 
 /**
+ * @route POST /api/telegram-webapp/containers/:serverId/:containerId
+ * @desc 获取容器详细信息（POST 方式）
+ * @access Private (Telegram Web App)
+ */
+router.post('/containers/:serverId/:containerId', authenticateTelegramWebApp, async (req, res) => {
+  try {
+    const serverId = parseInt(req.params.serverId);
+    const containerId = req.params.containerId;
+    
+    // 检查用户是否有权限访问此服务器
+    const hasPermission = await checkUserServerPermission(req.user.id, serverId);
+    if (!hasPermission) {
+      return res.status(403).json({
+        error: '权限不足',
+        message: '您没有权限访问此服务器'
+      });
+    }
+
+    // 获取容器详细信息
+    const container = await dockerService.getContainerInfo(serverId, containerId);
+    
+    if (!container) {
+      return res.status(404).json({
+        error: '容器不存在',
+        message: '找不到指定的容器'
+      });
+    }
+    
+    res.json({
+      success: true,
+      container: container
+    });
+  } catch (error) {
+    logger.error('获取容器详情失败:', error);
+    res.status(500).json({
+      error: '获取容器详情失败',
+      message: '服务器内部错误'
+    });
+  }
+});
+
+/**
  * @route POST /api/telegram-webapp/containers/:serverId/:containerId/:action
  * @desc 执行容器操作（启动、停止、重启）
  * @access Private (Telegram Web App)

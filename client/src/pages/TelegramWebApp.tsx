@@ -176,12 +176,17 @@ const TelegramWebApp: React.FC = () => {
   };
 
   const executeContainerAction = async (serverId: number, containerId: string, action: string) => {
+    if (!user) return;
+    
     try {
       const response = await fetch(`/api/telegram-webapp/containers/${serverId}/${containerId}/${action}`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          user_id: user.id.toString()
+        })
       });
 
       const data = await response.json();
@@ -192,7 +197,9 @@ const TelegramWebApp: React.FC = () => {
         if (selectedContainer?.id === containerId) {
           await loadContainerDetails(serverId, containerId);
         }
+        console.log(`容器 ${containerId} ${action} 操作成功`);
       } else {
+        console.error(`容器${action}失败:`, data.message);
         setError(data.message || `容器${action}失败`);
       }
     } catch (err) {
@@ -202,18 +209,26 @@ const TelegramWebApp: React.FC = () => {
   };
 
   const loadContainerDetails = async (serverId: number, containerId: string) => {
+    if (!user) return;
+    
     try {
       const response = await fetch(`/api/telegram-webapp/containers/${serverId}/${containerId}`, {
+        method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          user_id: user.id.toString()
+        })
       });
 
       const data = await response.json();
       
       if (data.success) {
         setSelectedContainer(data.container);
+        console.log(`加载容器 ${containerId} 详情成功`);
       } else {
+        console.error('加载容器详情失败:', data.message);
         setError(data.message || '加载容器详情失败');
       }
     } catch (err) {
@@ -223,24 +238,49 @@ const TelegramWebApp: React.FC = () => {
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'running':
-        return 'success';
-      case 'exited':
-        return 'error';
-      default:
-        return 'warning';
+    const lowerStatus = status.toLowerCase();
+    if (lowerStatus.includes('running') || lowerStatus.includes('up')) {
+      return 'success';
+    } else if (lowerStatus.includes('exited') || lowerStatus.includes('stopped') || lowerStatus.includes('down')) {
+      return 'error';
+    } else if (lowerStatus.includes('paused')) {
+      return 'warning';
+    } else if (lowerStatus.includes('created') || lowerStatus.includes('restarting')) {
+      return 'processing';
+    } else {
+      return 'default';
     }
   };
 
   const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'running':
-        return <CheckCircleOutlined style={{ color: '#52c41a' }} />;
-      case 'exited':
-        return <CloseCircleOutlined style={{ color: '#ff4d4f' }} />;
-      default:
-        return <ExclamationCircleOutlined style={{ color: '#faad14' }} />;
+    const lowerStatus = status.toLowerCase();
+    if (lowerStatus.includes('running') || lowerStatus.includes('up')) {
+      return <CheckCircleOutlined style={{ color: '#52c41a' }} />;
+    } else if (lowerStatus.includes('exited') || lowerStatus.includes('stopped') || lowerStatus.includes('down')) {
+      return <CloseCircleOutlined style={{ color: '#ff4d4f' }} />;
+    } else if (lowerStatus.includes('paused')) {
+      return <ExclamationCircleOutlined style={{ color: '#faad14' }} />;
+    } else if (lowerStatus.includes('created') || lowerStatus.includes('restarting')) {
+      return <LoadingOutlined style={{ color: '#1890ff' }} />;
+    } else {
+      return <ExclamationCircleOutlined style={{ color: '#faad14' }} />;
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    const lowerStatus = status.toLowerCase();
+    if (lowerStatus.includes('running') || lowerStatus.includes('up')) {
+      return '运行中';
+    } else if (lowerStatus.includes('exited') || lowerStatus.includes('stopped') || lowerStatus.includes('down')) {
+      return '已停止';
+    } else if (lowerStatus.includes('paused')) {
+      return '已暂停';
+    } else if (lowerStatus.includes('created')) {
+      return '已创建';
+    } else if (lowerStatus.includes('restarting')) {
+      return '重启中';
+    } else {
+      return status;
     }
   };
 
@@ -473,7 +513,7 @@ const TelegramWebApp: React.FC = () => {
                           <Space direction="vertical" size="small">
                             <Text type="secondary">{container.image}</Text>
                             <Tag color={getStatusColor(container.status)}>
-                              {container.status}
+                              {getStatusText(container.status)}
                             </Tag>
                           </Space>
                         }
@@ -495,47 +535,103 @@ const TelegramWebApp: React.FC = () => {
                   <Text type="secondary">{selectedContainer.image}</Text>
                 </div>
 
-                <Row gutter={16}>
+                {/* 容器状态统计 */}
+                <Row gutter={[16, 16]}>
                   <Col span={8}>
                     <Statistic
                       title="状态"
-                      value={selectedContainer.status}
+                      value={getStatusText(selectedContainer.status)}
                       prefix={getStatusIcon(selectedContainer.status)}
+                      valueStyle={{ 
+                        color: getStatusColor(selectedContainer.status) === 'success' ? '#3f8600' : 
+                               getStatusColor(selectedContainer.status) === 'error' ? '#cf1322' : 
+                               getStatusColor(selectedContainer.status) === 'warning' ? '#d48806' : '#1890ff'
+                      }}
+                    />
+                  </Col>
+                  <Col span={8}>
+                    <Statistic
+                      title="容器ID"
+                      value={selectedContainer.id.substring(0, 12)}
+                      valueStyle={{ fontSize: '14px' }}
                     />
                   </Col>
                   <Col span={8}>
                     <Statistic
                       title="创建时间"
-                      value={new Date(selectedContainer.created).toLocaleString()}
+                      value={new Date(selectedContainer.created).toLocaleDateString()}
+                      valueStyle={{ fontSize: '14px' }}
                     />
                   </Col>
                 </Row>
 
                 <Divider />
 
-                <Space>
-                  <Button
-                    type="primary"
-                    icon={<PlayCircleOutlined />}
-                    onClick={() => executeContainerAction(selectedServer!.id, selectedContainer.id, 'start')}
-                    disabled={selectedContainer.status === 'running'}
-                  >
-                    启动
-                  </Button>
-                  <Button
-                    icon={<StopOutlined />}
-                    onClick={() => executeContainerAction(selectedServer!.id, selectedContainer.id, 'stop')}
-                    disabled={selectedContainer.status !== 'running'}
-                  >
-                    停止
-                  </Button>
-                  <Button
-                    icon={<ReloadOutlined />}
-                    onClick={() => executeContainerAction(selectedServer!.id, selectedContainer.id, 'restart')}
-                  >
-                    重启
-                  </Button>
-                </Space>
+                {/* 容器操作按钮 */}
+                <div>
+                  <Title level={5}>容器操作</Title>
+                  <Space wrap>
+                    <Button
+                      type="primary"
+                      icon={<PlayCircleOutlined />}
+                      onClick={() => executeContainerAction(selectedServer!.id, selectedContainer.id, 'start')}
+                      disabled={selectedContainer.status.toLowerCase().includes('running')}
+                    >
+                      启动
+                    </Button>
+                    <Button
+                      danger
+                      icon={<StopOutlined />}
+                      onClick={() => executeContainerAction(selectedServer!.id, selectedContainer.id, 'stop')}
+                      disabled={!selectedContainer.status.toLowerCase().includes('running')}
+                    >
+                      停止
+                    </Button>
+                    <Button
+                      icon={<ReloadOutlined />}
+                      onClick={() => executeContainerAction(selectedServer!.id, selectedContainer.id, 'restart')}
+                    >
+                      重启
+                    </Button>
+                    <Button
+                      icon={<ReloadOutlined />}
+                      onClick={() => loadContainerDetails(selectedServer!.id, selectedContainer.id)}
+                    >
+                      刷新
+                    </Button>
+                  </Space>
+                </div>
+
+                {/* 容器详细信息 */}
+                <div>
+                  <Title level={5}>详细信息</Title>
+                  <Card size="small">
+                    <Space direction="vertical" style={{ width: '100%' }}>
+                      <div>
+                        <Text strong>容器名称：</Text>
+                        <Text>{selectedContainer.name}</Text>
+                      </div>
+                      <div>
+                        <Text strong>镜像：</Text>
+                        <Text code>{selectedContainer.image}</Text>
+                      </div>
+                      <div>
+                        <Text strong>容器ID：</Text>
+                        <Text code>{selectedContainer.id}</Text>
+                      </div>
+                      <div>
+                        <Text strong>状态：</Text>
+                        <Tag color={getStatusColor(selectedContainer.status)}>
+                          {getStatusText(selectedContainer.status)}
+                        </Tag>
+                      </div>
+                      <div>
+                        <Text strong>创建时间：</Text>
+                        <Text>{new Date(selectedContainer.created).toLocaleString()}</Text>
+                      </div>
+                    </Space>
+                  </Card>
+                </div>
               </Space>
             </TabPane>
           )}
