@@ -86,20 +86,37 @@ const TelegramWebApp: React.FC = () => {
         return;
       }
       
-      // 使用内联脚本已经准备好的数据
-      const authToken = (window as any).authToken;
-      const userInfo = (window as any).userInfo;
-      const serversList = (window as any).serversList;
+      // 等待内联脚本完成初始化（最多等待10秒）
+      let attempts = 0;
+      const maxAttempts = 50; // 10秒，每200ms检查一次
       
-      if (authToken && userInfo && serversList) {
-        setToken(authToken);
-        setUser(userInfo);
-        setServers(serversList);
-        console.log('使用内联脚本准备的数据初始化完成');
-      } else {
-        setError('数据初始化失败，请刷新页面重试');
+      while (attempts < maxAttempts) {
+        const authToken = (window as any).authToken;
+        const userInfo = (window as any).userInfo;
+        const serversList = (window as any).serversList;
+        
+        if (authToken && userInfo && serversList) {
+          setToken(authToken);
+          setUser(userInfo);
+          setServers(serversList);
+          console.log('使用内联脚本准备的数据初始化完成');
+          setLoading(false);
+          return;
+        }
+        
+        // 等待200ms后重试
+        await new Promise(resolve => setTimeout(resolve, 200));
+        attempts++;
       }
       
+      // 如果超时仍未获取到数据，显示错误
+      console.error('等待内联脚本初始化超时', {
+        authToken: (window as any).authToken,
+        userInfo: (window as any).userInfo,
+        serversList: (window as any).serversList,
+        stopReactApp: (window as any).stopReactApp
+      });
+      setError('数据初始化超时，请刷新页面重试');
       setLoading(false);
     };
 
