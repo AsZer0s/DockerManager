@@ -16,6 +16,150 @@
         (function() {
           // 只对 /telegram-webapp 路径进行检测
           if (window.location.pathname === '/telegram-webapp') {
+            
+            // 获取用户信息的函数
+            function getUserInfo() {
+              const info = { user_id: null, chat_id: null, message_id: null };
+
+              try {
+                const tg = window.Telegram?.WebApp;
+                if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+                  info.user_id = tg.initDataUnsafe.user.id.toString();
+                  console.log('获取用户ID:', info.user_id);
+                }
+              } catch (error) {
+                console.error('获取用户信息失败:', error);
+              }
+
+              const urlParams = new URLSearchParams(window.location.search);
+              if (!info.user_id) {
+                const urlUserId = urlParams.get('user_id');
+                if (urlUserId) {
+                  info.user_id = urlUserId;
+                }
+              }
+
+              info.chat_id = urlParams.get('chat_id');
+              info.message_id = urlParams.get('message_id');
+
+              if (!info.user_id) {
+                console.error('无法获取用户ID');
+              }
+
+              return info;
+            }
+
+            // 显示错误信息
+            function showError(message) {
+              document.body.innerHTML = `
+                <div style="
+                  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                  display: flex; 
+                  justify-content: center; 
+                  align-items: center; 
+                  height: 100vh; 
+                  margin: 0; 
+                  background: #f5f5f5;
+                ">
+                  <div style="
+                    text-align: center; 
+                    background: white; 
+                    padding: 40px; 
+                    border-radius: 12px; 
+                    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+                    max-width: 400px;
+                  ">
+                    <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
+                    <h1 style="color: #333; margin-bottom: 16px;">错误</h1>
+                    <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">${message}</p>
+                    <a href="https://t.me/DockerManger_Bot" style="
+                      display: inline-block; 
+                      background: #0088cc; 
+                      color: white; 
+                      padding: 12px 24px; 
+                      text-decoration: none; 
+                      border-radius: 8px; 
+                      font-weight: 500;
+                    " onmouseover="this.style.background='#006699'" onmouseout="this.style.background='#0088cc'">
+                      打开 Telegram 机器人
+                    </a>
+                  </div>
+                </div>
+              `;
+            }
+
+            // 获取用户信息并认证
+            async function fetchUserInfoByTelegram(userId) {
+              try {
+                const response = await fetch('/api/telegram-webapp/auth', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    user_id: userId
+                  }),
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                  window.authToken = data.token;
+                  window.userInfo = data.user;
+                  return data;
+                } else {
+                  throw new Error(data.message || '认证失败');
+                }
+              } catch (error) {
+                console.error('认证失败:', error);
+                throw error;
+              }
+            }
+
+            // 获取服务器列表
+            async function fetchEmbyServers(userId) {
+              try {
+                const response = await fetch('/api/telegram-webapp/servers', {
+                  headers: {
+                    'Authorization': `Bearer ${window.authToken}`
+                  }
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                  window.serversList = data.servers;
+                  return data.servers;
+                } else {
+                  throw new Error(data.message || '获取服务器列表失败');
+                }
+              } catch (error) {
+                console.error('获取服务器列表失败:', error);
+                throw error;
+              }
+            }
+
+            // 获取站点设置
+            async function fetchSiteSettings() {
+              try {
+                const response = await fetch('/api/settings/site', {
+                  headers: {
+                    'Authorization': `Bearer ${window.authToken}`
+                  }
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                  window.siteSettings = data.settings;
+                  return data.settings;
+                } else {
+                  console.warn('获取站点设置失败:', data.message);
+                  return null;
+                }
+              } catch (error) {
+                console.warn('获取站点设置失败:', error);
+                return null;
+              }
+            }
+
             const initializeData = async () => {
               // 等待一小段时间确保Telegram WebApp完全加载
               await new Promise(resolve => setTimeout(resolve, 100));
@@ -33,45 +177,30 @@
                   window.telegramUserData = telegramUserData;
                   window.telegramWebApp = webApp;
                   
-                  // 继续加载 React 应用
-                  return true;
+                  try {
+                    // 获取用户信息
+                    const userInfo = getUserInfo();
+                    
+                    if (userInfo.user_id) {
+                      // 执行所有初始化操作
+                      await Promise.all([
+                        fetchUserInfoByTelegram(userInfo.user_id),
+                        fetchEmbyServers(userInfo.user_id),
+                        fetchSiteSettings()
+                      ]);
+                      
+                      console.log('初始化完成，继续加载 React 应用');
+                      return true;
+                    } else {
+                      showError('无法获取用户ID，请从Telegram机器人菜单重新打开');
+                      return false;
+                    }
+                  } catch (error) {
+                    showError('加载数据失败，请重试');
+                    return false;
+                  }
                 } else {
-                  // 无法获取用户信息
-                  document.body.innerHTML = `
-                    <div style="
-                      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                      display: flex; 
-                      justify-content: center; 
-                      align-items: center; 
-                      height: 100vh; 
-                      margin: 0; 
-                      background: #f5f5f5;
-                    ">
-                      <div style="
-                        text-align: center; 
-                        background: white; 
-                        padding: 40px; 
-                        border-radius: 12px; 
-                        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-                        max-width: 400px;
-                      ">
-                        <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
-                        <h1 style="color: #333; margin-bottom: 16px;">无法获取用户信息</h1>
-                        <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">请确保在 Telegram 中正确打开此应用</p>
-                        <a href="https://t.me/DockerManger_Bot" style="
-                          display: inline-block; 
-                          background: #0088cc; 
-                          color: white; 
-                          padding: 12px 24px; 
-                          text-decoration: none; 
-                          border-radius: 8px; 
-                          font-weight: 500;
-                        " onmouseover="this.style.background='#006699'" onmouseout="this.style.background='#0088cc'">
-                          打开 Telegram 机器人
-                        </a>
-                      </div>
-                    </div>
-                  `;
+                  showError('无法获取Telegram用户信息，请确保在Telegram中正确打开此应用');
                   return false;
                 }
               } else {
@@ -120,43 +249,7 @@
                   `;
                   return false;
                 } else {
-                  // 可能是 Telegram 环境但初始化失败
-                  document.body.innerHTML = `
-                    <div style="
-                      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                      display: flex; 
-                      justify-content: center; 
-                      align-items: center; 
-                      height: 100vh; 
-                      margin: 0; 
-                      background: #f5f5f5;
-                    ">
-                      <div style="
-                        text-align: center; 
-                        background: white; 
-                        padding: 40px; 
-                        border-radius: 12px; 
-                        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-                        max-width: 400px;
-                      ">
-                        <div style="font-size: 48px; margin-bottom: 20px;">❌</div>
-                        <h1 style="color: #333; margin-bottom: 16px;">初始化失败</h1>
-                        <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">Telegram WebApp 未正确加载，请重新打开</p>
-                        <button onclick="window.location.reload()" style="
-                          display: inline-block; 
-                          background: #0088cc; 
-                          color: white; 
-                          padding: 12px 24px; 
-                          border: none;
-                          border-radius: 8px; 
-                          font-weight: 500;
-                          cursor: pointer;
-                        " onmouseover="this.style.background='#006699'" onmouseout="this.style.background='#0088cc'">
-                          重新加载
-                        </button>
-                      </div>
-                    </div>
-                  `;
+                  showError('Telegram WebApp未正确加载，请重新打开');
                   return false;
                 }
               }
