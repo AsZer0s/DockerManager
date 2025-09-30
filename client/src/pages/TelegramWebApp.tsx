@@ -93,7 +93,16 @@ const TelegramWebApp: React.FC = () => {
           typeof (window as any).Telegram.WebApp === 'undefined' ||
           !(window as any).Telegram.WebApp.initData
         ) {
-          setError('请在 Telegram 中打开此应用');
+          // 检查是否在桌面浏览器中访问
+          const isDesktopBrowser = !navigator.userAgent.includes('Telegram') && 
+                                 !window.location.search.includes('tgWebAppData') &&
+                                 !document.referrer.includes('telegram');
+          
+          if (isDesktopBrowser) {
+            setError('此应用只能在 Telegram 中打开，请通过 Telegram 机器人访问');
+          } else {
+            setError('Telegram Web App 初始化失败，请刷新页面重试');
+          }
           return;
         }
         

@@ -12,21 +12,84 @@
     <!-- 严格的 Telegram Web App 检测 -->
     <script>
         (function() {
-          if (
-            typeof window.Telegram === 'undefined' ||
-            typeof window.Telegram.WebApp === 'undefined' ||
-            !window.Telegram.WebApp.initData
-          ) {
-            try {
-              window.stop();
-            } catch (e) {
-              document.execCommand('Stop');
+          // 检查是否在 Telegram Web App 环境中
+          const isTelegramWebApp = (
+            typeof window.Telegram !== 'undefined' &&
+            typeof window.Telegram.WebApp !== 'undefined' &&
+            window.Telegram.WebApp.initData
+          );
+          
+          // 检查是否在桌面浏览器中访问
+          const isDesktopBrowser = !navigator.userAgent.includes('Telegram') && 
+                                 !window.location.search.includes('tgWebAppData') &&
+                                 !document.referrer.includes('telegram');
+          
+          if (!isTelegramWebApp) {
+            if (isDesktopBrowser) {
+              // 桌面浏览器访问，显示友好提示
+              document.documentElement.innerHTML = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                  <meta charset="UTF-8">
+                  <title>Docker Manager - Telegram Web App</title>
+                  <style>
+                    body { 
+                      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                      display: flex; 
+                      justify-content: center; 
+                      align-items: center; 
+                      height: 100vh; 
+                      margin: 0; 
+                      background: #f5f5f5;
+                    }
+                    .container { 
+                      text-align: center; 
+                      background: white; 
+                      padding: 40px; 
+                      border-radius: 12px; 
+                      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+                      max-width: 400px;
+                    }
+                    .icon { font-size: 48px; margin-bottom: 20px; }
+                    h1 { color: #333; margin-bottom: 16px; }
+                    p { color: #666; line-height: 1.6; margin-bottom: 20px; }
+                    .telegram-link { 
+                      display: inline-block; 
+                      background: #0088cc; 
+                      color: white; 
+                      padding: 12px 24px; 
+                      text-decoration: none; 
+                      border-radius: 8px; 
+                      font-weight: 500;
+                    }
+                    .telegram-link:hover { background: #006699; }
+                  </style>
+                </head>
+                <body>
+                  <div class="container">
+                    <div class="icon">📱</div>
+                    <h1>Telegram Web App</h1>
+                    <p>此应用只能在 Telegram 中打开</p>
+                    <p>请通过 Telegram 机器人访问此应用</p>
+                    <a href="https://t.me/DockerManger_Bot" class="telegram-link">
+                      打开 Telegram 机器人
+                    </a>
+                  </div>
+                </body>
+                </html>
+              `;
+            } else {
+              // 可能是 Telegram 环境但初始化失败
+              try {
+                window.stop();
+              } catch (e) {
+                document.execCommand('Stop');
+              }
+              document.documentElement.innerHTML = '';
+              document.title = 'Telegram Web App 初始化失败';
+              throw new Error("Telegram Web App 初始化失败");
             }
-        
-            document.documentElement.innerHTML = '';
-            document.title = '非法访问';
-        
-            throw new Error("非法访问");
           }
         })();
     </script>

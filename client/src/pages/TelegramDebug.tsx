@@ -123,7 +123,13 @@ const TelegramDebug: React.FC = () => {
           <Alert
             type="warning"
             message="未检测到 Telegram 环境"
-            description="请确保您在 Telegram 应用中打开此页面。"
+            description={
+              <div>
+                <p>请确保您在 Telegram 应用中打开此页面。</p>
+                <p><strong>注意：</strong>如果您是在桌面浏览器中访问此页面，这是正常的。Telegram Web App 只能在 Telegram 应用中运行。</p>
+                <p>请通过 Telegram 机器人访问 Web App 功能。</p>
+              </div>
+            }
           />
         )}
       </Space>
