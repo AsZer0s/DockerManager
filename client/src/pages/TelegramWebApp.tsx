@@ -74,6 +74,7 @@ const TelegramWebApp: React.FC = () => {
   const [selectedServer, setSelectedServer] = useState<Server | null>(null);
   const [selectedContainer, setSelectedContainer] = useState<Container | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     const initializeData = async () => {
@@ -128,6 +129,21 @@ const TelegramWebApp: React.FC = () => {
 
     initializeData();
   }, []);
+
+  // 定时刷新服务器状态
+  useEffect(() => {
+    if (!token || !user) return;
+
+    // 立即刷新一次
+    refreshServers();
+
+    // 设置定时器，每30秒刷新一次
+    const interval = setInterval(() => {
+      refreshServers();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [token, user]);
 
 
   const loadContainers = async (serverId: number) => {
@@ -225,6 +241,36 @@ const TelegramWebApp: React.FC = () => {
     server.host.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // 刷新服务器列表
+  const refreshServers = async () => {
+    if (!token || !user) return;
+    
+    setRefreshing(true);
+    try {
+      const response = await fetch('/api/telegram-webapp/servers', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: user.id.toString()
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setServers(data.servers);
+        console.log('服务器列表刷新成功', { count: data.servers.length });
+      } else {
+        console.error('刷新服务器列表失败:', data.message);
+      }
+    } catch (error) {
+      console.error('刷新服务器列表异常:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   const filteredContainers = containers.filter(container => 
     container.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     container.image.toLowerCase().includes(searchTerm.toLowerCase())
@@ -302,12 +348,50 @@ const TelegramWebApp: React.FC = () => {
         <Tabs defaultActiveKey="servers">
           <TabPane tab={<span><DatabaseOutlined />服务器</span>} key="servers">
             <Space direction="vertical" style={{ width: '100%' }}>
-              <Search
-                placeholder="搜索服务器..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                style={{ width: 300 }}
-              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                <Search
+                  placeholder="搜索服务器..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  style={{ width: 300 }}
+                />
+                <Button
+                  type="primary"
+                  icon={<ReloadOutlined spin={refreshing} />}
+                  onClick={refreshServers}
+                  loading={refreshing}
+                  size="small"
+                >
+                  刷新
+                </Button>
+              </div>
+              
+              {/* 服务器统计 */}
+              <Row gutter={[16, 16]}>
+                <Col span={8}>
+                  <Statistic
+                    title="总服务器"
+                    value={servers.length}
+                    prefix={<DatabaseOutlined />}
+                  />
+                </Col>
+                <Col span={8}>
+                  <Statistic
+                    title="在线服务器"
+                    value={servers.filter(s => s.status === 'online').length}
+                    valueStyle={{ color: '#3f8600' }}
+                    prefix={<CheckCircleOutlined />}
+                  />
+                </Col>
+                <Col span={8}>
+                  <Statistic
+                    title="离线服务器"
+                    value={servers.filter(s => s.status === 'offline').length}
+                    valueStyle={{ color: '#cf1322' }}
+                    prefix={<CloseCircleOutlined />}
+                  />
+                </Col>
+              </Row>
               
               <Row gutter={[16, 16]}>
                 {filteredServers.map(server => (
