@@ -37,12 +37,38 @@ function verifyTelegramWebAppData(initData, botToken) {
 // 中间件：验证 Telegram Web App 认证
 const authenticateTelegramWebApp = async (req, res, next) => {
   try {
-    const { initData } = req.body;
+    const { user_id, chat_id, message_id, initData } = req.body;
     
+    // 优先使用 user_id 方式认证
+    if (user_id) {
+      logger.info(`使用 user_id 认证: ${user_id}`);
+      
+      // 查找数据库中的用户
+      const user = await database.db.get(
+        'SELECT * FROM users WHERE telegram_id = ? AND is_active = 1',
+        [user_id]
+      );
+
+      if (!user) {
+        return res.status(403).json({
+          error: '用户未注册',
+          message: '请先在 Web 界面中注册并绑定 Telegram ID'
+        });
+      }
+
+      req.user = user;
+      req.telegramUser = { id: user_id };
+      req.chat_id = chat_id;
+      req.message_id = message_id;
+      next();
+      return;
+    }
+    
+    // 回退到 initData 方式认证
     if (!initData) {
       return res.status(401).json({
         error: '未授权',
-        message: '缺少 Telegram Web App 初始化数据'
+        message: '缺少用户ID或 Telegram Web App 初始化数据'
       });
     }
 
@@ -77,19 +103,19 @@ const authenticateTelegramWebApp = async (req, res, next) => {
     req.telegramUser = telegramUser;
 
     // 查找数据库中的用户
-    const result = await database.query(
-      'SELECT * FROM users WHERE telegram_id = $1 AND is_active = true',
+    const user = await database.db.get(
+      'SELECT * FROM users WHERE telegram_id = ? AND is_active = 1',
       [telegramUser.id]
     );
 
-    if (result.rows.length === 0) {
+    if (!user) {
       return res.status(403).json({
         error: '用户未注册',
         message: '请先在 Web 界面中注册并绑定 Telegram ID'
       });
     }
 
-    req.user = result.rows[0];
+    req.user = user;
     next();
   } catch (error) {
     logger.error('Telegram Web App 认证失败:', error);
@@ -394,14 +420,14 @@ router.get('/containers/:serverId/:containerId/stats', authenticateTelegramWebAp
 // 辅助函数
 async function getUserServers(userId) {
   try {
-    const result = await database.query(`
+    const servers = await database.db.all(`
       SELECT s.*, p.can_view, p.can_control, p.can_ssh, p.hide_sensitive_info
       FROM servers s
       JOIN user_server_permissions p ON s.id = p.server_id
-      WHERE p.user_id = $1 AND s.is_active = true AND p.can_view = true
+      WHERE p.user_id = ? AND s.is_active = 1 AND p.can_view = 1
       ORDER BY s.name
     `, [userId]);
-    return result.rows;
+    return servers;
   } catch (error) {
     logger.error('获取用户服务器失败:', error);
     return [];
@@ -410,16 +436,15 @@ async function getUserServers(userId) {
 
 async function checkServerStatus(serverId) {
   try {
-    const result = await database.query(
-      'SELECT status FROM servers WHERE id = $1 AND is_active = true',
+    const server = await database.db.get(
+      'SELECT status FROM servers WHERE id = ? AND is_active = 1',
       [serverId]
     );
     
-    if (result.rows.length === 0) {
+    if (!server) {
       return false;
     }
     
-    const server = result.rows[0];
     return server.status === '在线';
   } catch (error) {
     logger.error('检查服务器状态失败:', error);
@@ -429,11 +454,11 @@ async function checkServerStatus(serverId) {
 
 async function checkUserServerPermission(userId, serverId) {
   try {
-    const result = await database.query(
-      'SELECT can_view FROM user_server_permissions WHERE user_id = $1 AND server_id = $2',
+    const permission = await database.db.get(
+      'SELECT can_view FROM user_server_permissions WHERE user_id = ? AND server_id = ?',
       [userId, serverId]
     );
-    return result.rows.length > 0 && result.rows[0].can_view;
+    return permission && permission.can_view;
   } catch (error) {
     logger.error('检查用户服务器权限失败:', error);
     return false;
@@ -442,11 +467,11 @@ async function checkUserServerPermission(userId, serverId) {
 
 async function checkUserServerControlPermission(userId, serverId) {
   try {
-    const result = await database.query(
-      'SELECT can_control FROM user_server_permissions WHERE user_id = $1 AND server_id = $2',
+    const permission = await database.db.get(
+      'SELECT can_control FROM user_server_permissions WHERE user_id = ? AND server_id = ?',
       [userId, serverId]
     );
-    return result.rows.length > 0 && result.rows[0].can_control;
+    return permission && permission.can_control;
   } catch (error) {
     logger.error('检查用户服务器控制权限失败:', error);
     return false;

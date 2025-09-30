@@ -86,13 +86,10 @@ const TelegramWebApp: React.FC = () => {
         return;
       }
       
-      // 使用内联脚本设置的全局变量
-      const telegramUserData = (window as any).telegramUserData;
-      const webApp = (window as any).telegramWebApp;
+      // 获取用户信息
+      const userInfo = getUserInfo();
       
-      if (telegramUserData && webApp) {
-        setUser(telegramUserData);
-        
+      if (userInfo.user_id) {
         try {
           const response = await fetch('/api/telegram-webapp/auth', {
             method: 'POST',
@@ -100,8 +97,9 @@ const TelegramWebApp: React.FC = () => {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              initData: webApp.initData,
-              user: telegramUserData
+              user_id: userInfo.user_id,
+              chat_id: userInfo.chat_id,
+              message_id: userInfo.message_id
             }),
           });
 
@@ -109,6 +107,7 @@ const TelegramWebApp: React.FC = () => {
 
           if (data.success) {
             setToken(data.token);
+            setUser(data.user);
             await loadServers(data.token);
           } else {
             setError(data.message || '认证失败');
@@ -117,7 +116,7 @@ const TelegramWebApp: React.FC = () => {
           setError('加载数据失败，请重试');
         }
       } else {
-        setError('Telegram WebApp 未正确初始化');
+        setError('无法获取用户ID，请从Telegram机器人菜单重新打开');
       }
       
       setLoading(false);
@@ -125,6 +124,45 @@ const TelegramWebApp: React.FC = () => {
 
     initializeData();
   }, []);
+
+  // 获取用户信息的函数
+  const getUserInfo = () => {
+    const info: { user_id: string | null, chat_id: string | null, message_id: string | null } = { 
+      user_id: null, 
+      chat_id: null, 
+      message_id: null 
+    };
+
+    try {
+      // 首先尝试从 Telegram WebApp 获取
+      const tg = (window as any).Telegram?.WebApp;
+      if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+        info.user_id = tg.initDataUnsafe.user.id.toString();
+        console.log('从 Telegram WebApp 获取用户ID:', info.user_id);
+      }
+    } catch (error) {
+      console.error('从 Telegram WebApp 获取用户信息失败:', error);
+    }
+
+    // 如果从 Telegram WebApp 获取失败，尝试从 URL 参数获取
+    const urlParams = new URLSearchParams(window.location.search);
+    if (!info.user_id) {
+      const urlUserId = urlParams.get('user_id');
+      if (urlUserId) {
+        info.user_id = urlUserId;
+        console.log('从 URL 参数获取用户ID:', info.user_id);
+      }
+    }
+
+    info.chat_id = urlParams.get('chat_id');
+    info.message_id = urlParams.get('message_id');
+
+    if (!info.user_id) {
+      console.error('无法获取用户ID');
+    }
+
+    return info;
+  };
 
   const loadServers = async (authToken: string) => {
     try {
