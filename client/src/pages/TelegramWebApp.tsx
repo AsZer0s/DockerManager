@@ -297,7 +297,20 @@ const TelegramWebApp: React.FC = () => {
         <Card style={{ width: 400 }}>
           <Alert
             message="错误"
-            description={error}
+            description={
+              <div>
+                <div>{error}</div>
+                <div style={{ marginTop: 8 }}>
+                  <Button 
+                    size="small" 
+                    type="link" 
+                    onClick={() => window.location.href = '/telegram-debug'}
+                  >
+                    打开调试页面
+                  </Button>
+                </div>
+              </div>
+            }
             type="error"
             showIcon
           />

@@ -13,8 +13,7 @@ services:
       - TGBOT_PROXY=${TGBOT_PROXY}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - docker-manager-data:/app/data
+      - ./data:/app/data
+      - ./logs:/app/logs
     restart: unless-stopped
-
-volumes:
-  docker-manager-data:
+    
