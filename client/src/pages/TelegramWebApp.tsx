@@ -28,6 +28,7 @@ import {
   ExclamationCircleOutlined,
   LoadingOutlined
 } from '@ant-design/icons';
+import SplitText from '@/components/SplitText';
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
@@ -331,12 +332,39 @@ const TelegramWebApp: React.FC = () => {
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'center',
-        backgroundColor: '#f5f5f5'
+        backgroundColor: '#f5f5f5',
+        flexDirection: 'column',
+        gap: '24px'
       }}>
-        <Space direction="vertical" align="center">
-          <Spin indicator={<LoadingOutlined style={{ fontSize: 24 }} spin />} />
-          <Text>正在初始化...</Text>
-        </Space>
+        <div style={{ textAlign: 'center' }}>
+          <SplitText
+            text="Docker Manager"
+            className="text-4xl font-bold text-blue-600 mb-4"
+            delay={150}
+            duration={0.8}
+            ease="power3.out"
+            splitType="chars"
+            from={{ opacity: 0, y: 50, rotationX: 90 }}
+            to={{ opacity: 1, y: 0, rotationX: 0 }}
+            tag="h1"
+          />
+        </div>
+        <div style={{ textAlign: 'center' }}>
+          <SplitText
+            text="正在初始化系统..."
+            className="text-lg text-gray-600"
+            delay={200}
+            duration={0.6}
+            ease="power2.out"
+            splitType="words"
+            from={{ opacity: 0, y: 30 }}
+            to={{ opacity: 1, y: 0 }}
+            tag="p"
+          />
+        </div>
+        <div style={{ marginTop: '16px' }}>
+          <Spin indicator={<LoadingOutlined style={{ fontSize: 24, color: '#1890ff' }} spin />} />
+        </div>
       </div>
     );
   }
@@ -381,15 +409,79 @@ const TelegramWebApp: React.FC = () => {
       backgroundColor: '#f5f5f5',
       padding: '16px'
     }}>
+      <style>{`
+        .split-parent {
+          perspective: 1000px;
+        }
+        .split-char, .split-word, .split-line {
+          display: inline-block;
+          transform-origin: center;
+        }
+        .text-4xl {
+          font-size: 2.25rem;
+          line-height: 2.5rem;
+        }
+        .text-2xl {
+          font-size: 1.5rem;
+          line-height: 2rem;
+        }
+        .text-lg {
+          font-size: 1.125rem;
+          line-height: 1.75rem;
+        }
+        .text-sm {
+          font-size: 0.875rem;
+          line-height: 1.25rem;
+        }
+        .font-bold {
+          font-weight: 700;
+        }
+        .font-medium {
+          font-weight: 500;
+        }
+        .text-blue-600 {
+          color: #2563eb;
+        }
+        .text-gray-600 {
+          color: #4b5563;
+        }
+        .text-gray-500 {
+          color: #6b7280;
+        }
+        .mb-4 {
+          margin-bottom: 1rem;
+        }
+        .mb-8 {
+          margin-bottom: 0.5rem;
+        }
+      `}</style>
       <Card>
         <div style={{ marginBottom: '16px' }}>
-          <Title level={3}>
-            <DatabaseOutlined /> Docker Manager
-          </Title>
+          <div style={{ marginBottom: '8px' }}>
+            <SplitText
+              text="Docker Manager"
+              className="text-2xl font-bold text-blue-600"
+              delay={100}
+              duration={0.6}
+              ease="power2.out"
+              splitType="chars"
+              from={{ opacity: 0, y: 20 }}
+              to={{ opacity: 1, y: 0 }}
+              tag="h3"
+            />
+          </div>
           {user && (
-            <Text type="secondary">
-              欢迎，{user.first_name} {user.last_name || ''}
-            </Text>
+            <SplitText
+              text={`欢迎，${user.first_name} ${user.last_name || ''}`}
+              className="text-gray-500"
+              delay={200}
+              duration={0.5}
+              ease="power2.out"
+              splitType="words"
+              from={{ opacity: 0, x: -20 }}
+              to={{ opacity: 1, x: 0 }}
+              tag="span"
+            />
           )}
         </div>
 
@@ -417,27 +509,69 @@ const TelegramWebApp: React.FC = () => {
               {/* 服务器统计 */}
               <Row gutter={[16, 16]}>
                 <Col span={8}>
-                  <Statistic
-                    title="总服务器"
-                    value={servers.length}
-                    prefix={<DatabaseOutlined />}
-                  />
+                  <Card size="small">
+                    <Statistic
+                      title={
+                        <SplitText
+                          text="总服务器"
+                          className="text-sm font-medium"
+                          delay={300}
+                          duration={0.4}
+                          ease="power2.out"
+                          splitType="chars"
+                          from={{ opacity: 0, y: 10 }}
+                          to={{ opacity: 1, y: 0 }}
+                          tag="span"
+                        />
+                      }
+                      value={servers.length}
+                      prefix={<DatabaseOutlined />}
+                    />
+                  </Card>
                 </Col>
                 <Col span={8}>
-                  <Statistic
-                    title="在线服务器"
-                    value={servers.filter(s => s.status === 'online').length}
-                    valueStyle={{ color: '#3f8600' }}
-                    prefix={<CheckCircleOutlined />}
-                  />
+                  <Card size="small">
+                    <Statistic
+                      title={
+                        <SplitText
+                          text="在线服务器"
+                          className="text-sm font-medium"
+                          delay={400}
+                          duration={0.4}
+                          ease="power2.out"
+                          splitType="chars"
+                          from={{ opacity: 0, y: 10 }}
+                          to={{ opacity: 1, y: 0 }}
+                          tag="span"
+                        />
+                      }
+                      value={servers.filter(s => s.status === 'online').length}
+                      valueStyle={{ color: '#3f8600' }}
+                      prefix={<CheckCircleOutlined />}
+                    />
+                  </Card>
                 </Col>
                 <Col span={8}>
-                  <Statistic
-                    title="离线服务器"
-                    value={servers.filter(s => s.status === 'offline').length}
-                    valueStyle={{ color: '#cf1322' }}
-                    prefix={<CloseCircleOutlined />}
-                  />
+                  <Card size="small">
+                    <Statistic
+                      title={
+                        <SplitText
+                          text="离线服务器"
+                          className="text-sm font-medium"
+                          delay={500}
+                          duration={0.4}
+                          ease="power2.out"
+                          splitType="chars"
+                          from={{ opacity: 0, y: 10 }}
+                          to={{ opacity: 1, y: 0 }}
+                          tag="span"
+                        />
+                      }
+                      value={servers.filter(s => s.status === 'offline').length}
+                      valueStyle={{ color: '#cf1322' }}
+                      prefix={<CloseCircleOutlined />}
+                    />
+                  </Card>
                 </Col>
               </Row>
               

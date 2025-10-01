@@ -15,28 +15,50 @@ const router = express.Router();
  */
 router.get('/users', authenticateToken, requireAdmin, async (req, res) => {
   try {
+    // 获取服务器和容器的总数
+    const serverCountResult = await database.query('SELECT COUNT(*) as total FROM servers WHERE is_active = true');
+    const containerCountResult = await database.query('SELECT COUNT(*) as total FROM containers');
+    
+    const totalServers = parseInt(serverCountResult.rows[0].total);
+    const totalContainers = parseInt(containerCountResult.rows[0].total);
+
     const result = await database.query(`
       SELECT 
         u.id, u.username, u.email, u.role, u.is_active, u.created_at,
-        GROUP_CONCAT(DISTINCT us.server_id) as visible_servers,
+        GROUP_CONCAT(DISTINCT p.server_id) as visible_servers,
         GROUP_CONCAT(DISTINCT uc.container_id) as visible_containers
       FROM users u
-      LEFT JOIN user_servers us ON u.id = us.user_id
+      LEFT JOIN user_server_permissions p ON u.id = p.user_id
       LEFT JOIN user_containers uc ON u.id = uc.user_id
       GROUP BY u.id
       ORDER BY u.created_at DESC
     `);
 
-    const users = result.rows.map(user => ({
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      role: user.role,
-      isActive: user.is_active,
-      createdAt: user.created_at,
-      visibleServers: user.visible_servers ? user.visible_servers.split(',').map(Number) : [],
-      visibleContainers: user.visible_containers ? user.visible_containers.split(',') : []
-    }));
+    const users = result.rows.map(user => {
+      let visibleServers = [];
+      let visibleContainers = [];
+      
+      if (user.role === 'admin') {
+        // 管理员显示全部服务器和容器
+        visibleServers = Array.from({length: totalServers}, (_, i) => i + 1);
+        visibleContainers = Array.from({length: totalContainers}, (_, i) => `admin_all_${i + 1}`);
+      } else {
+        // 普通用户显示实际权限
+        visibleServers = user.visible_servers ? user.visible_servers.split(',').map(Number) : [];
+        visibleContainers = user.visible_containers ? user.visible_containers.split(',') : [];
+      }
+      
+      return {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        isActive: user.is_active,
+        createdAt: user.created_at,
+        visibleServers,
+        visibleContainers
+      };
+    });
 
     res.json({ users });
   } catch (error) {
@@ -248,7 +270,7 @@ router.delete('/users/:id', authenticateToken, requireAdmin, async (req, res) =>
     }
 
     // 删除用户相关的权限记录
-    await database.query('DELETE FROM user_servers WHERE user_id = $1', [userId]);
+    await database.db.run('DELETE FROM user_server_permissions WHERE user_id = ?', [userId]);
     await database.query('DELETE FROM user_containers WHERE user_id = $1', [userId]);
 
     // 删除用户
@@ -372,20 +394,17 @@ router.put('/users/:id/servers',
       }
 
       // 删除现有权限
-      await database.query('DELETE FROM user_servers WHERE user_id = $1', [userId]);
+      await database.db.run('DELETE FROM user_server_permissions WHERE user_id = ?', [userId]);
 
       // 添加新权限
       if (serverIds && serverIds.length > 0) {
-        const values = serverIds.map((serverId, index) => 
-          `($1, $${index + 2})`
-        ).join(', ');
-        
-        const query = `
-          INSERT INTO user_servers (user_id, server_id) 
-          VALUES ${values}
-        `;
-        
-        await database.query(query, [userId, ...serverIds]);
+        for (const serverId of serverIds) {
+          await database.db.run(`
+            INSERT INTO user_server_permissions 
+            (user_id, server_id, can_view, can_control, can_ssh, hide_sensitive_info)
+            VALUES (?, ?, 1, 0, 0, 0)
+          `, [userId, serverId]);
+        }
       }
 
       logger.info(`管理员 ${req.user.username} 更新了用户 ${existingUser.rows[0].username} 的服务器权限`);
