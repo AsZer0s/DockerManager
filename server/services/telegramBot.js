@@ -381,7 +381,7 @@ class TelegramBotService {
 
       const buttons = servers.map(server => [
         Markup.button.callback(
-          `🐳 ${server.name} 的容器`,
+          `🐳 ${server.name}`,
           `containers_${server.id}`
         )
       ]);
@@ -771,7 +771,7 @@ class TelegramBotService {
       
       message += `📊 **状态信息**\n`;
       message += `状态: ${statusIcon} ${statusText}\n`;
-      message += `镜像: ${container.image}\n`;
+      message += `镜像: \`${container.image}\`\n`;
       message += `创建时间: ${new Date(container.created).toLocaleString('zh-CN')}\n\n`;
 
       if (container.ports && container.ports.length > 0) {

@@ -689,7 +689,7 @@ class MonitoringService {
         const timeout = setTimeout(() => {
           client.destroy();
           resolve(false);
-        }, 5000); // 5秒超时
+        }, 15000); // 增加到15秒超时
         
         client.on('ready', () => {
           clearTimeout(timeout);

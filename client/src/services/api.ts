@@ -4,11 +4,27 @@ import toast from 'react-hot-toast'
 // 创建 axios 实例
 const api: AxiosInstance = axios.create({
   baseURL: '/api',
-  timeout: 30000,
+  timeout: 60000, // 增加超时时间到60秒
   headers: {
     'Content-Type': 'application/json',
   },
+  // 连接优化配置
+  maxRedirects: 3,
+  maxContentLength: 50 * 1024 * 1024, // 50MB
+  maxBodyLength: 50 * 1024 * 1024, // 50MB
 })
+
+// 重试配置
+const retryConfig = {
+  retries: 3,
+  retryDelay: (retryCount: number) => {
+    return Math.min(1000 * Math.pow(2, retryCount), 10000) // 指数退避，最大10秒
+  },
+  retryCondition: (error: any) => {
+    // 网络错误或5xx错误时重试
+    return !error.response || (error.response.status >= 500 && error.response.status < 600)
+  }
+}
 
 // 请求拦截器
 api.interceptors.request.use(
@@ -25,6 +41,12 @@ api.interceptors.request.use(
         console.error('解析 token 失败:', error)
       }
     }
+    
+    // 添加重试配置
+    ;(config as any).retry = retryConfig.retries
+    ;(config as any).retryCount = 0
+    ;(config as any).retryDelay = retryConfig.retryDelay
+    
     return config
   },
   (error) => {
@@ -37,7 +59,28 @@ api.interceptors.response.use(
   (response: AxiosResponse) => {
     return response
   },
-  (error) => {
+  async (error) => {
+    const config = error.config
+    
+    // 重试逻辑
+    if (config && retryConfig.retryCondition(error)) {
+      const retryCount = (config as any).retryCount || 0
+      
+      if (retryCount < retryConfig.retries) {
+        ;(config as any).retryCount = retryCount + 1
+        
+        // 等待重试延迟
+        const delay = retryConfig.retryDelay((config as any).retryCount)
+        console.log(`请求失败，${delay}ms后重试 (${(config as any).retryCount}/${retryConfig.retries}):`, error.message)
+        
+        await new Promise(resolve => setTimeout(resolve, delay))
+        
+        // 重试请求
+        return api(config)
+      }
+    }
+    
+    // 错误处理
     if (error.response) {
       const { status, data } = error.response
       
@@ -60,11 +103,23 @@ api.interceptors.response.use(
         case 500:
           toast.error(data.message || '服务器内部错误')
           break
+        case 502:
+        case 503:
+        case 504:
+          toast.error('服务器暂时不可用，请稍后重试')
+          break
         default:
           toast.error(data.message || '请求失败')
       }
     } else if (error.request) {
-      toast.error('网络连接失败，请检查网络设置')
+      // 网络错误
+      if (error.code === 'ECONNABORTED') {
+        toast.error('请求超时，请检查网络连接')
+      } else if (error.code === 'NETWORK_ERROR') {
+        toast.error('网络连接失败，请检查网络设置')
+      } else {
+        toast.error('网络连接失败，请检查网络设置')
+      }
     } else {
       toast.error('请求配置错误')
     }

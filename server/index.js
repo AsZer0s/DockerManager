@@ -18,6 +18,7 @@ import encryption from './utils/encryption.js';
 import jwtManager from './utils/jwt.js';
 import telegramBot from './services/telegramBot.js';
 import monitoringService from './services/monitoringService.js';
+import connectionMonitor from './services/connectionMonitor.js';
 import websocketService from './services/websocketService.js';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
@@ -106,14 +107,57 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/user-management', userManagementRoutes);
 
 // 健康检查端点
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    memory: process.memoryUsage(),
-    version: process.env.npm_package_version || '1.0.0'
-  });
+app.get('/health', async (req, res) => {
+  try {
+    const healthReport = await connectionMonitor.getHealthReport();
+    
+    res.json({
+      status: healthReport.overall ? 'healthy' : 'unhealthy',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      version: process.env.npm_package_version || '1.0.0',
+      services: healthReport.services
+    });
+  } catch (error) {
+    logger.error('健康检查失败:', error);
+    res.status(500).json({
+      status: 'error',
+      timestamp: new Date().toISOString(),
+      error: error.message
+    });
+  }
+});
+
+// 连接状态端点
+app.get('/api/connection-status', async (req, res) => {
+  try {
+    const healthReport = await connectionMonitor.getHealthReport();
+    res.json(healthReport);
+  } catch (error) {
+    logger.error('获取连接状态失败:', error);
+    res.status(500).json({
+      error: '获取连接状态失败',
+      message: error.message
+    });
+  }
+});
+
+// 手动触发健康检查端点
+app.post('/api/health-check', async (req, res) => {
+  try {
+    await connectionMonitor.triggerHealthCheck();
+    res.json({
+      message: '健康检查已触发',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    logger.error('触发健康检查失败:', error);
+    res.status(500).json({
+      error: '触发健康检查失败',
+      message: error.message
+    });
+  }
 });
 
 // 错误处理中间件
@@ -541,6 +585,10 @@ async function initializeServices() {
         console.log('📊 启动监控服务...');
         monitoringService.start();
         console.log('✅ 监控服务启动成功');
+
+        console.log('🔍 启动连接监控服务...');
+        connectionMonitor.start();
+        console.log('✅ 连接监控服务启动成功');
       } catch (error) {
         console.error('⚠️ 辅助服务启动失败:', error.message);
         // 不退出，让主服务器继续运行

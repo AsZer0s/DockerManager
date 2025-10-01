@@ -14,20 +14,21 @@ class Database {
     this.dbPath = process.env.DATABASE_PATH || path.join(__dirname, '../data/database.sqlite');
   }
 
-  async connect() {
-    try {
-      // 确保数据目录存在
-      const dbDir = path.dirname(this.dbPath);
-      await import('fs').then(fs => {
-        if (!fs.existsSync(dbDir)) {
-          fs.mkdirSync(dbDir, { recursive: true });
-        }
-      });
+  async connect(maxRetries = 3) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        // 确保数据目录存在
+        const dbDir = path.dirname(this.dbPath);
+        await import('fs').then(fs => {
+          if (!fs.existsSync(dbDir)) {
+            fs.mkdirSync(dbDir, { recursive: true });
+          }
+        });
 
-      this.db = await open({
-        filename: this.dbPath,
-        driver: sqlite3.Database
-      });
+        this.db = await open({
+          filename: this.dbPath,
+          driver: sqlite3.Database
+        });
 
       // 启用外键约束
       await this.db.exec('PRAGMA foreign_keys = ON');
@@ -40,15 +41,34 @@ class Database {
       
       // 设置缓存大小
       await this.db.exec('PRAGMA cache_size = 10000');
-
-      this.isConnected = true;
-      logger.info(`SQLite 数据库连接成功: ${this.dbPath}`);
       
-      // 初始化数据库表
-      await this.initializeTables();
-    } catch (error) {
-      logger.error('SQLite 数据库连接失败:', error);
-      throw error;
+      // 连接优化配置
+      await this.db.exec('PRAGMA temp_store = MEMORY');
+      await this.db.exec('PRAGMA mmap_size = 268435456'); // 256MB
+      await this.db.exec('PRAGMA page_size = 4096');
+      await this.db.exec('PRAGMA auto_vacuum = INCREMENTAL');
+      await this.db.exec('PRAGMA optimize');
+      
+      // 连接池配置
+      await this.db.exec('PRAGMA busy_timeout = 30000'); // 30秒忙等待超时
+      await this.db.exec('PRAGMA locking_mode = NORMAL');
+
+        this.isConnected = true;
+        logger.info(`SQLite 数据库连接成功: ${this.dbPath}`);
+        
+        // 初始化数据库表
+        await this.initializeTables();
+        return; // 连接成功，退出重试循环
+      } catch (error) {
+        logger.error(`SQLite 数据库连接失败 (尝试 ${attempt}/${maxRetries}):`, error);
+        
+        if (attempt === maxRetries) {
+          throw error;
+        }
+        
+        // 等待后重试
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+      }
     }
   }
 

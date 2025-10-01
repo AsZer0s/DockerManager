@@ -20,13 +20,20 @@ class WebSocketService {
         token,
       },
       transports: ['websocket', 'polling'],
-      timeout: 10000,
+      timeout: 30000, // 增加连接超时时间
       forceNew: true,
       autoConnect: true,
       reconnection: true,
-      reconnectionAttempts: 5,
+      reconnectionAttempts: 10, // 增加重连次数
       reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000
+      reconnectionDelayMax: 10000,
+      // 连接优化
+      upgrade: true,
+      rememberUpgrade: true,
+      // 缓冲配置
+      forceBase64: false,
+      // 网络优化
+      withCredentials: false
     })
 
     this.setupEventHandlers()
@@ -43,12 +50,50 @@ class WebSocketService {
 
     this.socket.on('disconnect', (reason) => {
       console.log('WebSocket 连接断开:', reason)
-      // Socket.IO 会自动重连，不需要手动处理
+      
+      // 根据断开原因显示不同的提示
+      if (reason === 'io server disconnect') {
+        toast.error('服务器主动断开连接')
+      } else if (reason === 'io client disconnect') {
+        console.log('客户端主动断开连接')
+      } else {
+        toast('连接已断开，正在尝试重连...', { icon: '🔄' })
+      }
     })
 
     this.socket.on('connect_error', (error) => {
       console.error('WebSocket 连接错误:', error)
-      // Socket.IO 会自动重连，不需要手动处理
+      
+      // 根据错误类型显示不同提示
+      if (error.message.includes('timeout')) {
+        toast.error('连接超时，请检查网络')
+      } else if (error.message.includes('refused')) {
+        toast.error('连接被拒绝，服务器可能不可用')
+      } else {
+        toast.error('连接失败，正在重试...')
+      }
+    })
+
+    // 重连事件
+    this.socket.on('reconnect', (attemptNumber) => {
+      console.log(`WebSocket 重连成功 (尝试 ${attemptNumber} 次)`)
+      toast.success('连接已恢复')
+    })
+
+    this.socket.on('reconnect_attempt', (attemptNumber) => {
+      console.log(`WebSocket 重连尝试 ${attemptNumber}`)
+      if (attemptNumber === 1) {
+        toast('连接断开，正在重连...', { icon: '🔄' })
+      }
+    })
+
+    this.socket.on('reconnect_error', (error) => {
+      console.error('WebSocket 重连错误:', error)
+    })
+
+    this.socket.on('reconnect_failed', () => {
+      console.error('WebSocket 重连失败')
+      toast.error('连接失败，请刷新页面重试')
     })
 
     this.socket.on('auth_success', (data) => {
