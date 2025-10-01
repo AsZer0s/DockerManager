@@ -282,7 +282,19 @@ const Servers: React.FC = () => {
   // 处理编辑
   const handleEdit = (server: Server) => {
     setEditingServer(server)
-    form.setFieldsValue(server)
+    
+    // 设置表单值，包括代理配置
+    const formValues = {
+      ...server,
+      // 确保代理配置字段正确设置
+      proxy_enabled: server.proxy_enabled || false,
+      proxy_host: server.proxy_host || '',
+      proxy_port: server.proxy_port || 1080,
+      proxy_username: server.proxy_username || '',
+      proxy_password: server.proxy_password || ''
+    }
+    
+    form.setFieldsValue(formValues)
     // 根据服务器是否有私钥来判断认证类型
     setAuthType(server.private_key ? 'key' : 'password')
     setIsModalVisible(true)
@@ -687,7 +699,7 @@ const Servers: React.FC = () => {
           </Form.Item>
 
           <Form.Item
-            name="port"
+            name="ssh_port"
             label="SSH 端口"
             rules={[{ required: true, message: '请输入SSH端口' }]}
             initialValue={22}
@@ -760,6 +772,73 @@ const Servers: React.FC = () => {
               placeholder="请输入服务器描述（可选）" 
             />
           </Form.Item>
+
+          {/* 代理配置部分 */}
+          <div style={{ marginTop: 24, padding: 16, background: '#f5f5f5', borderRadius: 6 }}>
+            <h4 style={{ marginBottom: 16, color: '#1890ff' }}>SOCKS5 代理配置</h4>
+            
+            <Form.Item
+              name="proxy_enabled"
+              label="启用代理"
+              valuePropName="checked"
+              initialValue={false}
+            >
+              <Radio.Group>
+                <Radio value={true}>启用</Radio>
+                <Radio value={false}>禁用</Radio>
+              </Radio.Group>
+            </Form.Item>
+
+            <Form.Item
+              noStyle
+              shouldUpdate={(prevValues, currentValues) => 
+                prevValues.proxy_enabled !== currentValues.proxy_enabled
+              }
+            >
+              {({ getFieldValue }) => {
+                const proxyEnabled = getFieldValue('proxy_enabled');
+                return proxyEnabled ? (
+                  <>
+                    <Form.Item
+                      name="proxy_host"
+                      label="代理主机"
+                      rules={[{ required: true, message: '请输入代理主机地址' }]}
+                    >
+                      <Input placeholder="代理服务器地址，如：127.0.0.1" />
+                    </Form.Item>
+
+                    <Form.Item
+                      name="proxy_port"
+                      label="代理端口"
+                      rules={[{ required: true, message: '请输入代理端口' }]}
+                      initialValue={1080}
+                    >
+                      <InputNumber
+                        min={1}
+                        max={65535}
+                        style={{ width: '100%' }}
+                        placeholder="代理端口，默认1080"
+                      />
+                    </Form.Item>
+
+                    <Form.Item
+                      name="proxy_username"
+                      label="代理用户名"
+                    >
+                      <Input placeholder="代理用户名（可选）" />
+                    </Form.Item>
+
+                    <Form.Item
+                      name="proxy_password"
+                      label="代理密码"
+                    >
+                      <Input.Password placeholder="代理密码（可选）" />
+                    </Form.Item>
+                  </>
+                ) : null;
+              }}
+            </Form.Item>
+          </div>
 
           <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
             <Space>

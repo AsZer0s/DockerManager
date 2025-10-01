@@ -218,6 +218,7 @@ export interface Server {
   name: string
   host: string
   port: number
+  ssh_port?: number
   username: string
   password?: string
   private_key?: string
@@ -232,6 +233,12 @@ export interface Server {
   can_control?: boolean
   can_ssh?: boolean
   hide_sensitive_info?: boolean
+  // 代理配置
+  proxy_enabled?: boolean
+  proxy_host?: string
+  proxy_port?: number
+  proxy_username?: string
+  proxy_password?: string
 }
 
 export interface Container {

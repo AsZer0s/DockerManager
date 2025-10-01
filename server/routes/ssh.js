@@ -6,6 +6,7 @@ import database from '../config/database.js';
 import logger from '../utils/logger.js';
 import encryption from '../utils/encryption.js';
 import { validateParams, commonValidation } from '../utils/validation.js';
+import { getOptimizedSSHConfig } from '../utils/sshConfig.js';
 
 const router = express.Router();
 
@@ -124,19 +125,15 @@ router.post('/:serverId/connect',
         });
       }
 
-      // 创建 SSH 连接配置
-      const sshConfig = {
-        host: server.host,
-        port: server.port || 22,
-        username: server.username,
-        readyTimeout: parseInt(process.env.SSH_TIMEOUT) || 30000
+      // 准备服务器配置对象
+      const serverConfig = {
+        ...server,
+        password: password,
+        private_key: privateKey
       };
 
-      if (privateKey) {
-        sshConfig.privateKey = privateKey;
-      } else if (password) {
-        sshConfig.password = password;
-      }
+      // 使用优化的SSH配置（支持代理）
+      const sshConfig = getOptimizedSSHConfig(serverConfig);
 
       // 测试 SSH 连接
       const conn = new Client();
@@ -253,19 +250,15 @@ router.post('/:serverId/execute',
         privateKey = encryption.decrypt(server.private_key_encrypted);
       }
 
-      // 创建 SSH 连接配置
-      const sshConfig = {
-        host: server.host,
-        port: server.port || 22,
-        username: server.username,
-        readyTimeout: parseInt(process.env.SSH_TIMEOUT) || 30000
+      // 准备服务器配置对象
+      const serverConfig = {
+        ...server,
+        password: password,
+        private_key: privateKey
       };
 
-      if (privateKey) {
-        sshConfig.privateKey = privateKey;
-      } else if (password) {
-        sshConfig.password = password;
-      }
+      // 使用优化的SSH配置（支持代理）
+      const sshConfig = getOptimizedSSHConfig(serverConfig);
 
       // 执行 SSH 命令
       const conn = new Client();
@@ -409,19 +402,15 @@ router.get('/:serverId/files',
         privateKey = encryption.decrypt(server.private_key_encrypted);
       }
 
-      // 创建 SSH 连接配置
-      const sshConfig = {
-        host: server.host,
-        port: server.port || 22,
-        username: server.username,
-        readyTimeout: parseInt(process.env.SSH_TIMEOUT) || 30000
+      // 准备服务器配置对象
+      const serverConfig = {
+        ...server,
+        password: password,
+        private_key: privateKey
       };
 
-      if (privateKey) {
-        sshConfig.privateKey = privateKey;
-      } else if (password) {
-        sshConfig.password = password;
-      }
+      // 使用优化的SSH配置（支持代理）
+      const sshConfig = getOptimizedSSHConfig(serverConfig);
 
       // 执行 ls 命令获取文件列表
       const conn = new Client();
@@ -544,19 +533,15 @@ router.get('/:serverId/system-info',
         privateKey = encryption.decrypt(server.private_key_encrypted);
       }
 
-      // 创建 SSH 连接配置
-      const sshConfig = {
-        host: server.host,
-        port: server.port || 22,
-        username: server.username,
-        readyTimeout: parseInt(process.env.SSH_TIMEOUT) || 30000
+      // 准备服务器配置对象
+      const serverConfig = {
+        ...server,
+        password: password,
+        private_key: privateKey
       };
 
-      if (privateKey) {
-        sshConfig.privateKey = privateKey;
-      } else if (password) {
-        sshConfig.password = password;
-      }
+      // 使用优化的SSH配置（支持代理）
+      const sshConfig = getOptimizedSSHConfig(serverConfig);
 
       // 执行系统信息收集命令
       const commands = {

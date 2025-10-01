@@ -424,7 +424,10 @@ router.post('/',
   validate(serverValidation.create),
   async (req, res) => {
     try {
-      const { name, host, port, username, password, private_key, description } = req.body;
+      const { 
+        name, host, port, ssh_port, username, password, private_key, description,
+        proxy_enabled, proxy_host, proxy_port, proxy_username, proxy_password
+      } = req.body;
 
       // 检查服务器是否已存在
       const existingServer = await database.db.get(
@@ -442,6 +445,7 @@ router.post('/',
       // 加密敏感信息
       let passwordEncrypted = null;
       let privateKeyEncrypted = null;
+      let proxyPasswordEncrypted = null;
       
       if (password) {
         passwordEncrypted = encryption.encrypt(password);
@@ -450,12 +454,23 @@ router.post('/',
       if (private_key) {
         privateKeyEncrypted = encryption.encrypt(private_key);
       }
+      
+      if (proxy_password) {
+        proxyPasswordEncrypted = encryption.encrypt(proxy_password);
+      }
 
       // 创建服务器
       const result = await database.db.run(`
-        INSERT INTO servers (name, host, port, username, password_encrypted, private_key_encrypted, description, created_by)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `, [name, host, port, username, passwordEncrypted, privateKeyEncrypted, description, req.user.id]);
+        INSERT INTO servers (
+          name, host, port, ssh_port, username, password_encrypted, private_key_encrypted, 
+          description, proxy_enabled, proxy_host, proxy_port, proxy_username, proxy_password_encrypted, created_by
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        name, host, port, ssh_port, username, passwordEncrypted, privateKeyEncrypted, 
+        description, proxy_enabled || false, proxy_host, proxy_port, proxy_username, 
+        proxyPasswordEncrypted, req.user.id
+      ]);
 
       // 获取创建的服务器信息
       const server = await database.db.get(`
@@ -492,7 +507,10 @@ router.put('/:id',
   async (req, res) => {
     try {
       const serverId = parseInt(req.params.id);
-      const { name, host, port, username, password, private_key, description, isActive } = req.body;
+      const { 
+        name, host, port, ssh_port, username, password, private_key, description, isActive,
+        proxy_enabled, proxy_host, proxy_port, proxy_username, proxy_password
+      } = req.body;
 
       // 检查服务器是否存在
       const existingServer = await database.query(
@@ -542,6 +560,11 @@ router.put('/:id',
         updateValues.push(port);
       }
       
+      if (ssh_port !== undefined) {
+        updateFields.push(`ssh_port = $${paramCount++}`);
+        updateValues.push(ssh_port);
+      }
+      
       if (username !== undefined) {
         updateFields.push(`username = $${paramCount++}`);
         updateValues.push(username);
@@ -573,6 +596,36 @@ router.put('/:id',
       if (isActive !== undefined) {
         updateFields.push(`is_active = $${paramCount++}`);
         updateValues.push(isActive);
+      }
+      
+      // 代理配置字段
+      if (proxy_enabled !== undefined) {
+        updateFields.push(`proxy_enabled = $${paramCount++}`);
+        updateValues.push(proxy_enabled);
+      }
+      
+      if (proxy_host !== undefined) {
+        updateFields.push(`proxy_host = $${paramCount++}`);
+        updateValues.push(proxy_host);
+      }
+      
+      if (proxy_port !== undefined) {
+        updateFields.push(`proxy_port = $${paramCount++}`);
+        updateValues.push(proxy_port);
+      }
+      
+      if (proxy_username !== undefined) {
+        updateFields.push(`proxy_username = $${paramCount++}`);
+        updateValues.push(proxy_username);
+      }
+      
+      if (proxy_password !== undefined) {
+        if (proxy_password) {
+          updateFields.push(`proxy_password_encrypted = $${paramCount++}`);
+          updateValues.push(encryption.encrypt(proxy_password));
+        } else {
+          updateFields.push(`proxy_password_encrypted = NULL`);
+        }
       }
 
       updateFields.push(`updated_at = CURRENT_TIMESTAMP`);

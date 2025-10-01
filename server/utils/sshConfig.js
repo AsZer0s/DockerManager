@@ -1,7 +1,11 @@
 /**
  * SSH 连接配置优化
  * 提供统一的SSH连接配置，提高连接稳定性
+ * 支持SOCKS5代理连接
  */
+
+import { SocksProxyAgent } from 'socks-proxy-agent';
+import encryption from './encryption.js';
 
 export const getOptimizedSSHConfig = (server) => {
   const baseConfig = {
@@ -44,6 +48,27 @@ export const getOptimizedSSHConfig = (server) => {
     baseConfig.password = server.password;
   } else if (server.private_key) {
     baseConfig.privateKey = server.private_key;
+  }
+
+  // 配置SOCKS5代理
+  if (server.proxy_enabled && server.proxy_host) {
+    try {
+      let proxyUrl = `socks5://${server.proxy_host}:${server.proxy_port || 1080}`;
+      
+      // 如果代理需要认证
+      if (server.proxy_username) {
+        let proxyPassword = '';
+        if (server.proxy_password_encrypted) {
+          proxyPassword = encryption.decrypt(server.proxy_password_encrypted);
+        }
+        proxyUrl = `socks5://${server.proxy_username}:${proxyPassword}@${server.proxy_host}:${server.proxy_port || 1080}`;
+      }
+      
+      baseConfig.agent = new SocksProxyAgent(proxyUrl);
+    } catch (error) {
+      console.error('创建SOCKS5代理配置失败:', error);
+      // 如果代理配置失败，继续使用直连
+    }
   }
 
   return baseConfig;
