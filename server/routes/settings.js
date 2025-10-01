@@ -19,10 +19,18 @@ const router = express.Router();
  */
 router.get('/profile', authenticateToken, async (req, res) => {
   try {
-    const result = await database.query(
-      'SELECT id, username, email, role, telegram_id, telegram_username, avatar, phone, bio, is_active, created_at, updated_at FROM users WHERE id = $1',
-      [req.user.id]
-    );
+    // 先检查telegram_username字段是否存在
+    const tableInfo = await database.query("PRAGMA table_info(users)");
+    const hasTelegramUsername = tableInfo.rows.some(column => column.name === 'telegram_username');
+    
+    let query, params;
+    if (hasTelegramUsername) {
+      query = 'SELECT id, username, email, role, telegram_id, telegram_username, avatar, phone, bio, is_active, created_at, updated_at FROM users WHERE id = $1';
+    } else {
+      query = 'SELECT id, username, email, role, telegram_id, avatar, phone, bio, is_active, created_at, updated_at FROM users WHERE id = $1';
+    }
+    
+    const result = await database.query(query, [req.user.id]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -39,7 +47,7 @@ router.get('/profile', authenticateToken, async (req, res) => {
         email: user.email,
         role: user.role,
         telegramId: user.telegram_id,
-        telegramUsername: user.telegram_username,
+        telegramUsername: hasTelegramUsername ? user.telegram_username : null,
         avatar: user.avatar,
         phone: user.phone,
         bio: user.bio,
