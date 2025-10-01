@@ -200,28 +200,21 @@ router.get('/current/:serverId',
         });
       }
 
-      // 获取最新的监控数据
-      const result = await database.db.get(`
-        SELECT * FROM server_monitoring 
-        WHERE server_id = ? 
-        ORDER BY timestamp DESC 
-        LIMIT 1
-      `, [serverId]);
-
-      if (!result) {
+      // 直接收集实时监控数据
+      const realTimeData = await monitoringService.collectSystemData(serverId);
+      
+      if (!realTimeData) {
         return res.status(404).json({
-          error: '无监控数据',
-          message: '该服务器暂无监控数据'
+          error: '无法获取实时数据',
+          message: '服务器可能离线或连接失败'
         });
       }
-
-      const data = result;
 
       res.json({
         serverId,
         type: 'server',
-        data,
-        timestamp: data.timestamp
+        data: realTimeData,
+        timestamp: Date.now()
       });
     } catch (error) {
       logger.error('获取当前监控数据失败:', error);
@@ -269,29 +262,23 @@ router.get('/containers/current/:serverId/:containerId',
 
       const dbContainerId = containerResult.id;
 
-      // 获取最新的容器监控数据
-      const result = await database.db.get(`
-        SELECT * FROM container_monitoring 
-        WHERE container_id = ? 
-        ORDER BY timestamp DESC 
-        LIMIT 1
-      `, [dbContainerId]);
-
-      if (!result) {
+      // 直接收集容器实时监控数据
+      const realTimeData = await monitoringService.collectContainerData(serverId);
+      const containerData = realTimeData.find(c => c.containerId === containerId);
+      
+      if (!containerData) {
         return res.status(404).json({
-          error: '无监控数据',
-          message: '该容器暂无监控数据'
+          error: '无法获取容器实时数据',
+          message: '容器可能不存在或已停止'
         });
       }
-
-      const data = result;
 
       res.json({
         serverId,
         containerId,
         type: 'container',
-        data,
-        timestamp: data.timestamp
+        data: containerData.metrics,
+        timestamp: Date.now()
       });
     } catch (error) {
       logger.error('获取容器当前监控数据失败:', error);

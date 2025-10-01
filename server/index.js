@@ -37,6 +37,7 @@ import telegramVerificationRoutes from './routes/telegramVerification.js';
 import settingsRoutes from './routes/settings.js';
 import userManagementRoutes from './routes/userManagement.js';
 import pollingRoutes from './routes/polling.js';
+import sshSessionRoutes from './routes/sshSession.js';
 
 dotenv.config();
 
@@ -118,6 +119,7 @@ app.use('/api/telegram-verification', telegramVerificationRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/user-management', userManagementRoutes);
 app.use('/api/polling', pollingRoutes);
+app.use('/api/ssh-session', sshSessionRoutes);
 
 // 健康检查端点
 app.get('/health', async (req, res) => {
@@ -603,6 +605,12 @@ async function initializeServices() {
     const pollingService = (await import('./services/pollingService.js')).default;
     pollingService.initialize();
     console.log('✅ HTTP 轮询服务初始化成功');
+
+    // 初始化 SSH 会话服务
+    console.log('🔐 初始化 SSH 会话服务...');
+    const sshSessionService = (await import('./services/sshSessionService.js')).default;
+    sshSessionService.initialize();
+    console.log('✅ SSH 会话服务初始化成功');
 
     // 启动服务器
     const PORT = 3000;

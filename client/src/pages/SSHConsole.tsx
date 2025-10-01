@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Card, Select, Button, Space, message } from 'antd'
 import { ConsoleSqlOutlined, ReloadOutlined, DisconnectOutlined, HistoryOutlined } from '@ant-design/icons'
 import { sshAPI, Server } from '@/services/api'
+import sshSessionAPI from '@/services/sshSessionAPI'
 import { useGlobalServers } from '@/hooks/useGlobalServers'
 import './SSHConsole.css'
 
@@ -20,7 +21,7 @@ const SSHConsole: React.FC = () => {
   const [commandHistory, setCommandHistory] = useState<CommandHistory[]>([])
   const [historyIndex, setHistoryIndex] = useState(-1)
   const [isLoading, setIsLoading] = useState(false)
-  const [, setSessionId] = useState<string | null>(null)
+  const [sessionId, setSessionId] = useState<string | null>(null)
   const [currentPath, setCurrentPath] = useState('/root')
   
   const terminalRef = useRef<HTMLDivElement>(null)
@@ -47,11 +48,11 @@ const SSHConsole: React.FC = () => {
 
   // 更新当前路径
   const updateCurrentPath = async () => {
-    if (!selectedServer) return
+    if (!sessionId) return
     
     try {
-      const response = await sshAPI.executeCommand(selectedServer, 'pwd')
-      const newPath = response.data.result.output?.trim() || '/root'
+      const result = await sshSessionAPI.executeCommand(sessionId, 'pwd')
+      const newPath = result.output?.trim() || '/root'
       setCurrentPath(newPath)
     } catch (error) {
       // 如果获取路径失败，保持当前路径
@@ -77,11 +78,11 @@ const SSHConsole: React.FC = () => {
     try {
       addToTerminal(`正在连接到服务器 ${onlineServers.find((s: Server) => s.id === selectedServer)?.name}...`)
       
-      // 测试SSH连接
-      await sshAPI.testConnection(selectedServer)
+      // 创建SSH会话
+      const result = await sshSessionAPI.createSession(selectedServer)
       
       setIsConnected(true)
-      setSessionId(`ssh_${selectedServer}_${Date.now()}`)
+      setSessionId(result.sessionId)
       addToTerminal('SSH连接已建立')
       addToTerminal('欢迎使用DockerManager SSH控制台')
       
@@ -99,7 +100,15 @@ const SSHConsole: React.FC = () => {
   }
 
   // 断开SSH连接
-  const disconnectSSH = () => {
+  const disconnectSSH = async () => {
+    if (sessionId) {
+      try {
+        await sshSessionAPI.closeSession(sessionId)
+      } catch (error) {
+        console.error('关闭SSH会话失败:', error)
+      }
+    }
+    
     setIsConnected(false)
     setSessionId(null)
     setTerminalOutput([])
@@ -111,7 +120,7 @@ const SSHConsole: React.FC = () => {
 
   // 执行命令
   const executeCommand = async (command: string) => {
-    if (!command.trim() || !selectedServer) return
+    if (!command.trim() || !sessionId) return
 
     const trimmedCommand = command.trim()
 
@@ -137,11 +146,14 @@ const SSHConsole: React.FC = () => {
 
     // 执行真实的SSH命令
     try {
-      const response = await sshAPI.executeCommand(selectedServer, trimmedCommand)
-      const output = response.data.result.output
+      const result = await sshSessionAPI.executeCommand(sessionId, trimmedCommand)
       
-      if (output) {
-        addToTerminal(output)
+      if (result.output) {
+        addToTerminal(result.output)
+      }
+      
+      if (result.error) {
+        addToTerminal(result.error, 'error')
       }
 
       // 更新当前路径（如果是cd命令）

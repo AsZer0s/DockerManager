@@ -16,7 +16,7 @@ class PollingService {
     // 启动清理任务，定期清理过期的订阅者
     this.cleanupInterval = setInterval(() => {
       this.cleanupExpiredSubscribers();
-    }, 30000); // 每30秒清理一次
+    }, 5 * 60 * 1000); // 每5分钟清理一次
 
     logger.info('HTTP轮询服务初始化完成');
   }
@@ -62,7 +62,8 @@ class PollingService {
   async getData(sessionId, dataTypes = []) {
     const subscriber = this.subscribers.get(sessionId);
     if (!subscriber) {
-      throw new Error('未找到订阅者');
+      logger.warn(`未找到订阅者: ${sessionId}, 当前订阅者数量: ${this.subscribers.size}`);
+      throw new Error('未找到订阅者，请重新订阅');
     }
 
     // 更新最后访问时间
@@ -136,12 +137,12 @@ class PollingService {
       const result = await database.query(`
         SELECT s.*, p.can_view, p.can_control, p.can_ssh, p.hide_sensitive_info
         FROM servers s
-        LEFT JOIN permissions p ON s.id = p.server_id AND p.user_id = ?
+        LEFT JOIN user_server_permissions p ON s.id = p.server_id AND p.user_id = ?
         WHERE s.is_active = true
         ORDER BY s.created_at DESC
       `, [userId]);
 
-      return result.map(server => ({
+      return result.rows.map(server => ({
         ...server,
         password_encrypted: server.hide_sensitive_info ? '[隐藏]' : server.password_encrypted,
         private_key_encrypted: server.hide_sensitive_info ? '[隐藏]' : server.private_key_encrypted
@@ -167,13 +168,13 @@ class PollingService {
       const serversResult = await database.query(`
         SELECT s.*, p.can_view, p.can_control
         FROM servers s
-        LEFT JOIN permissions p ON s.id = p.server_id AND p.user_id = ?
+        LEFT JOIN user_server_permissions p ON s.id = p.server_id AND p.user_id = ?
         WHERE s.is_active = true AND (p.can_view = true OR p.can_control = true)
       `, [userId]);
 
       const containersData = {};
       
-      for (const server of serversResult) {
+      for (const server of serversResult.rows) {
         try {
           const containers = await dockerService.getContainers(server.id);
           containersData[server.id] = {
@@ -220,15 +221,17 @@ class PollingService {
    */
   cleanupExpiredSubscribers() {
     const now = Date.now();
-    const expireTime = 5 * 60 * 1000; // 5分钟过期
+    const expireTime = 30 * 60 * 1000; // 30分钟过期
 
     for (const [sessionId, subscriber] of this.subscribers.entries()) {
       if (now - subscriber.lastAccess > expireTime) {
-        logger.info(`清理过期订阅者: ${subscriber.userId}`);
+        logger.info(`清理过期订阅者: ${subscriber.userId} (${sessionId})`);
         this.subscribers.delete(sessionId);
         this.dataCache.delete(sessionId);
       }
     }
+    
+    logger.info(`当前活跃订阅者数量: ${this.subscribers.size}`);
   }
 
   /**

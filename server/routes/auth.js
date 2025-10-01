@@ -21,6 +21,7 @@ const loginLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true, // 成功请求不计入限制
+  trustProxy: false, // 禁用信任代理以避免警告
 });
 
 
