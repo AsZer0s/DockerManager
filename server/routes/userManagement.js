@@ -395,15 +395,30 @@ router.put('/users/:id/servers',
 
       // 删除现有权限
       await database.db.run('DELETE FROM user_server_permissions WHERE user_id = ?', [userId]);
+      await database.db.run('DELETE FROM user_containers WHERE user_id = ?', [userId]);
 
       // 添加新权限
       if (serverIds && serverIds.length > 0) {
         for (const serverId of serverIds) {
+          // 添加服务器权限
           await database.db.run(`
             INSERT INTO user_server_permissions 
             (user_id, server_id, can_view, can_control, can_ssh, hide_sensitive_info)
             VALUES (?, ?, 1, 0, 0, 0)
           `, [userId, serverId]);
+
+          // 自动给该服务器的所有容器分配权限
+          const containers = await database.db.all(
+            'SELECT id FROM containers WHERE server_id = ?',
+            [serverId]
+          );
+
+          for (const container of containers) {
+            await database.db.run(`
+              INSERT OR IGNORE INTO user_containers (user_id, container_id)
+              VALUES (?, ?)
+            `, [userId, container.id]);
+          }
         }
       }
 
@@ -464,6 +479,30 @@ router.put('/users/:id/containers',
 
       // 添加新权限
       if (containerIds && containerIds.length > 0) {
+        // 获取容器对应的服务器ID
+        const serverIds = new Set();
+        
+        for (const containerId of containerIds) {
+          const container = await database.query(
+            'SELECT server_id FROM containers WHERE id = $1',
+            [containerId]
+          );
+          
+          if (container.rows.length > 0) {
+            serverIds.add(container.rows[0].server_id);
+          }
+        }
+
+        // 先给用户分配服务器权限
+        for (const serverId of serverIds) {
+          await database.db.run(`
+            INSERT OR IGNORE INTO user_server_permissions 
+            (user_id, server_id, can_view, can_control, can_ssh, hide_sensitive_info)
+            VALUES (?, ?, 1, 0, 0, 0)
+          `, [userId, serverId]);
+        }
+
+        // 再给用户分配容器权限
         const values = containerIds.map((containerId, index) => 
           `($1, $${index + 2})`
         ).join(', ');

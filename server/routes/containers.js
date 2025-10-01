@@ -55,6 +55,20 @@ const checkServerPermission = async (req, res, next) => {
       return next();
     }
 
+    // 先检查服务器是否存在
+    const serverExists = await database.query(
+      'SELECT id FROM servers WHERE id = $1 AND is_active = true',
+      [serverId]
+    );
+
+    if (serverExists.rows.length === 0) {
+      return res.status(404).json({
+        error: '服务器不存在',
+        message: '指定的服务器不存在或已被禁用'
+      });
+    }
+
+    // 检查用户权限
     const result = await database.query(
       'SELECT can_view, can_control, can_ssh, hide_sensitive_info FROM user_server_permissions WHERE user_id = $1 AND server_id = $2',
       [req.user.id, serverId]
