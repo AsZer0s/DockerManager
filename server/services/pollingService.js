@@ -109,13 +109,10 @@ class PollingService {
    */
   async getSystemStats() {
     try {
+      const monitoringStatus = monitoringService.getStatus();
       const stats = {
         timestamp: Date.now(),
-        monitoring: {
-          activeServers: monitoringService.getActiveServersCount(),
-          monitoringInterval: monitoringService.getMonitoringInterval(),
-          isRunning: monitoringService.isRunning()
-        }
+        monitoring: monitoringStatus
       };
       return stats;
     } catch (error) {
@@ -130,15 +127,21 @@ class PollingService {
   async getServersList(userId) {
     try {
       const database = (await import('../config/database.js')).default;
+      
+      // 确保数据库连接
+      if (!database.isConnected) {
+        await database.connect();
+      }
+      
       const result = await database.query(`
         SELECT s.*, p.can_view, p.can_control, p.can_ssh, p.hide_sensitive_info
         FROM servers s
-        LEFT JOIN permissions p ON s.id = p.server_id AND p.user_id = $1
+        LEFT JOIN permissions p ON s.id = p.server_id AND p.user_id = ?
         WHERE s.is_active = true
         ORDER BY s.created_at DESC
       `, [userId]);
 
-      return result.rows.map(server => ({
+      return result.map(server => ({
         ...server,
         password_encrypted: server.hide_sensitive_info ? '[隐藏]' : server.password_encrypted,
         private_key_encrypted: server.hide_sensitive_info ? '[隐藏]' : server.private_key_encrypted
@@ -155,16 +158,22 @@ class PollingService {
   async getContainersStatus(userId) {
     try {
       const database = (await import('../config/database.js')).default;
+      
+      // 确保数据库连接
+      if (!database.isConnected) {
+        await database.connect();
+      }
+      
       const serversResult = await database.query(`
         SELECT s.*, p.can_view, p.can_control
         FROM servers s
-        LEFT JOIN permissions p ON s.id = p.server_id AND p.user_id = $1
+        LEFT JOIN permissions p ON s.id = p.server_id AND p.user_id = ?
         WHERE s.is_active = true AND (p.can_view = true OR p.can_control = true)
       `, [userId]);
 
       const containersData = {};
       
-      for (const server of serversResult.rows) {
+      for (const server of serversResult) {
         try {
           const containers = await dockerService.getContainers(server.id);
           containersData[server.id] = {
@@ -195,10 +204,9 @@ class PollingService {
    */
   async getMonitoringData() {
     try {
+      const status = monitoringService.getStatus();
       return {
-        activeServers: monitoringService.getActiveServersCount(),
-        monitoringInterval: monitoringService.getMonitoringInterval(),
-        isRunning: monitoringService.isRunning(),
+        ...status,
         lastUpdate: Date.now()
       };
     } catch (error) {
