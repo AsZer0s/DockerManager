@@ -15,7 +15,7 @@ interface PollingResponse {
 
 class PollingService {
   private sessionId: string | null = null;
-  private pollingInterval: NodeJS.Timeout | null = null;
+  private pollingInterval: number | null = null;
   private isPolling = false;
   private subscribers: Map<string, (data: PollingData) => void> = new Map();
   private subscriptions: string[] = [];
@@ -115,13 +115,21 @@ class PollingService {
         // 通知所有订阅者
         this.notifySubscribers(response.data.data);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('轮询数据失败:', error);
       
-      // 如果是认证错误，停止轮询
+      // 如果是认证错误，停止轮询并清除登录状态
       if (error.response?.status === 401) {
-        console.log('认证失败，停止轮询');
+        console.log('认证失败，停止轮询并清除登录状态');
         this.stopPolling();
+        
+        // 清除登录状态
+        const { useAuthStore } = await import('../stores/authStore');
+        const authStore = useAuthStore.getState();
+        authStore.logout();
+        
+        // 跳转到登录页面
+        window.location.href = '/login';
       }
     }
   }

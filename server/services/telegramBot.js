@@ -74,6 +74,9 @@ class TelegramBotService {
       this.registerDefaultButtons(); // 注册默认按钮
       this.isInitialized = true;
       
+      // 设置输入框占位符
+      await this.setInputFieldPlaceholder();
+      
       // 启动机器人，添加错误处理
       await this.bot.launch().catch(error => {
         logger.error('Telegram 机器人启动失败:', error);
@@ -180,13 +183,10 @@ class TelegramBotService {
       const welcomeMessage = 
         `欢迎回来，${user.username}！\n\n` +
         'Docker Manager 机器人已就绪\n\n' +
-        '可用命令：\n' +
-        '/servers - 查看服务器列表\n' +
-        '/containers - 查看容器列表\n' +
-        '/status - 查看系统状态\n' +
-        '/help - 获取帮助信息';
+        '随时为您提供服务';
 
-      await ctx.reply(welcomeMessage, this.generateMainMenuButtons());
+      // 使用标准回复键盘
+      await ctx.reply(welcomeMessage, this.getStandardKeyboard());
 
     } catch (error) {
       logger.error('处理 /start 命令失败:', error);
@@ -197,21 +197,23 @@ class TelegramBotService {
   async handleHelpCommand(ctx) {
     try {
       const helpMessage = 
-        'Docker Manager 机器人帮助\n\n' +
-        '可用命令：\n' +
-        '/start - 启动机器人\n' +
-        '/servers - 查看服务器列表\n' +
-        '/containers - 查看容器列表\n' +
-        '/status - 查看系统状态\n' +
-        '/help - 显示此帮助信息\n\n' +
-        '功能说明：\n' +
-        '• 查看服务器状态和容器信息\n' +
-        '• 启动/停止/重启容器\n' +
-        '• 查看系统监控数据\n' +
-        '• 接收系统告警通知\n\n' +
-        '提示：使用内联按钮可以快速访问功能';
+        '🤖 **Docker Manager 机器人帮助**\n\n' +
+        '📋 **可用功能：**\n' +
+        '• 📊 服务器管理 - 查看和管理服务器状态\n' +
+        '• 🐳 容器管理 - 查看和管理Docker容器\n' +
+        '• 🌐 在线监控 - 打开Web应用进行详细监控\n' +
+        '• ❓ 帮助菜单 - 查看此帮助信息\n\n' +
+        '💡 **使用提示：**\n' +
+        '• 点击下方按钮快速访问功能\n' +
+        '• 使用内联按钮进行具体操作\n' +
+        '• 支持搜索和筛选功能\n\n' +
+        '🔧 **技术支持：**\n' +
+        '如有问题请联系管理员';
 
-      await ctx.reply(helpMessage);
+      await ctx.reply(helpMessage, { 
+        parse_mode: 'Markdown',
+        ...this.getStandardKeyboard()
+      });
     } catch (error) {
       logger.error('处理 /help 命令失败:', error);
       await this.safeReply(ctx, '抱歉，发生了错误，请稍后重试');
@@ -286,7 +288,12 @@ class TelegramBotService {
 
       await ctx.reply(message, { 
         parse_mode: 'Markdown',
-        ...Markup.inlineKeyboard(buttons)
+        reply_markup: {
+          inline_keyboard: buttons,
+          keyboard: this.getStandardKeyboard().reply_markup.keyboard,
+          resize_keyboard: true,
+          persistent: true
+        }
       });
     } catch (error) {
       logger.error('处理 /servers 命令失败:', error);
@@ -1024,8 +1031,26 @@ class TelegramBotService {
       const text = ctx.message.text;
       const userSession = this.userSessions.get(userId);
 
+      // 处理按钮文本
+      if (text === '📊 服务器管理') {
+        await this.handleServersCommand(ctx);
+        return;
+      } else if (text === '🐳 容器管理') {
+        await this.handleContainersCommand(ctx);
+        return;
+      } else if (text === '🌐 在线监控') {
+        const webAppUrl = process.env.TELEGRAM_WEBAPP_URL || 'https://ztms.top/telegram-webapp';
+        await ctx.reply('正在打开Web App...', Markup.inlineKeyboard([
+          [Markup.button.webApp('🌐 在线监控', webAppUrl)]
+        ]));
+        return;
+      } else if (text === '❓ 帮助菜单') {
+        await this.handleHelpCommand(ctx);
+        return;
+      }
+
       if (!userSession) {
-        // 如果没有会话状态，忽略文本消息
+        // 如果没有会话状态，忽略其他文本消息
         return;
       }
 
@@ -1625,6 +1650,40 @@ class TelegramBotService {
         lastName: null,
         displayName: `ID: ${telegramId}`
       };
+    }
+  }
+
+  /**
+   * 生成标准回复键盘
+   * @returns {Object} ReplyKeyboardMarkup对象
+   */
+  getStandardKeyboard() {
+    return Markup.keyboard([
+      ['📊 服务器管理', '🐳 容器管理'],
+      ['🌐 在线监控', '❓ 帮助菜单']
+    ])
+    .resize()
+    .persistent();
+  }
+
+  /**
+   * 设置输入框占位符
+   */
+  async setInputFieldPlaceholder() {
+    try {
+      if (!this.bot || !this.isInitialized) {
+        logger.warn('Telegram 机器人未初始化，跳过设置输入框占位符');
+        return;
+      }
+
+      // 设置机器人信息
+      await this.bot.telegram.setMyDescription('Docker Manager - 服务器和容器管理工具');
+      await this.bot.telegram.setMyShortDescription('Docker管理工具');
+      await this.bot.telegram.setMyName('Docker Manager Bot');
+      
+      logger.info('✅ 输入框占位符设置成功');
+    } catch (error) {
+      logger.error('设置输入框占位符失败:', error);
     }
   }
 

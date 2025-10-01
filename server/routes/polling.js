@@ -80,6 +80,16 @@ router.get('/data/:sessionId', async (req, res) => {
     });
   } catch (error) {
     logger.error('获取数据失败:', error);
+    
+    // 如果是"未找到订阅者"错误，返回401状态码，让前端知道需要重新登录
+    if (error.message === '未找到订阅者，请重新订阅') {
+      return res.status(401).json({ 
+        error: 'SESSION_EXPIRED',
+        message: '会话已过期，请重新登录',
+        code: 'SESSION_EXPIRED'
+      });
+    }
+    
     res.status(500).json({ error: error.message });
   }
 });
