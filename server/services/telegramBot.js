@@ -17,6 +17,15 @@ class TelegramBotService {
 
   async initialize() {
     try {
+      // 设置全局未处理Promise拒绝处理
+      process.on('unhandledRejection', (reason, promise) => {
+        if (this.isNetworkError(reason)) {
+          logger.warn('检测到未处理的网络错误Promise拒绝，已忽略:', reason.message);
+          return;
+        }
+        logger.error('未处理的 Promise 拒绝:', reason);
+      });
+
       const token = process.env.TELEGRAM_BOT_TOKEN;
       if (!token || token === 'your_telegram_bot_token_here') {
         logger.warn('TELEGRAM_BOT_TOKEN 未设置或为占位符，跳过 Telegram 机器人初始化');
@@ -122,7 +131,17 @@ class TelegramBotService {
     // 处理错误
     this.bot.catch((err, ctx) => {
       logger.error('Telegram 机器人错误:', err);
-      ctx.reply('抱歉，发生了错误，请稍后重试');
+      
+      // 检查是否是网络连接错误
+      if (this.isNetworkError(err)) {
+        logger.warn('检测到网络连接错误，跳过回复以避免循环错误');
+        return;
+      }
+      
+      // 尝试发送错误消息，如果失败则忽略
+      this.safeReply(ctx, '抱歉，发生了错误，请稍后重试').catch(replyErr => {
+        logger.error('发送错误消息失败:', replyErr);
+      });
     });
   }
 
@@ -163,7 +182,7 @@ class TelegramBotService {
 
     } catch (error) {
       logger.error('处理 /start 命令失败:', error);
-      await ctx.reply('抱歉，发生了错误，请稍后重试');
+      await this.safeReply(ctx, '抱歉，发生了错误，请稍后重试');
     }
   }
 
@@ -187,7 +206,7 @@ class TelegramBotService {
       await ctx.reply(helpMessage);
     } catch (error) {
       logger.error('处理 /help 命令失败:', error);
-      await ctx.reply('抱歉，发生了错误，请稍后重试');
+      await this.safeReply(ctx, '抱歉，发生了错误，请稍后重试');
     }
   }
 
@@ -263,7 +282,7 @@ class TelegramBotService {
       });
     } catch (error) {
       logger.error('处理 /servers 命令失败:', error);
-      await ctx.reply('抱歉，发生了错误，请稍后重试');
+      await this.safeReply(ctx, '抱歉，发生了错误，请稍后重试');
     }
   }
 
@@ -339,7 +358,7 @@ class TelegramBotService {
       });
     } catch (error) {
       logger.error('刷新服务器列表失败:', error);
-      await ctx.editMessageText('抱歉，刷新失败，请稍后重试');
+      await this.safeEditMessageText(ctx, '抱歉，刷新失败，请稍后重试');
     }
   }
 
@@ -373,7 +392,7 @@ class TelegramBotService {
       );
     } catch (error) {
       logger.error('处理 /containers 命令失败:', error);
-      await ctx.reply('抱歉，发生了错误，请稍后重试');
+      await this.safeReply(ctx, '抱歉，发生了错误，请稍后重试');
     }
   }
 
@@ -412,7 +431,7 @@ class TelegramBotService {
       await ctx.reply(message, { parse_mode: 'Markdown' });
     } catch (error) {
       logger.error('处理 /status 命令失败:', error);
-      await ctx.reply('抱歉，发生了错误，请稍后重试');
+      await this.safeReply(ctx, '抱歉，发生了错误，请稍后重试');
     }
   }
 
@@ -463,7 +482,7 @@ class TelegramBotService {
       }
     } catch (error) {
       logger.error('处理回调查询失败:', error);
-      await ctx.reply('抱歉，发生了错误，请稍后重试');
+      await this.safeReply(ctx, '抱歉，发生了错误，请稍后重试');
     }
   }
 
@@ -471,13 +490,34 @@ class TelegramBotService {
     try {
       const server = await this.getServerById(serverId);
       if (!server) {
-        await ctx.reply('服务器不存在');
+        await this.safeReply(ctx, '服务器不存在');
         return;
       }
 
       const status = await this.checkServerStatus(serverId);
       const statusIcon = status ? '🟢' : '🔴';
       const statusText = status ? '在线' : '离线';
+
+      // 如果服务器离线，直接显示离线信息
+      if (!status) {
+        let message = 
+          `🖥️ 服务器详情：${server.name}\n\n` +
+          `状态: ${statusIcon} ${statusText}\n` +
+          `描述: ${server.description || '无'}\n` +
+          `创建时间: ${new Date(server.created_at).toLocaleString('zh-CN')}\n\n` +
+          `⚠️ 当前服务器状态异常，请稍后重试`;
+
+        const buttons = [
+          [Markup.button.callback('🔄 刷新状态', `server_${serverId}`)],
+          [Markup.button.callback('🔙 返回服务器列表', 'servers')]
+        ];
+
+        await this.safeReply(ctx, message, {
+          parse_mode: 'Markdown',
+          ...Markup.inlineKeyboard(buttons)
+        });
+        return;
+      }
 
       // 获取容器列表
       const containers = await dockerService.getContainers(serverId);
@@ -554,17 +594,39 @@ class TelegramBotService {
       if (this.isServerConnectionError(error)) {
         await this.sendServerConnectionError(ctx);
       } else {
-        await ctx.reply('抱歉，发生了错误，请稍后重试');
+        await this.safeReply(ctx, '抱歉，发生了错误，请稍后重试');
       }
     }
   }
 
   async handleServerContainers(ctx, serverId) {
     try {
+      // 先检查服务器状态
+      const status = await this.checkServerStatus(serverId);
+      if (!status) {
+        const server = await this.getServerById(serverId);
+        const serverName = server ? server.name : `服务器 ${serverId}`;
+        
+        let message = `🐳 **${serverName} - 容器监控**\n\n`;
+        message += `⚠️ 当前服务器状态异常，请稍后重试\n\n`;
+        message += `无法获取容器信息，请检查服务器连接状态。`;
+
+        const buttons = [
+          [Markup.button.callback('🔄 刷新状态', `containers_${serverId}`)],
+          [Markup.button.callback('🔙 返回服务器列表', 'servers')]
+        ];
+
+        await this.safeReply(ctx, message, {
+          parse_mode: 'Markdown',
+          ...Markup.inlineKeyboard(buttons)
+        });
+        return;
+      }
+
       const containers = await dockerService.getContainers(serverId);
       
       if (containers.length === 0) {
-        await ctx.reply('该服务器上没有容器');
+        await this.safeReply(ctx, '该服务器上没有容器');
         return;
       }
 
@@ -629,7 +691,7 @@ class TelegramBotService {
       if (this.isServerConnectionError(error)) {
         await this.sendServerConnectionError(ctx);
       } else {
-        await ctx.reply('抱歉，发生了错误，请稍后重试');
+        await this.safeReply(ctx, '抱歉，发生了错误，请稍后重试');
       }
     }
   }
@@ -643,7 +705,7 @@ class TelegramBotService {
       }
     } catch (error) {
       logger.error('处理容器操作失败:', error);
-      await ctx.reply('抱歉，发生了错误，请稍后重试');
+      await this.safeReply(ctx, '抱歉，发生了错误，请稍后重试');
     }
   }
 
@@ -653,14 +715,37 @@ class TelegramBotService {
       const user = await this.getUserByTelegramId(userId);
       
       if (!user) {
-        await ctx.reply('请先在 Web 界面中注册并绑定 Telegram ID');
+        await this.safeReply(ctx, '请先在 Web 界面中注册并绑定 Telegram ID');
+        return;
+      }
+
+      // 先检查服务器状态
+      const status = await this.checkServerStatus(serverId);
+      if (!status) {
+        const server = await this.getServerById(serverId);
+        const serverName = server ? server.name : `服务器 ${serverId}`;
+        
+        let message = `🐳 **容器详情**\n\n`;
+        message += `服务器: ${serverName}\n\n`;
+        message += `⚠️ 当前服务器状态异常，请稍后重试\n\n`;
+        message += `无法获取容器信息，请检查服务器连接状态。`;
+
+        const buttons = [
+          [Markup.button.callback('🔄 刷新状态', `container_${serverId}_${containerId}_details`)],
+          [Markup.button.callback('🔙 返回容器列表', `containers_${serverId}`)]
+        ];
+
+        await this.safeReply(ctx, message, {
+          parse_mode: 'Markdown',
+          ...Markup.inlineKeyboard(buttons)
+        });
         return;
       }
 
       const container = await dockerService.getContainerInfo(serverId, containerId);
       
       if (!container) {
-        await ctx.reply('容器不存在');
+        await this.safeReply(ctx, '容器不存在');
         return;
       }
 
@@ -733,7 +818,7 @@ class TelegramBotService {
       if (this.isServerConnectionError(error)) {
         await this.sendServerConnectionError(ctx);
       } else {
-        await ctx.reply('抱歉，发生了错误，请稍后重试');
+        await this.safeReply(ctx, '抱歉，发生了错误，请稍后重试');
       }
     }
   }
@@ -744,14 +829,36 @@ class TelegramBotService {
       const user = await this.getUserByTelegramId(userId);
       
       if (!user) {
-        await ctx.reply('请先在 Web 界面中注册并绑定 Telegram ID');
+        await this.safeReply(ctx, '请先在 Web 界面中注册并绑定 Telegram ID');
+        return;
+      }
+
+      // 先检查服务器状态
+      const status = await this.checkServerStatus(serverId);
+      if (!status) {
+        const server = await this.getServerById(serverId);
+        const serverName = server ? server.name : `服务器 ${serverId}`;
+        
+        let message = `⚠️ 当前服务器状态异常，请稍后重试\n\n`;
+        message += `服务器: ${serverName}\n`;
+        message += `无法执行容器操作，请检查服务器连接状态。`;
+
+        const buttons = [
+          [Markup.button.callback('🔄 刷新状态', `container_${serverId}_${containerId}_details`)],
+          [Markup.button.callback('🔙 返回容器列表', `containers_${serverId}`)]
+        ];
+
+        await this.safeReply(ctx, message, {
+          parse_mode: 'Markdown',
+          ...Markup.inlineKeyboard(buttons)
+        });
         return;
       }
 
       // 检查用户是否有权限控制此服务器
       const hasControlPermission = await this.checkUserServerControlPermission(user.id, serverId);
       if (!hasControlPermission && ['start', 'stop', 'restart'].includes(action)) {
-        await ctx.reply('❌ 您没有权限控制此服务器的容器');
+        await this.safeReply(ctx, '❌ 您没有权限控制此服务器的容器');
         return;
       }
 
@@ -792,7 +899,7 @@ class TelegramBotService {
       if (this.isServerConnectionError(error)) {
         await this.sendServerConnectionError(ctx);
       } else {
-        await ctx.reply('抱歉，发生了错误，请稍后重试');
+        await this.safeReply(ctx, '抱歉，发生了错误，请稍后重试');
       }
     }
   }
@@ -815,7 +922,7 @@ class TelegramBotService {
       this.userSessions.set(userId, { mode: 'search_servers' });
     } catch (error) {
       logger.error('处理搜索服务器失败:', error);
-      await ctx.reply('抱歉，发生了错误，请稍后重试');
+      await this.safeReply(ctx, '抱歉，发生了错误，请稍后重试');
     }
   }
 
@@ -837,13 +944,36 @@ class TelegramBotService {
       this.userSessions.set(userId, { mode: 'search_containers', serverId });
     } catch (error) {
       logger.error('处理搜索容器失败:', error);
-      await ctx.reply('抱歉，发生了错误，请稍后重试');
+      await this.safeReply(ctx, '抱歉，发生了错误，请稍后重试');
     }
   }
 
   // 新增：显示容器日志
   async showContainerLogs(ctx, serverId, containerId) {
     try {
+      // 先检查服务器状态
+      const status = await this.checkServerStatus(serverId);
+      if (!status) {
+        const server = await this.getServerById(serverId);
+        const serverName = server ? server.name : `服务器 ${serverId}`;
+        
+        let message = `📋 **容器日志**\n\n`;
+        message += `服务器: ${serverName}\n\n`;
+        message += `⚠️ 当前服务器状态异常，请稍后重试\n\n`;
+        message += `无法获取容器日志，请检查服务器连接状态。`;
+
+        const buttons = [
+          [Markup.button.callback('🔄 刷新状态', `container_${serverId}_${containerId}_logs`)],
+          [Markup.button.callback('🔙 返回容器详情', `container_${serverId}_${containerId}_details`)]
+        ];
+
+        await this.safeReply(ctx, message, {
+          parse_mode: 'Markdown',
+          ...Markup.inlineKeyboard(buttons)
+        });
+        return;
+      }
+
       const logs = await dockerService.getContainerLogs(serverId, containerId, { tail: 20 });
       
       let message = `📋 **容器日志**\n\n`;
@@ -857,7 +987,7 @@ class TelegramBotService {
         message += '暂无日志信息';
       }
 
-      await ctx.reply(message, { 
+      await this.safeReply(ctx, message, { 
         parse_mode: 'Markdown',
         ...Markup.inlineKeyboard([
           [Markup.button.callback('🔙 返回容器详情', `container_${serverId}_${containerId}_details`)]
@@ -869,7 +999,7 @@ class TelegramBotService {
       if (this.isServerConnectionError(error)) {
         await this.sendServerConnectionError(ctx);
       } else {
-        await ctx.reply('获取日志失败，请稍后重试');
+        await this.safeReply(ctx, '获取日志失败，请稍后重试');
       }
     }
   }
@@ -897,7 +1027,7 @@ class TelegramBotService {
       this.userSessions.delete(userId);
     } catch (error) {
       logger.error('处理文本消息失败:', error);
-      await ctx.reply('抱歉，发生了错误，请稍后重试');
+      await this.safeReply(ctx, '抱歉，发生了错误，请稍后重试');
     }
   }
 
@@ -961,7 +1091,7 @@ class TelegramBotService {
       });
     } catch (error) {
       logger.error('执行服务器搜索失败:', error);
-      await ctx.reply('搜索失败，请稍后重试');
+      await this.safeReply(ctx, '搜索失败，请稍后重试');
     }
   }
 
@@ -1020,9 +1150,34 @@ class TelegramBotService {
       if (this.isServerConnectionError(error)) {
         await this.sendServerConnectionError(ctx);
       } else {
-        await ctx.reply('搜索失败，请稍后重试');
+        await this.safeReply(ctx, '搜索失败，请稍后重试');
       }
     }
+  }
+
+  // 辅助方法：检查是否是网络连接错误
+  isNetworkError(error) {
+    if (!error || !error.message) return false;
+    
+    const networkErrors = [
+      'ECONNREFUSED',
+      'ENOTFOUND',
+      'EHOSTUNREACH',
+      'ETIMEDOUT',
+      'ECONNRESET',
+      'ENETUNREACH',
+      'ECONNABORTED',
+      'Connection refused',
+      'Network is unreachable',
+      'No route to host',
+      'connect ECONNREFUSED',
+      'request to https://api.telegram.org',
+      'FetchError'
+    ];
+    
+    return networkErrors.some(errorType => 
+      error.message.includes(errorType)
+    );
   }
 
   // 辅助方法：检查是否是服务器连接错误
@@ -1047,7 +1202,82 @@ class TelegramBotService {
 
   // 辅助方法：发送服务器连接失败消息
   async sendServerConnectionError(ctx) {
-    await ctx.reply('⚠️ 服务器连接失败\n\n服务器有可能不在线，或稍后重试');
+    await this.safeReply(ctx, '⚠️ 服务器连接失败\n\n服务器有可能不在线，或稍后重试');
+  }
+
+  // 辅助方法：安全发送消息，带重试机制
+  async safeReply(ctx, message, options = {}) {
+    if (!ctx || !ctx.reply) {
+      logger.warn('无法发送消息：上下文无效');
+      return false;
+    }
+
+    const maxRetries = 3;
+    let retryCount = 0;
+
+    while (retryCount < maxRetries) {
+      try {
+        await ctx.reply(message, options);
+        return true;
+      } catch (error) {
+        retryCount++;
+        
+        if (this.isNetworkError(error)) {
+          logger.warn(`网络错误，重试 ${retryCount}/${maxRetries}:`, error.message);
+          
+          if (retryCount < maxRetries) {
+            // 等待一段时间后重试
+            await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+            continue;
+          } else {
+            logger.error('达到最大重试次数，放弃发送消息');
+            return false;
+          }
+        } else {
+          logger.error('发送消息失败:', error);
+          return false;
+        }
+      }
+    }
+    
+    return false;
+  }
+
+  // 辅助方法：安全编辑消息
+  async safeEditMessageText(ctx, message, options = {}) {
+    if (!ctx || !ctx.editMessageText) {
+      logger.warn('无法编辑消息：上下文无效');
+      return false;
+    }
+
+    const maxRetries = 3;
+    let retryCount = 0;
+
+    while (retryCount < maxRetries) {
+      try {
+        await ctx.editMessageText(message, options);
+        return true;
+      } catch (error) {
+        retryCount++;
+        
+        if (this.isNetworkError(error)) {
+          logger.warn(`网络错误，重试编辑消息 ${retryCount}/${maxRetries}:`, error.message);
+          
+          if (retryCount < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+            continue;
+          } else {
+            logger.error('达到最大重试次数，放弃编辑消息');
+            return false;
+          }
+        } else {
+          logger.error('编辑消息失败:', error);
+          return false;
+        }
+      }
+    }
+    
+    return false;
   }
 
   // 辅助方法：检查用户服务器控制权限
