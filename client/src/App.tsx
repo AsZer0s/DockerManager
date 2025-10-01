@@ -4,7 +4,7 @@ import { Layout, ConfigProvider } from 'antd'
 
 import { useAuthStore } from '@/stores/authStore'
 import { useThemeStore } from '@/stores/themeStore'
-import { useWebSocket } from '@/hooks/useWebSocket'
+import { usePolling } from '@/hooks/usePolling'
 import { lightTheme, darkTheme } from '@/utils/theme'
 
 // 页面组件
@@ -28,8 +28,8 @@ const App: React.FC = () => {
   const { isAuthenticated } = useAuthStore()
   const { isDark, initializeTheme } = useThemeStore()
   
-  // 初始化 WebSocket 连接
-  useWebSocket()
+  // 初始化 HTTP 轮询连接
+  usePolling(['system', 'servers', 'containers', 'monitoring'])
   
   // 初始化主题
   useEffect(() => {

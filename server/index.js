@@ -36,6 +36,7 @@ import telegramWebAppRoutes from './routes/telegramWebApp.js';
 import telegramVerificationRoutes from './routes/telegramVerification.js';
 import settingsRoutes from './routes/settings.js';
 import userManagementRoutes from './routes/userManagement.js';
+import pollingRoutes from './routes/polling.js';
 
 dotenv.config();
 
@@ -116,6 +117,7 @@ app.use('/api/telegram-webapp', telegramWebAppRoutes);
 app.use('/api/telegram-verification', telegramVerificationRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/user-management', userManagementRoutes);
+app.use('/api/polling', pollingRoutes);
 
 // 健康检查端点
 app.get('/health', async (req, res) => {
@@ -595,6 +597,12 @@ async function initializeServices() {
     console.log('🔌 初始化 WebSocket 服务...');
     websocketService.initialize(io);
     console.log('✅ WebSocket 服务初始化成功');
+
+    // 初始化 HTTP 轮询服务
+    console.log('🔄 初始化 HTTP 轮询服务...');
+    const pollingService = (await import('./services/pollingService.js')).default;
+    pollingService.initialize();
+    console.log('✅ HTTP 轮询服务初始化成功');
 
     // 启动服务器
     const PORT = 3000;
