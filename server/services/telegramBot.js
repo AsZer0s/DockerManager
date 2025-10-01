@@ -139,8 +139,7 @@ class TelegramBotService {
           `欢迎 ${username}！\n\n` +
           '您需要先在 Web 界面中注册并绑定 Telegram ID 才能使用此机器人。\n\n' +
           `您的 Telegram ID 是: \`${userId}\`\n\n` +
-          '请访问 Web 界面完成注册和绑定。\n\n' +
-          'Web 界面地址: http://localhost:3000',
+          '请访问 DockerManager 完成注册和绑定',
           { parse_mode: 'Markdown' }
         );
         return;
@@ -551,7 +550,12 @@ class TelegramBotService {
       });
     } catch (error) {
       logger.error('处理服务器详情失败:', error);
-      await ctx.reply('抱歉，发生了错误，请稍后重试。');
+      
+      if (this.isServerConnectionError(error)) {
+        await this.sendServerConnectionError(ctx);
+      } else {
+        await ctx.reply('抱歉，发生了错误，请稍后重试。');
+      }
     }
   }
 
@@ -621,7 +625,12 @@ class TelegramBotService {
       });
     } catch (error) {
       logger.error('处理服务器容器失败:', error);
-      await ctx.reply('抱歉，发生了错误，请稍后重试。');
+      
+      if (this.isServerConnectionError(error)) {
+        await this.sendServerConnectionError(ctx);
+      } else {
+        await ctx.reply('抱歉，发生了错误，请稍后重试。');
+      }
     }
   }
 
@@ -720,7 +729,12 @@ class TelegramBotService {
       });
     } catch (error) {
       logger.error('显示容器详情失败:', error);
-      await ctx.reply('抱歉，发生了错误，请稍后重试。');
+      
+      if (this.isServerConnectionError(error)) {
+        await this.sendServerConnectionError(ctx);
+      } else {
+        await ctx.reply('抱歉，发生了错误，请稍后重试。');
+      }
     }
   }
 
@@ -774,7 +788,12 @@ class TelegramBotService {
       }
     } catch (error) {
       logger.error('执行容器操作失败:', error);
-      await ctx.reply('抱歉，发生了错误，请稍后重试。');
+      
+      if (this.isServerConnectionError(error)) {
+        await this.sendServerConnectionError(ctx);
+      } else {
+        await ctx.reply('抱歉，发生了错误，请稍后重试。');
+      }
     }
   }
 
@@ -846,7 +865,12 @@ class TelegramBotService {
       });
     } catch (error) {
       logger.error('显示容器日志失败:', error);
-      await ctx.reply('获取日志失败，请稍后重试。');
+      
+      if (this.isServerConnectionError(error)) {
+        await this.sendServerConnectionError(ctx);
+      } else {
+        await ctx.reply('获取日志失败，请稍后重试。');
+      }
     }
   }
 
@@ -992,8 +1016,38 @@ class TelegramBotService {
       });
     } catch (error) {
       logger.error('执行容器搜索失败:', error);
-      await ctx.reply('搜索失败，请稍后重试。');
+      
+      if (this.isServerConnectionError(error)) {
+        await this.sendServerConnectionError(ctx);
+      } else {
+        await ctx.reply('搜索失败，请稍后重试。');
+      }
     }
+  }
+
+  // 辅助方法：检查是否是服务器连接错误
+  isServerConnectionError(error) {
+    if (!error || !error.message) return false;
+    
+    const connectionErrors = [
+      'Timed out while waiting for handshake',
+      'ECONNREFUSED',
+      'ENOTFOUND',
+      'EHOSTUNREACH',
+      'ETIMEDOUT',
+      'Connection refused',
+      'Network is unreachable',
+      'No route to host'
+    ];
+    
+    return connectionErrors.some(errorType => 
+      error.message.includes(errorType)
+    );
+  }
+
+  // 辅助方法：发送服务器连接失败消息
+  async sendServerConnectionError(ctx) {
+    await ctx.reply('⚠️ 服务器连接失败\n\n服务器有可能不在线，或稍后重试。');
   }
 
   // 辅助方法：检查用户服务器控制权限

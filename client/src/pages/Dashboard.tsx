@@ -12,8 +12,14 @@ import { useQuery } from 'react-query'
 import { containerAPI, monitoringAPI } from '@/services/api'
 import { useGlobalServers } from '@/hooks/useGlobalServers'
 import { useAuthStore } from '@/stores/authStore'
+import { motion } from 'framer-motion'
+import { 
+  FadeInText, 
+  GradientText, 
+  SlideInText
+} from '@/components/animations/TextAnimations'
 
-const { Title, Text } = Typography
+const { Text } = Typography
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate()
@@ -189,54 +195,117 @@ const Dashboard: React.FC = () => {
           }
         }
       `}</style>
-      <div style={{ marginBottom: 24 }}>
-        <Title level={2}>仪表盘</Title>
-        <Text type="secondary">
-          欢迎回来，{user?.username}！这里是您的 Docker 容器管理概览。
-        </Text>
-      </div>
+      <motion.div 
+        style={{ marginBottom: 24 }}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <GradientText 
+          text="仪表盘" 
+          className="text-3xl font-bold mb-2"
+          gradient="from-blue-500 to-purple-600"
+        />
+        <FadeInText 
+          text={`欢迎回来，${user?.username}！这里是您的 Docker 容器管理概览。`}
+          className="text-gray-600"
+          delay={0.3}
+        />
+      </motion.div>
 
       {/* 统计卡片 */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="服务器总数"
-              value={servers.length}
-              prefix={<DatabaseOutlined />}
-              valueStyle={{ color: '#1890ff' }}
-            />
-          </Card>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+          >
+            <Card hoverable>
+              <Statistic
+                title={
+                  <SlideInText 
+                    text="服务器总数" 
+                    direction="left" 
+                    delay={0.2}
+                    className="text-sm font-medium"
+                  />
+                }
+                value={servers.length}
+                prefix={<DatabaseOutlined />}
+                valueStyle={{ color: '#1890ff' }}
+              />
+            </Card>
+          </motion.div>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="在线服务器"
-              value={servers.filter(s => s.is_active && s.status === '在线').length}
-              prefix={<DatabaseOutlined />}
-              valueStyle={{ color: '#52c41a' }}
-            />
-          </Card>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+          >
+            <Card hoverable>
+              <Statistic
+                title={
+                  <SlideInText 
+                    text="在线服务器" 
+                    direction="left" 
+                    delay={0.3}
+                    className="text-sm font-medium"
+                  />
+                }
+                value={servers.filter(s => s.is_active && s.status === '在线').length}
+                prefix={<DatabaseOutlined />}
+                valueStyle={{ color: '#52c41a' }}
+              />
+            </Card>
+          </motion.div>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="离线服务器"
-              value={servers.filter(s => s.is_active && s.status === '离线').length}
-              prefix={<DatabaseOutlined />}
-              valueStyle={{ color: '#ff4d4f' }}
-            />
-          </Card>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+          >
+            <Card hoverable>
+              <Statistic
+                title={
+                  <SlideInText 
+                    text="离线服务器" 
+                    direction="left" 
+                    delay={0.4}
+                    className="text-sm font-medium"
+                  />
+                }
+                value={servers.filter(s => s.is_active && s.status === '离线').length}
+                prefix={<DatabaseOutlined />}
+                valueStyle={{ color: '#ff4d4f' }}
+              />
+            </Card>
+          </motion.div>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="容器总数"
-              value={containersStatsData.total}
-              prefix={<ContainerOutlined />}
-              valueStyle={{ color: '#52c41a' }}
-            />
-          </Card>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+          >
+            <Card hoverable>
+              <Statistic
+                title={
+                  <SlideInText 
+                    text="容器总数" 
+                    direction="left" 
+                    delay={0.5}
+                    className="text-sm font-medium"
+                  />
+                }
+                value={containersStatsData.total}
+                prefix={<ContainerOutlined />}
+                valueStyle={{ color: '#52c41a' }}
+              />
+            </Card>
+          </motion.div>
         </Col>
       </Row>
 

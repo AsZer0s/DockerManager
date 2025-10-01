@@ -11,7 +11,6 @@ import {
   message, 
   Popconfirm,
   Card,
-  Typography,
   Row,
   Col,
   Statistic,
@@ -26,11 +25,16 @@ import {
 } from '@ant-design/icons'
 import { useMutation, useQueryClient } from 'react-query'
 import { useAuthStore } from '@/stores/authStore'
+import { motion } from 'framer-motion'
+import { 
+  GradientText, 
+  SlideInText 
+} from '@/components/animations/TextAnimations'
 
 import { serverAPI, Server } from '@/services/api'
 import { useGlobalServers } from '@/hooks/useGlobalServers'
 
-const { Title } = Typography
+// const { Title } = Typography
 
 const Servers: React.FC = () => {
   const [isModalVisible, setIsModalVisible] = useState(false)
@@ -496,8 +500,17 @@ const Servers: React.FC = () => {
           }
         }
       `}</style>
-      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Title level={2}>服务器管理</Title>
+      <motion.div 
+        style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <GradientText 
+          text="服务器管理" 
+          className="text-3xl font-bold"
+          gradient="from-blue-500 to-purple-600"
+        />
         <Space>
           <Button 
             icon={<ReloadOutlined />} 
@@ -522,36 +535,75 @@ const Servers: React.FC = () => {
             </Button>
           )}
         </Space>
-      </div>
+      </motion.div>
 
       {/* 统计信息 */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="总服务器数"
-              value={servers.length}
-              valueStyle={{ color: '#1890ff' }}
-            />
-          </Card>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+          >
+            <Card hoverable>
+              <Statistic
+                title={
+                  <SlideInText 
+                    text="总服务器数" 
+                    direction="left" 
+                    delay={0.2}
+                    className="text-sm font-medium"
+                  />
+                }
+                value={servers.length}
+                valueStyle={{ color: '#1890ff' }}
+              />
+            </Card>
+          </motion.div>
         </Col>
         <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="在线服务器"
-              value={servers.filter(s => s.is_active && s.status === '在线').length}
-              valueStyle={{ color: '#52c41a' }}
-            />
-          </Card>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+          >
+            <Card hoverable>
+              <Statistic
+                title={
+                  <SlideInText 
+                    text="在线服务器" 
+                    direction="left" 
+                    delay={0.3}
+                    className="text-sm font-medium"
+                  />
+                }
+                value={servers.filter(s => s.is_active && s.status === '在线').length}
+                valueStyle={{ color: '#52c41a' }}
+              />
+            </Card>
+          </motion.div>
         </Col>
         <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="离线服务器"
-              value={servers.filter(s => s.is_active && s.status === '离线').length}
-              valueStyle={{ color: '#ff4d4f' }}
-            />
-          </Card>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+          >
+            <Card hoverable>
+              <Statistic
+                title={
+                  <SlideInText 
+                    text="离线服务器" 
+                    direction="left" 
+                    delay={0.4}
+                    className="text-sm font-medium"
+                  />
+                }
+                value={servers.filter(s => s.is_active && s.status === '离线').length}
+                valueStyle={{ color: '#ff4d4f' }}
+              />
+            </Card>
+          </motion.div>
         </Col>
       </Row>
 

@@ -5,7 +5,6 @@ import {
   Space, 
   Tag, 
   Card, 
-  Typography, 
   Row, 
   Col, 
   Statistic,
@@ -26,11 +25,16 @@ import {
 } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
 import { useSearchParams } from 'react-router-dom'
+import { motion } from 'framer-motion'
+import { 
+  GradientText, 
+  SlideInText 
+} from '@/components/animations/TextAnimations'
 
 import { containerAPI, Container } from '@/services/api'
 import { useGlobalServers } from '@/hooks/useGlobalServers'
 
-const { Title } = Typography
+// const { Title } = Typography
 
 const Containers: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -729,8 +733,17 @@ const Containers: React.FC = () => {
           }
         }
       `}</style>
-      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Title level={2}>容器管理</Title>
+      <motion.div 
+        style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <GradientText 
+          text="容器管理" 
+          className="text-3xl font-bold"
+          gradient="from-green-500 to-blue-600"
+        />
         <Space>
           <Segmented
             options={serverOptions}
@@ -747,39 +760,78 @@ const Containers: React.FC = () => {
             刷新
           </Button>
         </Space>
-      </div>
+      </motion.div>
 
       {/* 统计信息 */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="容器总数"
-              value={stats.total}
-              prefix={<ContainerOutlined />}
-              valueStyle={{ color: '#1890ff' }}
-            />
-          </Card>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+          >
+            <Card hoverable>
+              <Statistic
+                title={
+                  <SlideInText 
+                    text="容器总数" 
+                    direction="left" 
+                    delay={0.2}
+                    className="text-sm font-medium"
+                  />
+                }
+                value={stats.total}
+                prefix={<ContainerOutlined />}
+                valueStyle={{ color: '#1890ff' }}
+              />
+            </Card>
+          </motion.div>
         </Col>
         <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="运行中"
-              value={stats.running}
-              prefix={<PlayCircleOutlined />}
-              valueStyle={{ color: '#52c41a' }}
-            />
-          </Card>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+          >
+            <Card hoverable>
+              <Statistic
+                title={
+                  <SlideInText 
+                    text="运行中" 
+                    direction="left" 
+                    delay={0.3}
+                    className="text-sm font-medium"
+                  />
+                }
+                value={stats.running}
+                prefix={<PlayCircleOutlined />}
+                valueStyle={{ color: '#52c41a' }}
+              />
+            </Card>
+          </motion.div>
         </Col>
         <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="已停止"
-              value={stats.stopped}
-              prefix={<StopOutlined />}
-              valueStyle={{ color: '#ff4d4f' }}
-            />
-          </Card>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+          >
+            <Card hoverable>
+              <Statistic
+                title={
+                  <SlideInText 
+                    text="已停止" 
+                    direction="left" 
+                    delay={0.4}
+                    className="text-sm font-medium"
+                  />
+                }
+                value={stats.stopped}
+                prefix={<StopOutlined />}
+                valueStyle={{ color: '#ff4d4f' }}
+              />
+            </Card>
+          </motion.div>
         </Col>
       </Row>
 

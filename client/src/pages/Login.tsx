@@ -3,11 +3,16 @@ import { Form, Input, Button, Card, Typography, message } from 'antd'
 import { LockOutlined, MailOutlined } from '@ant-design/icons'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useMutation } from 'react-query'
+import { motion } from 'framer-motion'
+import { 
+  GradientText, 
+  FadeInText 
+} from '@/components/animations/TextAnimations'
 
 import { useAuthStore } from '@/stores/authStore'
 import { authAPI, LoginRequest } from '@/services/api'
 
-const { Title, Text } = Typography
+const { Text } = Typography
 
 interface LocationState {
   from?: {
@@ -44,7 +49,7 @@ const Login: React.FC = () => {
 
 
   return (
-    <div
+    <motion.div
       style={{
         minHeight: '100vh',
         display: 'flex',
@@ -53,23 +58,40 @@ const Login: React.FC = () => {
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         padding: '20px',
       }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.6 }}
     >
-      <Card
-        style={{
-          width: '100%',
-          maxWidth: 400,
-          boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-          borderRadius: '12px',
-        }}
+      <motion.div
+        initial={{ scale: 0.8, y: 50 }}
+        animate={{ scale: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 0.2 }}
       >
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <Title level={2} style={{ margin: 0, color: '#1890ff' }}>
-            Docker Manager
-          </Title>
-          <Text type="secondary" style={{ color: 'black' }}>
-            容器管理系统
-          </Text>
-        </div>
+        <Card
+          style={{
+            width: '100%',
+            maxWidth: 400,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+            borderRadius: '12px',
+          }}
+        >
+          <motion.div 
+            style={{ textAlign: 'center', marginBottom: 32 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+          >
+            <GradientText 
+              text="Docker Manager" 
+              className="text-3xl font-bold mb-2"
+              gradient="from-blue-500 to-purple-600"
+            />
+            <FadeInText 
+              text="容器管理系统"
+              className="text-gray-600"
+              delay={0.6}
+            />
+          </motion.div>
 
         <Form
           name="password-login"
@@ -121,7 +143,8 @@ const Login: React.FC = () => {
           </Text>
         </div>
       </Card>
-    </div>
+      </motion.div>
+    </motion.div>
   )
 }
 
