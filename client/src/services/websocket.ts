@@ -15,9 +15,15 @@ class WebSocketService {
       this.socket = null
     }
 
-    // 根据环境确定WebSocket服务器地址
-    const wsUrl = import.meta.env.VITE_WS_URL || 
-                  (import.meta.env.DEV ? 'http://localhost:3001' : window.location.origin);
+    // 强制使用本地服务器进行测试
+    const wsUrl = 'http://localhost:3001';
+    
+    console.log('🔌 WebSocket连接配置:', {
+      url: wsUrl,
+      token: token ? '已提供' : '未提供',
+      environment: import.meta.env.MODE,
+      dev: import.meta.env.DEV
+    });
 
     this.socket = io(wsUrl, {
       auth: {

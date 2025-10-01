@@ -14,7 +14,8 @@ import {
   Row,
   Col,
   Statistic,
-  Radio
+  Radio,
+  theme
 } from 'antd'
 import { 
   PlusOutlined, 
@@ -41,6 +42,7 @@ const Servers: React.FC = () => {
   const [editingServer, setEditingServer] = useState<Server | null>(null)
   const [form] = Form.useForm()
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const { token: themeToken } = theme.useToken()
   const [refreshCooldown, setRefreshCooldown] = useState(false)
   const [authType, setAuthType] = useState<'password' | 'key'>('password')
   const [columnWidths, setColumnWidths] = useState({
@@ -774,13 +776,23 @@ const Servers: React.FC = () => {
           </Form.Item>
 
           {/* 代理配置部分 */}
-          <div style={{ marginTop: 24, padding: 16, background: '#f5f5f5', borderRadius: 6 }}>
-            <h4 style={{ marginBottom: 16, color: '#1890ff' }}>SOCKS5 代理配置</h4>
+          <div style={{ 
+            marginTop: 24, 
+            padding: 16, 
+            background: themeToken.colorFillSecondary,
+            borderRadius: themeToken.borderRadius,
+            border: `1px solid ${themeToken.colorBorderSecondary}`
+          }}>
+            <h4 style={{ 
+              marginBottom: 16, 
+              color: themeToken.colorPrimary,
+              fontSize: '16px',
+              fontWeight: 500
+            }}>SOCKS5 代理配置</h4>
             
             <Form.Item
               name="proxy_enabled"
               label="启用代理"
-              valuePropName="checked"
               initialValue={false}
             >
               <Radio.Group>

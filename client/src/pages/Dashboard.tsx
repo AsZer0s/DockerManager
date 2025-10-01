@@ -366,12 +366,6 @@ const Dashboard: React.FC = () => {
           <Card title="系统状态">
             <Space direction="vertical" style={{ width: '100%' }}>
               <div>
-                <Text strong>监控服务: </Text>
-                <Tag color={systemStats?.data.monitoring.isRunning ? 'green' : 'red'}>
-                  {systemStats?.data.monitoring.isRunning ? '运行中' : '已停止'}
-                </Tag>
-              </div>
-              <div>
                 <Text strong>活跃服务器: </Text>
                 <Text>{systemStats?.data.monitoring.activeServers || 0}</Text>
               </div>

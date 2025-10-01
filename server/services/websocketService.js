@@ -104,13 +104,13 @@ class WebSocketService {
         socket.emit('auth_error', { message: '缺少认证令牌' });
         return;
       }
-
+      
       // 验证 JWT 令牌
-      const jwt = require('jsonwebtoken');
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const jwt = await import('jsonwebtoken');
+      const decoded = jwt.default.verify(token, process.env.JWT_SECRET);
       
       // 获取用户信息
-      const database = require('../config/database');
+      const database = (await import('../config/database.js')).default;
       const userResult = await database.query(
         'SELECT * FROM users WHERE id = $1 AND is_active = true',
         [decoded.userId]
