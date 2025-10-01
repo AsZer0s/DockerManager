@@ -34,7 +34,12 @@ class WebSocketService {
         permissions: []
       });
 
-      // 认证事件
+      // 处理连接时的认证（通过auth选项传递的token）
+      if (socket.handshake.auth && socket.handshake.auth.token) {
+        this.handleAuthentication(socket, { token: socket.handshake.auth.token });
+      }
+
+      // 认证事件（兼容旧版本）
       socket.on('authenticate', async (data) => {
         await this.handleAuthentication(socket, data);
       });

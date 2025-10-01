@@ -64,7 +64,16 @@ const io = new Server(server, {
     origin: true, // 允许所有来源
     methods: ["GET", "POST"],
     credentials: true
-  }
+  },
+  // 连接优化配置
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  transports: ['websocket', 'polling'],
+  allowEIO3: true, // 兼容旧版本
+  // 连接限制
+  maxHttpBufferSize: 1e6, // 1MB
+  // 错误处理
+  connectTimeout: 45000
 });
 
 // 中间件配置
@@ -155,6 +164,27 @@ app.post('/api/health-check', async (req, res) => {
     logger.error('触发健康检查失败:', error);
     res.status(500).json({
       error: '触发健康检查失败',
+      message: error.message
+    });
+  }
+});
+
+// WebSocket连接状态端点
+app.get('/api/websocket-status', async (req, res) => {
+  try {
+    const stats = websocketService.getStats();
+    res.json({
+      websocket: {
+        connectedClients: stats.connectedClients,
+        activeSshSessions: stats.activeSshSessions,
+        clients: stats.clients
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    logger.error('获取WebSocket状态失败:', error);
+    res.status(500).json({
+      error: '获取WebSocket状态失败',
       message: error.message
     });
   }

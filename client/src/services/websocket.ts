@@ -69,6 +69,10 @@ class WebSocketService {
         toast.error('连接超时，请检查网络')
       } else if (error.message.includes('refused')) {
         toast.error('连接被拒绝，服务器可能不可用')
+      } else if (error.message.includes('C4')) {
+        toast.error('WebSocket协议错误，尝试降级连接...')
+      } else if (error.message.includes('websocket error')) {
+        toast.error('WebSocket连接失败，正在尝试其他传输方式...')
       } else {
         toast.error('连接失败，正在重试...')
       }
@@ -238,6 +242,34 @@ class WebSocketService {
   // 获取 socket 实例
   get socketInstance() {
     return this.socket
+  }
+
+  // 获取连接状态信息
+  getConnectionStatus() {
+    if (!this.socket) {
+      return {
+        connected: false,
+        status: 'disconnected',
+        transport: null,
+        id: null
+      }
+    }
+
+    return {
+      connected: this.socket.connected,
+      status: this.socket.connected ? 'connected' : 'disconnected',
+      transport: this.socket.io.engine.transport.name,
+      id: this.socket.id,
+      ping: (this.socket.io.engine as any).ping,
+      pong: (this.socket.io.engine as any).pong
+    }
+  }
+
+  // 手动重连
+  reconnect() {
+    if (this.socket) {
+      this.socket.connect()
+    }
   }
 }
 
