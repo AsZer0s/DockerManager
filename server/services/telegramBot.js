@@ -777,7 +777,11 @@ class TelegramBotService {
       if (container.ports && container.ports.length > 0) {
         message += `🔌 **端口映射**\n`;
         container.ports.forEach(port => {
-          message += `${port.publicPort}:${port.privatePort} (${port.type})\n`;
+          if (port.publicPort && port.privatePort) {
+            message += `\`${port.publicPort}:${port.privatePort}/${port.type}\`\n`;
+          } else if (port.privatePort) {
+            message += `\`${port.privatePort}/${port.type}\` (仅内部)\n`;
+          }
         });
         message += '\n';
       }

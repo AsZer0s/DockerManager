@@ -763,6 +763,22 @@ const TelegramWebApp: React.FC = () => {
                         <Text strong>创建时间：</Text>
                         <Text>{new Date(selectedContainer.created).toLocaleString()}</Text>
                       </div>
+                      {selectedContainer.ports && selectedContainer.ports.length > 0 && (
+                        <div>
+                          <Text strong>端口映射：</Text>
+                          <div style={{ marginTop: 4 }}>
+                            {selectedContainer.ports.map((port, index) => (
+                              <Tag 
+                                key={index}
+                                color="blue"
+                                style={{ margin: '2px', fontSize: '12px' }}
+                              >
+                                {port.publicPort}:{port.privatePort}/{port.type}
+                              </Tag>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </Space>
                   </Card>
                 </div>

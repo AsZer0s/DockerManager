@@ -468,7 +468,7 @@ class DockerService {
                     startedAt: info.State.StartedAt ? new Date(info.State.StartedAt) : null,
                     finishedAt: info.State.FinishedAt ? new Date(info.State.FinishedAt) : null,
                     restartCount: info.RestartCount,
-                    ports: this.formatPortBindings(info.NetworkSettings.Ports),
+                    ports: this.formatPortsFromInspect(info.NetworkSettings.Ports),
                     volumes: this.formatVolumes(info.Mounts),
                     environment: info.Config.Env,
                     command: info.Config.Cmd,
@@ -1135,6 +1135,34 @@ class DockerService {
     return bindings;
   }
 
+  formatPortsFromInspect(portBindings) {
+    if (!portBindings) return [];
+    
+    const ports = [];
+    for (const [containerPort, hostBindings] of Object.entries(portBindings)) {
+      if (hostBindings && hostBindings.length > 0) {
+        hostBindings.forEach(binding => {
+          const [privatePort, type] = containerPort.split('/');
+          ports.push({
+            privatePort: parseInt(privatePort),
+            publicPort: binding.HostPort ? parseInt(binding.HostPort) : null,
+            type: type || 'tcp',
+            ip: binding.HostIp || '0.0.0.0'
+          });
+        });
+      } else {
+        const [privatePort, type] = containerPort.split('/');
+        ports.push({
+          privatePort: parseInt(privatePort),
+          publicPort: null,
+          type: type || 'tcp',
+          ip: '0.0.0.0'
+        });
+      }
+    }
+    return ports;
+  }
+
   formatVolumes(mounts) {
     if (!mounts) return [];
     
@@ -1149,7 +1177,6 @@ class DockerService {
 
   async updateContainerInDatabase(serverId, container) {
     try {
-      // 首先检查容器是否已存在
       const existing = await database.db.get(
         'SELECT id FROM containers WHERE server_id = ? AND container_id = ?',
         [serverId, container.id]
