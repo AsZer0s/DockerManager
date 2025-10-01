@@ -3,11 +3,21 @@ import toast from 'react-hot-toast'
 
 class WebSocketService {
   private socket: Socket | null = null
+  private lastConnectTime = 0
+  private minConnectInterval = 5000 // 最小连接间隔5秒
 
   connect(token: string) {
     if (this.socket?.connected) {
       return this.socket
     }
+
+    // 检查连接间隔，避免频繁连接
+    const now = Date.now()
+    if (now - this.lastConnectTime < this.minConnectInterval) {
+      console.log('连接过于频繁，等待中...')
+      return this.socket
+    }
+    this.lastConnectTime = now
 
     // 如果已有socket实例，先断开
     if (this.socket) {
@@ -36,11 +46,11 @@ class WebSocketService {
       },
       transports: ['polling'], // 只使用polling传输，避免websocket升级问题
       timeout: 30000, // 增加连接超时时间
-      forceNew: true,
+      forceNew: false, // 复用现有连接，避免频繁创建新连接
       autoConnect: true,
       reconnection: true,
-      reconnectionAttempts: 10, // 增加重连次数
-      reconnectionDelay: 1000,
+      reconnectionAttempts: 5, // 减少重连次数
+      reconnectionDelay: 2000, // 增加重连延迟
       reconnectionDelayMax: 10000,
       // 连接优化
       upgrade: false, // 禁用升级，只使用polling

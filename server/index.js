@@ -66,14 +66,16 @@ const io = new Server(server, {
     credentials: true
   },
   // 连接优化配置
-  pingTimeout: 60000,
-  pingInterval: 25000,
-  transports: ['websocket', 'polling'],
+  pingTimeout: 120000, // 增加ping超时时间到2分钟
+  pingInterval: 60000,  // 增加ping间隔到1分钟
+  transports: ['polling', 'websocket'], // 优先使用polling
   allowEIO3: true, // 兼容旧版本
   // 连接限制
   maxHttpBufferSize: 1e6, // 1MB
   // 错误处理
-  connectTimeout: 45000
+  connectTimeout: 45000,
+  // 减少连接断开频率
+  upgradeTimeout: 10000
 });
 
 // 中间件配置
