@@ -15,7 +15,11 @@ class WebSocketService {
       this.socket = null
     }
 
-    this.socket = io('/', {
+    // 根据环境确定WebSocket服务器地址
+    const wsUrl = import.meta.env.VITE_WS_URL || 
+                  (import.meta.env.DEV ? 'http://localhost:3001' : window.location.origin);
+
+    this.socket = io(wsUrl, {
       auth: {
         token,
       },

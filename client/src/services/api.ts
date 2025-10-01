@@ -1,9 +1,14 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios'
 import toast from 'react-hot-toast'
 
+// 根据环境确定API服务器地址
+const apiBaseURL = import.meta.env.VITE_API_URL ? 
+  `${import.meta.env.VITE_API_URL}/api` : 
+  (import.meta.env.DEV ? 'http://localhost:3001/api' : '/api');
+
 // 创建 axios 实例
 const api: AxiosInstance = axios.create({
-  baseURL: '/api',
+  baseURL: apiBaseURL,
   timeout: 60000, // 增加超时时间到60秒
   headers: {
     'Content-Type': 'application/json',
