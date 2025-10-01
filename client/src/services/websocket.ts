@@ -15,11 +15,16 @@ class WebSocketService {
       this.socket = null
     }
 
-    // 强制使用本地服务器进行测试
-    const wsUrl = 'http://localhost:3001';
+    // 根据当前域名自动检测WebSocket服务器地址
+    const wsUrl = import.meta.env.VITE_WS_URL || 
+                  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+                    ? 'http://localhost:3001' 
+                    : window.location.origin);
     
     console.log('🔌 WebSocket连接配置:', {
       url: wsUrl,
+      hostname: window.location.hostname,
+      origin: window.location.origin,
       token: token ? '已提供' : '未提供',
       environment: import.meta.env.MODE,
       dev: import.meta.env.DEV

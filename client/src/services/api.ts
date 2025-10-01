@@ -1,8 +1,12 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios'
 import toast from 'react-hot-toast'
 
-// 强制使用本地服务器进行测试
-const apiBaseURL = 'http://localhost:3001/api';
+// 根据当前域名自动检测API服务器地址
+const apiBaseURL = import.meta.env.VITE_API_URL ? 
+  `${import.meta.env.VITE_API_URL}/api` : 
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+    ? 'http://localhost:3001/api' 
+    : `${window.location.origin}/api`);
 
 // 创建 axios 实例
 const api: AxiosInstance = axios.create({
