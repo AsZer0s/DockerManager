@@ -34,7 +34,7 @@ class WebSocketService {
       auth: {
         token,
       },
-      transports: ['websocket', 'polling'],
+      transports: ['polling'], // 只使用polling传输，避免websocket升级问题
       timeout: 30000, // 增加连接超时时间
       forceNew: true,
       autoConnect: true,
@@ -43,12 +43,15 @@ class WebSocketService {
       reconnectionDelay: 1000,
       reconnectionDelayMax: 10000,
       // 连接优化
-      upgrade: true,
-      rememberUpgrade: true,
+      upgrade: false, // 禁用升级，只使用polling
       // 缓冲配置
       forceBase64: false,
       // 网络优化
-      withCredentials: false
+      withCredentials: false,
+      // 生产环境特殊配置
+      path: '/socket.io/',
+      // 添加更多调试信息
+      debug: import.meta.env.DEV
     })
 
     this.setupEventHandlers()
@@ -78,6 +81,14 @@ class WebSocketService {
 
     this.socket.on('connect_error', (error) => {
       console.error('WebSocket 连接错误:', error)
+      console.error('连接详情:', {
+        url: wsUrl,
+        hostname: window.location.hostname,
+        protocol: window.location.protocol,
+        errorType: error.type,
+        errorMessage: error.message,
+        errorDescription: error.description
+      })
       
       // 根据错误类型显示不同提示
       if (error.message.includes('timeout')) {
@@ -89,7 +100,7 @@ class WebSocketService {
       } else if (error.message.includes('websocket error')) {
         toast.error('WebSocket连接失败，正在尝试其他传输方式...')
       } else {
-        toast.error('连接失败，正在重试...')
+        toast.error(`连接失败: ${error.message}`)
       }
     })
 
