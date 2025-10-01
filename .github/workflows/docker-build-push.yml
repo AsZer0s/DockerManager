@@ -32,13 +32,20 @@ jobs:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
         
+    - name: Get package version
+      id: version
+      run: |
+        VERSION=$(node -p "require('./package.json').version")
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "📦 Package version: $VERSION"
+        
     - name: Extract metadata
       id: meta
       uses: docker/metadata-action@v5
       with:
         images: ${{ env.IMAGE_NAME }}
         tags: |
-          type=semver,pattern={{version}}
+          type=raw,value=${{ steps.version.outputs.version }}
           type=raw,value=latest,enable={{is_default_branch}}
           
     - name: Build and push Docker image
@@ -58,6 +65,7 @@ jobs:
       run: |
         echo "🏗️ Build completed successfully!"
         echo "📦 Image: ${{ env.IMAGE_NAME }}"
+        echo "🏷️ Version: ${{ steps.version.outputs.version }}"
         echo "🏷️ Tags: ${{ steps.meta.outputs.tags }}"
         echo "🔧 Platforms: linux/amd64,linux/arm64"
         echo "📋 Digest: ${{ steps.build.outputs.digest }}"

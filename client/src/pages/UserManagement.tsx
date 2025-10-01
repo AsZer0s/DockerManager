@@ -12,7 +12,8 @@ import {
   Popconfirm,
   Typography,
   Tag,
-  Tooltip
+  Tooltip,
+  theme
 } from 'antd'
 import { 
   PlusOutlined, 
@@ -73,6 +74,7 @@ const UserManagement: React.FC = () => {
     createdAt: 150
   })
   const queryClient = useQueryClient()
+  const { token: themeToken } = theme.useToken()
 
   // 获取用户列表
   const { data: usersData, isLoading: usersLoading } = useQuery(
@@ -341,8 +343,8 @@ const UserManagement: React.FC = () => {
         <div style={{ 
           fontFamily: 'monospace', 
           fontSize: '12px',
-          color: '#666',
-          background: '#f5f5f5',
+          color: themeToken.colorTextSecondary,
+          background: themeToken.colorFillSecondary,
           padding: '2px 6px',
           borderRadius: '4px',
           display: 'inline-block'
@@ -425,7 +427,7 @@ const UserManagement: React.FC = () => {
       key: 'createdAt',
       width: columnWidths.createdAt,
       render: (date: string) => (
-        <div style={{ fontSize: '12px', color: '#666' }}>
+        <div style={{ fontSize: '12px', color: themeToken.colorTextSecondary }}>
           {new Date(date).toLocaleString('zh-CN')}
         </div>
       )

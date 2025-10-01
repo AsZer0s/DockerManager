@@ -290,6 +290,7 @@ async function createDatabaseSchema(dbPath) {
         password_hash TEXT NOT NULL,
         role TEXT DEFAULT 'user',
         telegram_id TEXT UNIQUE,
+        telegram_username TEXT,
         telegram_verified BOOLEAN DEFAULT false,
         telegram_verified_at DATETIME,
         avatar VARCHAR(255),

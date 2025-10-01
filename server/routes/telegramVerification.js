@@ -156,10 +156,20 @@ router.post('/complete-binding', async (req, res) => {
       });
     }
 
+    // 获取Telegram用户信息
+    let telegramUsername = null;
+    try {
+      const telegramUserInfo = await telegramBotService.getTelegramUserInfo(telegramId);
+      telegramUsername = telegramUserInfo.displayName;
+      logger.info(`获取到Telegram用户信息: ${telegramUsername}`);
+    } catch (error) {
+      logger.warn('获取Telegram用户信息失败:', error.message);
+    }
+
     // 更新当前用户的 Telegram 绑定
     const updateResult = await database.db.run(
-      'UPDATE users SET telegram_id = ?, telegram_verified = 1, telegram_verified_at = ? WHERE id = ?',
-      [telegramId, new Date().toISOString(), userId]
+      'UPDATE users SET telegram_id = ?, telegram_username = ?, telegram_verified = 1, telegram_verified_at = ? WHERE id = ?',
+      [telegramId, telegramUsername, new Date().toISOString(), userId]
     );
 
     logger.info(`数据库更新结果: 影响行数 ${updateResult.changes}`);
@@ -312,7 +322,7 @@ router.post('/verify-unbind-code', async (req, res) => {
 
     // 解除绑定
     await database.db.run(
-      'UPDATE users SET telegram_id = NULL, telegram_verified = 0, telegram_verified_at = NULL WHERE id = ?',
+      'UPDATE users SET telegram_id = NULL, telegram_username = NULL, telegram_verified = 0, telegram_verified_at = NULL WHERE id = ?',
       [userId]
     );
 

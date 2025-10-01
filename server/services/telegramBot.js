@@ -13,6 +13,7 @@ class TelegramBotService {
     this.userSessions = new Map(); // 存储用户会话状态
     this.verificationCodes = new Map(); // 存储验证码
     this.startTime = Date.now(); // 记录机器人启动时间
+    this.registeredButtons = new Map(); // 存储注册的按钮
   }
 
   async initialize() {
@@ -29,6 +30,7 @@ class TelegramBotService {
       const token = process.env.TELEGRAM_BOT_TOKEN;
       if (!token || token === 'your_telegram_bot_token_here') {
         logger.warn('TELEGRAM_BOT_TOKEN 未设置或为占位符，跳过 Telegram 机器人初始化');
+        this.registerDefaultButtons();
         return;
       }
 
@@ -69,6 +71,7 @@ class TelegramBotService {
       this.bot = new Telegraf(token);
       }
       this.setupEventHandlers();
+      this.registerDefaultButtons(); // 注册默认按钮
       this.isInitialized = true;
       
       // 启动机器人，添加错误处理
@@ -159,7 +162,17 @@ class TelegramBotService {
           '您需要先在 DockerManager 中注册并绑定 Telegram ID 才能使用此机器人\n\n' +
           `您的 Telegram ID 是: \`${userId}\`\n\n` +
           '请访问 DockerManager 完成注册和绑定',
-          { parse_mode: 'Markdown' }
+          { 
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: [
+                [{
+                  text: '🌐 打开 Web App',
+                  web_app: { url: process.env.TELEGRAM_WEBAPP_URL || 'https://ztms.top/telegram-webapp' }
+                }]
+              ]
+            }
+          }
         );
         return;
       }
@@ -173,12 +186,7 @@ class TelegramBotService {
         '/status - 查看系统状态\n' +
         '/help - 获取帮助信息';
 
-      await ctx.reply(welcomeMessage, Markup.inlineKeyboard([
-        [Markup.button.callback('📊 查看服务器', 'servers')],
-        [Markup.button.callback('🐳 查看容器', 'containers')],
-        [Markup.button.callback('📈 系统状态', 'status')],
-        [Markup.button.webApp('🌐 打开 Web App', process.env.TELEGRAM_WEBAPP_URL || 'https://ztms.top/telegram-webapp')]
-      ]));
+      await ctx.reply(welcomeMessage, this.generateMainMenuButtons());
 
     } catch (error) {
       logger.error('处理 /start 命令失败:', error);
@@ -452,12 +460,12 @@ class TelegramBotService {
         }
       }
 
-      if (data === 'servers') {
-        await this.handleServersCommand(ctx);
-      } else if (data === 'containers') {
-        await this.handleContainersCommand(ctx);
-      } else if (data === 'status') {
-        await this.handleStatusCommand(ctx);
+      // 检查是否是注册的按钮
+      if (this.registeredButtons.has(data)) {
+        const button = this.registeredButtons.get(data);
+        if (button.handler) {
+          await button.handler(ctx);
+        }
       } else if (data === 'main_menu') {
         await this.handleStartCommand(ctx);
       } else if (data === 'refresh_servers') {
@@ -1586,6 +1594,192 @@ class TelegramBotService {
       }
     }
   }
+
+  /**
+   * 获取Telegram用户信息
+   * @param {string} telegramId - Telegram用户ID
+   * @returns {Promise<Object>} 用户信息
+   */
+  async getTelegramUserInfo(telegramId) {
+    try {
+      if (!this.bot || !this.isInitialized) {
+        throw new Error('Telegram 机器人未初始化');
+      }
+
+      const userInfo = await this.bot.telegram.getChat(telegramId);
+      
+      return {
+        id: userInfo.id,
+        username: userInfo.username,
+        firstName: userInfo.first_name,
+        lastName: userInfo.last_name,
+        displayName: userInfo.username ? `@${userInfo.username}` : 
+                     (userInfo.first_name ? `${userInfo.first_name}${userInfo.last_name ? ' ' + userInfo.last_name : ''}` : 'Unknown')
+      };
+    } catch (error) {
+      logger.error('获取Telegram用户信息失败:', error);
+      return {
+        id: telegramId,
+        username: null,
+        firstName: null,
+        lastName: null,
+        displayName: `ID: ${telegramId}`
+      };
+    }
+  }
+
+  /**
+   * 注册默认按钮
+   */
+  registerDefaultButtons() {
+    // 注册服务器管理按钮
+    this.registerButton('servers', {
+      text: '📊 服务器管理',
+      icon: '📊',
+      description: '查看和管理服务器',
+      handler: this.handleServersCommand.bind(this),
+      category: 'main',
+      order: 1
+    });
+
+    // 注册容器管理按钮
+    this.registerButton('containers', {
+      text: '🐳 容器管理',
+      icon: '🐳',
+      description: '查看和管理容器',
+      handler: this.handleContainersCommand.bind(this),
+      category: 'main',
+      order: 2
+    });
+
+    // 注册系统状态按钮
+    this.registerButton('status', {
+      text: '📈 系统状态',
+      icon: '📈',
+      description: '查看系统运行状态',
+      handler: this.handleStatusCommand.bind(this),
+      category: 'main',
+      order: 3
+    });
+
+    // 注册监控按钮
+    this.registerButton('monitoring', {
+      text: '📊 实时监控',
+      icon: '📊',
+      description: '查看实时监控数据',
+      handler: this.handleMonitoringCommand.bind(this),
+      category: 'main',
+      order: 4
+    });
+
+    logger.info(`已注册 ${this.registeredButtons.size} 个默认按钮`);
+  }
+
+  /**
+   * 注册按钮
+   * @param {string} id - 按钮ID
+   * @param {Object} config - 按钮配置
+   */
+  registerButton(id, config) {
+    const buttonConfig = {
+      id,
+      text: config.text || id,
+      icon: config.icon || '🔘',
+      description: config.description || '',
+      handler: config.handler,
+      category: config.category || 'main',
+      order: config.order || 0,
+      registeredAt: Date.now()
+    };
+
+    this.registeredButtons.set(id, buttonConfig);
+    logger.info(`注册按钮: ${id} - ${buttonConfig.text}`);
+  }
+
+  /**
+   * 注销按钮
+   * @param {string} id - 按钮ID
+   */
+  unregisterButton(id) {
+    if (this.registeredButtons.has(id)) {
+      this.registeredButtons.delete(id);
+      logger.info(`注销按钮: ${id}`);
+    }
+  }
+
+  /**
+   * 获取所有注册的按钮
+   * @param {string} category - 按钮分类
+   */
+  getRegisteredButtons(category = null) {
+    const buttons = Array.from(this.registeredButtons.values());
+    
+    if (category) {
+      return buttons.filter(button => button.category === category);
+    }
+    
+    return buttons.sort((a, b) => a.order - b.order);
+  }
+
+  /**
+   * 生成主菜单按钮
+   */
+  generateMainMenuButtons() {
+    const buttons = this.getRegisteredButtons('main');
+    logger.info(`生成主菜单按钮，找到 ${buttons.length} 个按钮:`, buttons.map(b => b.text));
+    
+    const keyboard = [];
+    
+    // 每行2个按钮
+    for (let i = 0; i < buttons.length; i += 2) {
+      const row = [];
+      row.push(Markup.button.callback(buttons[i].text, buttons[i].id));
+      
+      if (i + 1 < buttons.length) {
+        row.push(Markup.button.callback(buttons[i + 1].text, buttons[i + 1].id));
+      }
+      
+      keyboard.push(row);
+    }
+
+    // 添加Web App按钮
+    keyboard.push([Markup.button.webApp('快速监控', process.env.TELEGRAM_WEBAPP_URL || 'https://ztms.top/telegram-webapp')]);
+    
+    logger.info('生成的键盘布局:', keyboard);
+    return Markup.inlineKeyboard(keyboard);
+  }
+
+  /**
+   * 处理监控命令
+   */
+  async handleMonitoringCommand(ctx) {
+    try {
+      const userId = ctx.from.id;
+      const user = await this.getUserByTelegramId(userId);
+      
+      if (!user) {
+        await ctx.reply('请先注册并绑定 Telegram ID');
+        return;
+      }
+
+      const status = monitoringService.getStatus();
+      const message = 
+        `📊 实时监控数据\n\n` +
+        `🟢 监控服务: ${status.isRunning ? '运行中' : '已停止'}\n` +
+        `⏱️ 监控间隔: ${status.monitoringInterval}ms\n` +
+        `🖥️ 活跃服务器: ${status.activeServers}个\n\n` +
+        `📈 系统运行时间: ${Math.floor(process.uptime() / 3600)}小时`;
+
+      await ctx.reply(message, Markup.inlineKeyboard([
+        [Markup.button.callback('🔄 刷新监控', 'refresh_monitoring')],
+        [Markup.button.callback('🏠 返回主菜单', 'main_menu')]
+      ]));
+    } catch (error) {
+      logger.error('处理监控命令失败:', error);
+      await this.safeReply(ctx, '获取监控数据失败');
+    }
+  }
+
 }
 
 export default new TelegramBotService();

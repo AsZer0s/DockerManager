@@ -20,7 +20,7 @@ const router = express.Router();
 router.get('/profile', authenticateToken, async (req, res) => {
   try {
     const result = await database.query(
-      'SELECT id, username, email, role, telegram_id, avatar, phone, bio, is_active, created_at, updated_at FROM users WHERE id = $1',
+      'SELECT id, username, email, role, telegram_id, telegram_username, avatar, phone, bio, is_active, created_at, updated_at FROM users WHERE id = $1',
       [req.user.id]
     );
 
@@ -39,6 +39,7 @@ router.get('/profile', authenticateToken, async (req, res) => {
         email: user.email,
         role: user.role,
         telegramId: user.telegram_id,
+        telegramUsername: user.telegram_username,
         avatar: user.avatar,
         phone: user.phone,
         bio: user.bio,

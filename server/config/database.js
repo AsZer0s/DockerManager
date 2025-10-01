@@ -83,6 +83,7 @@ class Database {
           password_hash VARCHAR(255) NOT NULL,
           role VARCHAR(20) DEFAULT 'user',
           telegram_id TEXT UNIQUE,
+          telegram_username TEXT,
           telegram_verified BOOLEAN DEFAULT false,
           telegram_verified_at DATETIME,
           avatar VARCHAR(255),

@@ -295,7 +295,10 @@ const AccountSettings: React.FC = () => {
               <Text strong>Telegram绑定</Text>
               <br />
               <Text type="secondary">
-                {userData?.telegramId ? `已绑定：${userData.telegramId}` : '未绑定Telegram账号'}
+                {userData?.telegramId ? 
+                  (userData.telegramUsername ? `已绑定：${userData.telegramUsername}` : `已绑定：ID ${userData.telegramId}`) : 
+                  '未绑定Telegram账号'
+                }
               </Text>
             </div>
           </Col>
