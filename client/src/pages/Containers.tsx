@@ -732,6 +732,22 @@ const Containers: React.FC = () => {
             transform: rotate(360deg);
           }
         }
+        
+        /* 页面标题样式 */
+        .page-title {
+          font-size: 2rem;
+          font-weight: 700;
+          background: linear-gradient(135deg, #10b981, #3b82f6);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+        }
+        
+        .stat-title {
+          font-size: 0.875rem;
+          font-weight: 500;
+          color: #374151;
+        }
       `}</style>
       <motion.div 
         style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
@@ -741,7 +757,7 @@ const Containers: React.FC = () => {
       >
         <GradientText 
           text="容器管理" 
-          className="text-3xl font-bold"
+          className="page-title"
           gradient="from-green-500 to-blue-600"
         />
         <Space>
@@ -777,7 +793,7 @@ const Containers: React.FC = () => {
                     text="容器总数" 
                     direction="left" 
                     delay={0.2}
-                    className="text-sm font-medium"
+                    className="stat-title"
                   />
                 }
                 value={stats.total}
@@ -800,7 +816,7 @@ const Containers: React.FC = () => {
                     text="运行中" 
                     direction="left" 
                     delay={0.3}
-                    className="text-sm font-medium"
+                    className="stat-title"
                   />
                 }
                 value={stats.running}
@@ -823,7 +839,7 @@ const Containers: React.FC = () => {
                     text="已停止" 
                     direction="left" 
                     delay={0.4}
-                    className="text-sm font-medium"
+                    className="stat-title"
                   />
                 }
                 value={stats.stopped}

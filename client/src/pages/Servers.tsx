@@ -499,6 +499,22 @@ const Servers: React.FC = () => {
             transform: rotate(360deg);
           }
         }
+        
+        /* 页面标题样式 */
+        .page-title {
+          font-size: 2rem;
+          font-weight: 700;
+          background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+        }
+        
+        .stat-title {
+          font-size: 0.875rem;
+          font-weight: 500;
+          color: #374151;
+        }
       `}</style>
       <motion.div 
         style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
@@ -508,7 +524,7 @@ const Servers: React.FC = () => {
       >
         <GradientText 
           text="服务器管理" 
-          className="text-3xl font-bold"
+          className="page-title"
           gradient="from-blue-500 to-purple-600"
         />
         <Space>
@@ -552,7 +568,7 @@ const Servers: React.FC = () => {
                     text="总服务器数" 
                     direction="left" 
                     delay={0.2}
-                    className="text-sm font-medium"
+                    className="stat-title"
                   />
                 }
                 value={servers.length}
@@ -574,7 +590,7 @@ const Servers: React.FC = () => {
                     text="在线服务器" 
                     direction="left" 
                     delay={0.3}
-                    className="text-sm font-medium"
+                    className="stat-title"
                   />
                 }
                 value={servers.filter(s => s.is_active && s.status === '在线').length}
@@ -596,7 +612,7 @@ const Servers: React.FC = () => {
                     text="离线服务器" 
                     direction="left" 
                     delay={0.4}
-                    className="text-sm font-medium"
+                    className="stat-title"
                   />
                 }
                 value={servers.filter(s => s.is_active && s.status === '离线').length}

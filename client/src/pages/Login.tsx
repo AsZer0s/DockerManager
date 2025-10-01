@@ -62,6 +62,22 @@ const Login: React.FC = () => {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.6 }}
     >
+      <style>{`
+        .login-title {
+          font-size: 2rem;
+          font-weight: 700;
+          margin-bottom: 8px;
+          background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+        }
+        
+        .login-subtitle {
+          font-size: 1rem;
+          color: #6b7280;
+        }
+      `}</style>
       <motion.div
         initial={{ scale: 0.8, y: 50 }}
         animate={{ scale: 1, y: 0 }}
@@ -83,12 +99,12 @@ const Login: React.FC = () => {
           >
             <GradientText 
               text="Docker Manager" 
-              className="text-3xl font-bold mb-2"
+              className="login-title"
               gradient="from-blue-500 to-purple-600"
             />
             <FadeInText 
               text="容器管理系统"
-              className="text-gray-600"
+              className="login-subtitle"
               delay={0.6}
             />
           </motion.div>

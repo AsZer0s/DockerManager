@@ -194,6 +194,29 @@ const Dashboard: React.FC = () => {
             transform: rotate(360deg);
           }
         }
+        
+        /* Dashboard 样式 */
+        .dashboard-title {
+          font-size: 2rem;
+          font-weight: 700;
+          margin-bottom: 8px;
+          background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+        }
+        
+        .dashboard-subtitle {
+          font-size: 1rem;
+          color: #6b7280;
+          line-height: 1.5;
+        }
+        
+        .stat-title {
+          font-size: 0.875rem;
+          font-weight: 500;
+          color: #374151;
+        }
       `}</style>
       <motion.div 
         style={{ marginBottom: 24 }}
@@ -203,12 +226,12 @@ const Dashboard: React.FC = () => {
       >
         <GradientText 
           text="仪表盘" 
-          className="text-3xl font-bold mb-2"
+          className="dashboard-title"
           gradient="from-blue-500 to-purple-600"
         />
         <FadeInText 
           text={`欢迎回来，${user?.username}！这里是您的 Docker 容器管理概览。`}
-          className="text-gray-600"
+          className="dashboard-subtitle"
           delay={0.3}
         />
       </motion.div>
@@ -228,7 +251,7 @@ const Dashboard: React.FC = () => {
                     text="服务器总数" 
                     direction="left" 
                     delay={0.2}
-                    className="text-sm font-medium"
+                    className="stat-title"
                   />
                 }
                 value={servers.length}
@@ -251,7 +274,7 @@ const Dashboard: React.FC = () => {
                     text="在线服务器" 
                     direction="left" 
                     delay={0.3}
-                    className="text-sm font-medium"
+                    className="stat-title"
                   />
                 }
                 value={servers.filter(s => s.is_active && s.status === '在线').length}
@@ -274,7 +297,7 @@ const Dashboard: React.FC = () => {
                     text="离线服务器" 
                     direction="left" 
                     delay={0.4}
-                    className="text-sm font-medium"
+                    className="stat-title"
                   />
                 }
                 value={servers.filter(s => s.is_active && s.status === '离线').length}
@@ -297,7 +320,7 @@ const Dashboard: React.FC = () => {
                     text="容器总数" 
                     direction="left" 
                     delay={0.5}
-                    className="text-sm font-medium"
+                    className="stat-title"
                   />
                 }
                 value={containersStatsData.total}
