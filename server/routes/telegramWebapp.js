@@ -259,12 +259,72 @@ router.post('/servers/:serverId/containers/:containerId/action', async (req, res
 
 /**
  * @route GET /api/telegram-webapp/servers
+ * @route POST /api/telegram-webapp/servers
  * @desc 获取用户可访问的服务器列表（Telegram WebApp专用）
  * @access Public
  */
 router.get('/servers', async (req, res) => {
   try {
     const { user_id } = req.query;
+
+    if (!user_id) {
+      return res.status(400).json({
+        success: false,
+        message: '用户ID不能为空'
+      });
+    }
+
+    // 验证用户权限
+    const user = await database.db.get(
+      'SELECT * FROM users WHERE telegram_id = ? AND (is_active = 1 OR is_active = true)',
+      [user_id.toString()]
+    );
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: '用户未找到或未激活'
+      });
+    }
+
+    // 获取用户可访问的服务器列表
+    const servers = await getUserServers(user.id);
+    
+    // 获取服务器状态
+    const serversWithStatus = await Promise.all(
+      servers.map(async (server) => {
+        const isOnline = await monitoringService.checkServerConnection(server.id);
+        return {
+          id: server.id,
+          name: server.name,
+          description: server.description,
+          host: server.host,
+          port: server.port,
+          isOnline,
+          canView: server.can_view,
+          canControl: server.can_control
+        };
+      })
+    );
+
+    res.json({
+      success: true,
+      servers: serversWithStatus
+    });
+
+  } catch (error) {
+    logger.error('获取服务器列表失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '获取服务器列表失败'
+    });
+  }
+});
+
+// POST 路由 - 与 GET 路由功能相同，但从请求体获取 user_id
+router.post('/servers', async (req, res) => {
+  try {
+    const { user_id } = req.body;
 
     if (!user_id) {
       return res.status(400).json({
