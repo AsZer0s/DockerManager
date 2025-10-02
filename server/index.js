@@ -573,6 +573,12 @@ async function initializeServices() {
     sshSessionService.initialize();
     console.log('✅ SSH 会话服务初始化成功');
 
+    // 初始化 SSH 连接池
+    console.log('🔗 初始化 SSH 连接池...');
+    const sshConnectionPool = (await import('./services/sshConnectionPool.js')).default;
+    sshConnectionPool.initialize();
+    console.log('✅ SSH 连接池初始化成功');
+
     // 初始化缓存服务
     console.log('💾 初始化缓存服务...');
     const cacheService = (await import('./services/cacheService.js')).default;

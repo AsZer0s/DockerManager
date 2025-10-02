@@ -52,88 +52,115 @@ class DockerService {
   }
 
   /**
-   * 通过 SSH 获取容器列表
+   * 通过 SSH 获取容器列表（使用连接池）
    * @param {Object} server - 服务器信息
    * @param {boolean} all - 是否包含所有容器
    * @returns {Promise<Array>} 容器列表
    */
   async getContainersViaSSH(server, all = true) {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const { Client } = await import('ssh2');
-        const client = new Client();
-        
-        const timeout = setTimeout(() => {
-          client.destroy();
-          reject(new Error('SSH 连接超时'));
-        }, 30000); // 30秒超时
-        
-        client.on('ready', () => {
-          clearTimeout(timeout);
-          
-          // 使用JSON格式获取容器列表，更准确可靠
-          const command = all ? "docker ps -a --format '{{json .}}'" 
-                              : "docker ps --format '{{json .}}'";
-          
-          client.exec(command, (err, stream) => {
-            if (err) {
-              client.end();
-              reject(err);
-              return;
-            }
-            
-            let output = '';
-            stream.on('close', (code) => {
-              client.end();
-              
-              if (code === 0) {
-                const containers = this.parseDockerPsJsonOutput(output);
-                resolve(containers);
-              } else {
-                reject(new Error(`Docker 命令执行失败，退出码: ${code}`));
-              }
-            });
-            
-            stream.on('data', (data) => {
-              output += data.toString();
-            });
-            
-            stream.stderr.on('data', (data) => {
-              // 记录错误输出但不中断
-              logger.debug('Docker ps 错误输出:', data.toString());
-            });
-          });
-        });
-        
-        client.on('error', (err) => {
-          clearTimeout(timeout);
-          reject(err);
-        });
-        
-        // 连接配置
-        const connectConfig = {
-          host: server.host,
-          port: server.ssh_port || 22,
-          username: server.username || 'root',
-          readyTimeout: 15000,
-          keepaliveInterval: 1000
-        };
-        
-        // 如果有密码，使用密码认证
-        if (server.password) {
-          connectConfig.password = server.password;
+    try {
+      // 使用SSH连接池执行命令
+      const sshConnectionPool = (await import('./sshConnectionPool.js')).default;
+      
+      // 构建docker命令
+      const command = all 
+        ? 'docker ps -a --format "{{json .}}"'
+        : 'docker ps --format "{{json .}}"';
+      
+      const output = await sshConnectionPool.executeCommand(server.id, command, 30000);
+      
+      // 解析JSON输出
+      const containers = [];
+      const lines = output.trim().split('\n');
+      
+      for (const line of lines) {
+        if (line.trim()) {
+          try {
+            const container = JSON.parse(line);
+            containers.push(this.parseContainerInfo(container));
+          } catch (parseError) {
+            logger.warn(`解析容器信息失败: ${line}`, parseError);
+          }
         }
-        
-        // 如果有私钥，使用密钥认证
-        if (server.private_key) {
-          connectConfig.privateKey = server.private_key;
-        }
-        
-        client.connect(connectConfig);
-      } catch (error) {
-        reject(error);
       }
-    });
+      
+      return containers;
+    } catch (error) {
+      logger.error(`通过SSH获取容器列表失败: ${server.host}`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * 解析容器信息
+   * @param {Object} rawContainer - 原始容器数据
+   * @returns {Object} 解析后的容器信息
+   */
+  parseContainerInfo(rawContainer) {
+    return {
+      id: rawContainer.ID,
+      name: rawContainer.Names,
+      image: rawContainer.Image,
+      status: rawContainer.Status,
+      created: rawContainer.CreatedAt,
+      ports: this.parsePorts(rawContainer.Ports),
+      labels: this.parseLabels(rawContainer.Labels)
+    };
+  }
+
+  /**
+   * 解析端口信息
+   * @param {string} portsString - 端口字符串
+   * @returns {Array} 端口数组
+   */
+  parsePorts(portsString) {
+    if (!portsString) return [];
+    
+    const ports = [];
+    const portPairs = portsString.split(',');
+    
+    for (const pair of portPairs) {
+      const match = pair.trim().match(/^(\d+)\/(\w+)\s*->\s*(\d+\.\d+\.\d+\.\d+):(\d+)$/);
+      if (match) {
+        ports.push({
+          privatePort: parseInt(match[1]),
+          type: match[2],
+          publicIP: match[3],
+          publicPort: parseInt(match[4])
+        });
+      }
+    }
+    
+    return ports;
+  }
+
+  /**
+   * 解析Docker标签
+   * @param {string} labelsString - 标签字符串
+   * @returns {Object} 解析后的标签对象
+   */
+  parseLabels(labelsString) {
+    if (!labelsString) return {};
+    
+    try {
+      // Docker标签格式：key1=value1,key2=value2,key3=value3
+      const labels = {};
+      const pairs = labelsString.split(',');
+      
+      for (const pair of pairs) {
+        const equalIndex = pair.indexOf('=');
+        if (equalIndex > 0) {
+          const key = pair.substring(0, equalIndex);
+          const value = pair.substring(equalIndex + 1);
+          labels[key] = value;
+        }
+      }
+      
+      return labels;
+    } catch (error) {
+      logger.warn(`解析Docker标签失败: ${labelsString}`, error);
+      return {};
+    }
   }
 
   /**

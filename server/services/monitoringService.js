@@ -681,73 +681,14 @@ class MonitoringService {
    * @returns {Promise<boolean>} 连接状态
    */
   async checkServerViaSSH(server) {
-    return new Promise(async (resolve) => {
-      try {
-        const { Client } = await import('ssh2');
-        const client = new Client();
-        
-        const timeout = setTimeout(() => {
-          client.destroy();
-          resolve(false);
-        }, 15000); // 增加到15秒超时
-        
-        client.on('ready', () => {
-          clearTimeout(timeout);
-          
-          // 执行 docker ps 命令检查 Docker 是否运行
-          client.exec('docker ps --format "table {{.Names}}\t{{.Status}}"', (err, stream) => {
-            if (err) {
-              client.end();
-              resolve(false);
-              return;
-            }
-            
-            let output = '';
-            stream.on('close', (code) => {
-              client.end();
-              // 如果命令执行成功（退出码为0），说明服务器在线且Docker可用
-              resolve(code === 0);
-            });
-            
-            stream.on('data', (data) => {
-              output += data.toString();
-            });
-            
-            stream.stderr.on('data', (data) => {
-              // 忽略错误输出，主要看退出码
-            });
-          });
-        });
-        
-        client.on('error', (err) => {
-          clearTimeout(timeout);
-          resolve(false);
-        });
-        
-        // 连接配置
-        const connectConfig = {
-          host: server.host,
-          port: server.ssh_port || 22,
-          username: server.username || 'root',
-          readyTimeout: 5000,
-          keepaliveInterval: 1000
-        };
-        
-        // 如果有密码，使用密码认证
-        if (server.password) {
-          connectConfig.password = server.password;
-        }
-        
-        // 如果有私钥，使用密钥认证
-        if (server.private_key) {
-          connectConfig.privateKey = server.private_key;
-        }
-        
-        client.connect(connectConfig);
-      } catch (error) {
-        resolve(false);
-      }
-    });
+    try {
+      // 使用SSH连接池检查服务器状态
+      const sshConnectionPool = (await import('./sshConnectionPool.js')).default;
+      return await sshConnectionPool.checkServerStatus(server.id);
+    } catch (error) {
+      logger.error(`SSH连接检查失败: ${server.host}`, error);
+      return false;
+    }
   }
 
   /**
