@@ -27,10 +27,17 @@ const serverValidation = {
     name: Joi.string().min(1).max(100).required(),
     host: Joi.string().hostname().required(),
     port: Joi.number().integer().min(1).max(65535).default(22),
+    ssh_port: Joi.number().integer().min(1).max(65535).default(22).optional(),
     username: Joi.string().min(1).max(100).required(),
     password: Joi.string().optional(),
     private_key: Joi.string().optional(),
-    description: Joi.string().max(500).allow('', null).optional()
+    description: Joi.string().max(500).allow('', null).optional(),
+    // 代理配置字段
+    proxy_enabled: Joi.boolean().optional(),
+    proxy_host: Joi.string().hostname().optional(),
+    proxy_port: Joi.number().integer().min(1).max(65535).optional(),
+    proxy_username: Joi.string().optional(),
+    proxy_password: Joi.string().optional()
   }).custom((value, helpers) => {
     // 确保至少提供密码或私钥之一
     if (!value.password && !value.private_key) {
@@ -45,11 +52,18 @@ const serverValidation = {
     name: Joi.string().min(1).max(100).optional(),
     host: Joi.string().hostname().optional(),
     port: Joi.number().integer().min(1).max(65535).optional(),
+    ssh_port: Joi.number().integer().min(1).max(65535).optional(),
     username: Joi.string().min(1).max(100).optional(),
     password: Joi.string().optional(),
     private_key: Joi.string().optional(),
     description: Joi.string().max(500).allow('', null).optional(),
-    isActive: Joi.boolean().optional()
+    isActive: Joi.boolean().optional(),
+    // 代理配置字段
+    proxy_enabled: Joi.boolean().optional(),
+    proxy_host: Joi.string().hostname().optional(),
+    proxy_port: Joi.number().integer().min(1).max(65535).optional(),
+    proxy_username: Joi.string().optional(),
+    proxy_password: Joi.string().optional()
   }).custom((value, helpers) => {
     // 更新时，如果提供了认证信息，确保至少有一个
     if ((value.password !== undefined || value.private_key !== undefined) && 

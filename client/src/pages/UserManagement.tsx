@@ -397,14 +397,28 @@ const UserManagement: React.FC = () => {
       key: 'visibleServers',
       width: columnWidths.visibleServers,
       align: 'center' as const,
-      render: (serverIds: number[]) => (
-        <Tooltip title={`可访问 ${serverIds?.length || 0} 个服务器`}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-            <DatabaseOutlined style={{ color: '#52c41a' }} />
-            <span style={{ fontWeight: 500 }}>{serverIds?.length || 0}</span>
-          </div>
-        </Tooltip>
-      )
+      render: (serverIds: number[], record: User) => {
+        // 管理员用户显示"全部"
+        if (record.role === 'admin') {
+          return (
+            <Tooltip title="管理员可访问全部服务器">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                <DatabaseOutlined style={{ color: '#52c41a' }} />
+                <span style={{ fontWeight: 500, color: '#52c41a' }}>全部</span>
+              </div>
+            </Tooltip>
+          )
+        }
+        // 普通用户显示具体数量
+        return (
+          <Tooltip title={`可访问 ${serverIds?.length || 0} 个服务器`}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+              <DatabaseOutlined style={{ color: '#52c41a' }} />
+              <span style={{ fontWeight: 500 }}>{serverIds?.length || 0}</span>
+            </div>
+          </Tooltip>
+        )
+      }
     },
     {
       title: <ColumnTitle title="可见容器" columnKey="visibleContainers" />,
@@ -412,14 +426,28 @@ const UserManagement: React.FC = () => {
       key: 'visibleContainers',
       width: columnWidths.visibleContainers,
       align: 'center' as const,
-      render: (containerIds: string[]) => (
-        <Tooltip title={`可访问 ${containerIds?.length || 0} 个容器`}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-            <ContainerOutlined style={{ color: '#1890ff' }} />
-            <span style={{ fontWeight: 500 }}>{containerIds?.length || 0}</span>
-          </div>
-        </Tooltip>
-      )
+      render: (containerIds: string[], record: User) => {
+        // 管理员用户显示"全部"
+        if (record.role === 'admin') {
+          return (
+            <Tooltip title="管理员可访问全部容器">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                <ContainerOutlined style={{ color: '#1890ff' }} />
+                <span style={{ fontWeight: 500, color: '#1890ff' }}>全部</span>
+              </div>
+            </Tooltip>
+          )
+        }
+        // 普通用户显示具体数量
+        return (
+          <Tooltip title={`可访问 ${containerIds?.length || 0} 个容器`}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+              <ContainerOutlined style={{ color: '#1890ff' }} />
+              <span style={{ fontWeight: 500 }}>{containerIds?.length || 0}</span>
+            </div>
+          </Tooltip>
+        )
+      }
     },
     {
       title: <ColumnTitle title="创建时间" columnKey="createdAt" />,

@@ -1,10 +1,4 @@
 import crypto from 'crypto';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 class Encryption {
   constructor() {
@@ -13,69 +7,24 @@ class Encryption {
   }
 
   initialize() {
-    let keyString = process.env.ENCRYPTION_KEY;
+    const keyString = process.env.ENCRYPTION_KEY;
     
-    // 检查密钥是否有效（32个字符的十六进制字符串）
+    // 检查密钥是否存在且有效（32个字符的十六进制字符串）
     const isValidKey = keyString && 
                       keyString.length === 32 && 
                       /^[0-9a-fA-F]+$/.test(keyString);
     
     if (!isValidKey) {
-      console.log('⚠️  ENCRYPTION_KEY 不符合要求，正在自动生成新的密钥...');
-      
-      // 生成32个字符的随机十六进制字符串
-      keyString = this.generateRandomString(16); // 16字节 = 32个十六进制字符
-      
-      // 更新环境变量
-      process.env.ENCRYPTION_KEY = keyString;
-      
-      // 更新 .env 文件
-      this.updateEnvFile(keyString);
-      
-      console.log('✅ 已自动生成新的 ENCRYPTION_KEY');
-      console.log('🔑 新的 ENCRYPTION_KEY:', keyString);
-      console.log('📝 已更新 .env 文件，请妥善保存此密钥！');
-    } else {
-      console.log('✅ 使用现有的 ENCRYPTION_KEY');
-      console.log('🔑 ENCRYPTION_KEY:', keyString);
+      throw new Error('ENCRYPTION_KEY 未设置或格式无效。请在 .env 文件中设置一个32个字符的十六进制字符串作为 ENCRYPTION_KEY。');
     }
+    
+    console.log('✅ 使用现有的 ENCRYPTION_KEY');
+    console.log('🔑 ENCRYPTION_KEY:', keyString);
     
     // 将字符串转换为 Buffer
     this.key = Buffer.from(keyString, 'utf8');
   }
 
-  /**
-   * 更新 .env 文件中的 ENCRYPTION_KEY
-   * @param {string} newKey - 新的密钥
-   */
-  updateEnvFile(newKey) {
-    try {
-      const envPath = path.join(__dirname, '../.env');
-      
-      if (fs.existsSync(envPath)) {
-        let envContent = fs.readFileSync(envPath, 'utf8');
-        
-        // 替换或添加 ENCRYPTION_KEY
-        if (envContent.includes('ENCRYPTION_KEY=')) {
-          envContent = envContent.replace(
-            /ENCRYPTION_KEY=.*/,
-            `ENCRYPTION_KEY=${newKey}`
-          );
-        } else {
-          envContent += `\nENCRYPTION_KEY=${newKey}\n`;
-        }
-        
-        fs.writeFileSync(envPath, envContent, 'utf8');
-        console.log('📄 .env 文件已更新');
-      } else {
-        console.log('⚠️  未找到 .env 文件，请手动添加 ENCRYPTION_KEY');
-      }
-    } catch (error) {
-      console.error('❌ 更新 .env 文件失败:', error.message);
-      console.log('⚠️  请手动将以下内容添加到 .env 文件中:');
-      console.log(`ENCRYPTION_KEY=${newKey}`);
-    }
-  }
 
   /**
    * 加密数据

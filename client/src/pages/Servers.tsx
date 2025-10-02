@@ -45,6 +45,7 @@ const Servers: React.FC = () => {
   const { token: themeToken } = theme.useToken()
   const [refreshCooldown, setRefreshCooldown] = useState(false)
   const [authType, setAuthType] = useState<'password' | 'key'>('password')
+  const [testingServers, setTestingServers] = useState<Set<number>>(new Set())
   const [columnWidths, setColumnWidths] = useState({
     name: 150,
     host: 150,
@@ -149,15 +150,33 @@ const Servers: React.FC = () => {
 
   // 测试连接 mutation
   const testConnectionMutation = useMutation({
-    mutationFn: (id: number) => serverAPI.testConnection(id),
-    onSuccess: (response) => {
+    mutationFn: (id: number) => {
+      // 添加到测试中的服务器集合
+      setTestingServers(prev => new Set(prev).add(id))
+      return serverAPI.testConnection(id)
+    },
+    onSuccess: (response, id) => {
+      // 从测试中的服务器集合移除
+      setTestingServers(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(id)
+        return newSet
+      })
+      
       if (response.data.success) {
         message.success('连接测试成功')
       } else {
         message.error(response.data.message || '连接测试失败')
       }
     },
-    onError: (error: any) => {
+    onError: (error: any, id) => {
+      // 从测试中的服务器集合移除
+      setTestingServers(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(id)
+        return newSet
+      })
+      
       message.error(error.response?.data?.message || '连接测试失败')
     },
   })
@@ -347,12 +366,12 @@ const Servers: React.FC = () => {
       ),
     },
     {
-      title: <ColumnTitle title="端口" columnKey="port" />,
-      dataIndex: 'port',
-      key: 'port',
+      title: <ColumnTitle title="SSH端口" columnKey="port" />,
+      dataIndex: 'ssh_port',
+      key: 'ssh_port',
       width: columnWidths.port,
       align: 'center' as const,
-      render: (text: number, record: Server) => (
+      render: (_: number, record: Server) => (
         <div style={{ 
           fontFamily: 'monospace', 
           fontSize: '12px',
@@ -362,7 +381,7 @@ const Servers: React.FC = () => {
           borderRadius: '4px',
           display: 'inline-block'
         }}>
-          {record.hide_sensitive_info ? '***' : text}
+          {record.hide_sensitive_info ? '***' : (record.ssh_port || record.port || 22)}
         </div>
       ),
     },
@@ -443,7 +462,7 @@ const Servers: React.FC = () => {
             type="link"
             icon={<CheckCircleOutlined />}
             onClick={() => handleTestConnection(record.id)}
-            loading={testConnectionMutation.isLoading}
+            loading={testingServers.has(record.id)}
           >
             测试
           </Button>

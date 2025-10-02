@@ -662,8 +662,7 @@ process.on('SIGINT', async () => {
 console.log('🎯 准备启动应用...');
 console.log('环境变量检查:');
 console.log('- NODE_ENV:', process.env.NODE_ENV);
-console.log('- ENCRYPTION_KEY length:', process.env.ENCRYPTION_KEY?.length);
-console.log('- ENCRYPTION_KEY:', process.env.ENCRYPTION_KEY);
+console.log('- ENCRYPTION_KEY:', process.env.ENCRYPTION_KEY ? `已设置 (长度: ${process.env.ENCRYPTION_KEY.length})` : '未设置');
 console.log('- TGBOT_PROXY:', process.env.TGBOT_PROXY ? `已设置 (${process.env.TGBOT_PROXY})` : '未设置');
 
 initializeServices().catch(error => {
