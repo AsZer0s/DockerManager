@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { Card, Typography, Tabs } from 'antd'
+import { Typography, Tabs, Card } from 'antd'
+import { motion } from 'framer-motion'
 import { 
   SettingOutlined, 
   SafetyOutlined, 
@@ -13,8 +14,6 @@ import AccountSettings from '../components/Settings/AccountSettings'
 import SystemSettings from '../components/Settings/SystemSettings'
 import NotificationSettings from '../components/Settings/NotificationSettings'
 import DatabaseSettings from '../components/Settings/DatabaseSettings'
-
-const { Title } = Typography
 
 const Settings: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -80,12 +79,29 @@ const Settings: React.FC = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: 24 }}>
-        <Title level={2}>
-          <SettingOutlined style={{ marginRight: 8 }} />
+      <style>{`
+        /* 页面标题渐变效果 */
+        .page-title {
+          font-size: 2rem !important;
+          font-weight: 700 !important;
+          margin-bottom: 8px !important;
+          background: linear-gradient(135deg, #3b82f6, #8b5cf6) !important;
+          -webkit-background-clip: text !important;
+          -webkit-text-fill-color: transparent !important;
+          background-clip: text !important;
+          color: transparent !important;
+        }
+      `}</style>
+      <motion.div 
+        style={{ marginBottom: 24 }}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <Typography.Title level={1} className="page-title">
           系统设置
-        </Title>
-      </div>
+        </Typography.Title>
+      </motion.div>
 
       <Card>
         <Tabs

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { Card, Select, Button, Space, message } from 'antd'
+import { Card, Select, Button, Space, message, Typography } from 'antd'
+import { motion } from 'framer-motion'
 import { ConsoleSqlOutlined, ReloadOutlined, DisconnectOutlined, HistoryOutlined } from '@ant-design/icons'
 import { Server } from '@/services/api'
 import sshSessionAPI from '@/services/sshSessionAPI'
@@ -253,63 +254,78 @@ const SSHConsole: React.FC = () => {
 
   return (
     <div className="ssh-console">
-      <Card 
-        title={
-        <Space>
-          <ConsoleSqlOutlined />
-          SSH 控制台
-        </Space>
+      <style>{`
+        /* 页面标题渐变效果 */
+        .page-title {
+          font-size: 2rem !important;
+          font-weight: 700 !important;
+          margin-bottom: 8px !important;
+          background: linear-gradient(135deg, #3b82f6, #8b5cf6) !important;
+          -webkit-background-clip: text !important;
+          -webkit-text-fill-color: transparent !important;
+          background-clip: text !important;
+          color: transparent !important;
         }
-        extra={
-          <Space>
-            <Select
-              placeholder="选择服务器"
-              style={{ width: 200 }}
-              value={selectedServer}
-              onChange={setSelectedServer}
-              disabled={isConnected}
-            >
-              {onlineServers.map((server: Server) => (
-                <Option key={server.id} value={server.id}>
-                  {server.name} ({server.host})
-                </Option>
-              ))}
-            </Select>
-            
-            {!isConnected ? (
-              <Button 
-                type="primary" 
-                icon={<ConsoleSqlOutlined />}
-                onClick={connectSSH}
-                loading={isLoading}
-                disabled={!selectedServer}
-              >
-                连接
-              </Button>
-            ) : (
-              <Space>
-                <Button 
-                  icon={<HistoryOutlined />}
-                  onClick={showHistory}
-                  title="显示命令历史"
-                />
-                <Button 
-                  icon={<ReloadOutlined />}
-                  onClick={clearTerminal}
-                  title="清屏"
-                />
-                <Button 
-                  danger
-                  icon={<DisconnectOutlined />}
-                  onClick={disconnectSSH}
-                >
-                  断开连接
-                </Button>
-              </Space>
-            )}
-          </Space>
-        }
+      `}</style>
+      <motion.div 
+        style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
       >
+        <Typography.Title level={1} className="page-title">
+          SSH 控制台
+        </Typography.Title>
+        <Space>
+          <Select
+            placeholder="选择服务器"
+            style={{ width: 200 }}
+            value={selectedServer}
+            onChange={setSelectedServer}
+            disabled={isConnected}
+          >
+            {onlineServers.map((server: Server) => (
+              <Option key={server.id} value={server.id}>
+                {server.name} ({server.host})
+              </Option>
+            ))}
+          </Select>
+          
+          {!isConnected ? (
+            <Button 
+              type="primary" 
+              icon={<ConsoleSqlOutlined />}
+              onClick={connectSSH}
+              loading={isLoading}
+              disabled={!selectedServer}
+            >
+              连接
+            </Button>
+          ) : (
+            <Space>
+              <Button 
+                icon={<HistoryOutlined />}
+                onClick={showHistory}
+                title="显示命令历史"
+              />
+              <Button 
+                icon={<ReloadOutlined />}
+                onClick={clearTerminal}
+                title="清屏"
+              />
+              <Button 
+                danger
+                icon={<DisconnectOutlined />}
+                onClick={disconnectSSH}
+              >
+                断开连接
+              </Button>
+            </Space>
+          )}
+        </Space>
+      </motion.div>
+      
+      <Card>
         <div className="terminal-container">
           <div 
             ref={terminalRef}

@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react'
-import { Row, Col, Card, Statistic, Table, Tag, Button, Space, Typography, message } from 'antd'
+import { Row, Col, Statistic, Table, Tag, Space, Typography, message, Card, Button } from 'antd'
 import { 
   DatabaseOutlined, 
   ContainerOutlined, 
@@ -15,7 +15,6 @@ import { useAuthStore } from '@/stores/authStore'
 import { motion } from 'framer-motion'
 import { 
   FadeInText, 
-  GradientText, 
   SlideInText
 } from '@/components/animations/TextAnimations'
 
@@ -221,11 +220,9 @@ const Dashboard: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        <GradientText 
-          text="仪表盘" 
-          className="dashboard-title"
-          gradient="from-blue-500 to-purple-600"
-        />
+        <Typography.Title level={1} className="dashboard-title">
+          仪表盘
+        </Typography.Title>
         <FadeInText 
           text={`欢迎回来，${user?.username}！这里是您的 Docker 容器管理概览。`}
           className="dashboard-subtitle"
@@ -386,7 +383,6 @@ const Dashboard: React.FC = () => {
           <Card title="快速操作">
             <Space wrap>
               <Button 
-                type="primary" 
                 icon={<DatabaseOutlined />}
                 onClick={() => navigate('/servers')}
               >

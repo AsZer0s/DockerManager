@@ -1,11 +1,9 @@
 import React, { useState } from 'react'
 import { 
-  Card, 
   Table, 
-  Button, 
   Modal, 
   Form, 
-  Input, 
+  Input,
   Select, 
   message, 
   Space, 
@@ -13,8 +11,11 @@ import {
   Typography,
   Tag,
   Tooltip,
-  theme
+  theme,
+  Button,
+  Card
 } from 'antd'
+import { motion } from 'framer-motion'
 import { 
   PlusOutlined, 
   EditOutlined, 
@@ -514,13 +515,30 @@ const UserManagement: React.FC = () => {
 
   return (
     <div style={{ padding: '0 24px' }}>
-      <div style={{ marginBottom: 24 }}>
-        <Title level={2}>
-          <UserOutlined style={{ marginRight: 8 }} />
+      <style>{`
+        /* 页面标题渐变效果 */
+        .page-title {
+          font-size: 2rem !important;
+          font-weight: 700 !important;
+          margin-bottom: 8px !important;
+          background: linear-gradient(135deg, #3b82f6, #8b5cf6) !important;
+          -webkit-background-clip: text !important;
+          -webkit-text-fill-color: transparent !important;
+          background-clip: text !important;
+          color: transparent !important;
+        }
+      `}</style>
+      <motion.div 
+        style={{ marginBottom: 24 }}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <Typography.Title level={1} className="page-title">
           用户管理
-        </Title>
+        </Typography.Title>
         <Text type="secondary">管理用户账户和权限设置</Text>
-      </div>
+      </motion.div>
 
       <Card>
         <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

@@ -1,21 +1,22 @@
 import React, { useState, useCallback } from 'react'
 import { 
   Table, 
-  Button, 
   Space, 
   Tag, 
   Modal, 
   Form, 
-  Input, 
+  Input,
   InputNumber, 
   message, 
   Popconfirm,
-  Card,
   Row,
   Col,
   Statistic,
   Radio,
-  theme
+  theme,
+  Button,
+  Card,
+  Typography
 } from 'antd'
 import { 
   PlusOutlined, 
@@ -28,7 +29,6 @@ import { useMutation, useQueryClient } from 'react-query'
 import { useAuthStore } from '@/stores/authStore'
 import { motion } from 'framer-motion'
 import { 
-  GradientText, 
   SlideInText 
 } from '@/components/animations/TextAnimations'
 
@@ -555,11 +555,9 @@ const Servers: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        <GradientText 
-          text="服务器管理" 
-          className="page-title"
-          gradient="from-blue-500 to-purple-600"
-        />
+        <Typography.Title level={1} className="page-title">
+          服务器管理
+        </Typography.Title>
         <Space>
           <Button 
             icon={<ReloadOutlined />} 

@@ -1,11 +1,10 @@
 import React from 'react'
-import { Form, Input, Button, Card, Typography, message } from 'antd'
+import { Form, Typography, message, Card, Input, Button } from 'antd'
 import { LockOutlined, MailOutlined } from '@ant-design/icons'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useMutation } from 'react-query'
 import { motion } from 'framer-motion'
 import { 
-  GradientText, 
   FadeInText 
 } from '@/components/animations/TextAnimations'
 
@@ -87,8 +86,6 @@ const Login: React.FC = () => {
           style={{
             width: '100%',
             maxWidth: 400,
-            boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-            borderRadius: '12px',
           }}
         >
           <motion.div 
@@ -97,11 +94,9 @@ const Login: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.4 }}
           >
-            <GradientText 
-              text="Docker Manager" 
-              className="login-title"
-              gradient="from-blue-500 to-purple-600"
-            />
+            <Typography.Title level={1} className="login-title">
+              Docker Manager
+            </Typography.Title>
             <FadeInText 
               text="容器管理系统"
               className="login-subtitle"
@@ -135,7 +130,8 @@ const Login: React.FC = () => {
               { min: 6, message: '密码至少6个字符' },
             ]}
           >
-            <Input.Password
+            <Input
+              type="password"
               prefix={<LockOutlined />}
               placeholder="密码"
             />
@@ -143,7 +139,6 @@ const Login: React.FC = () => {
 
           <Form.Item>
             <Button
-              type="primary"
               htmlType="submit"
               loading={loginMutation.isLoading}
               style={{ width: '100%' }}

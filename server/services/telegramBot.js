@@ -74,8 +74,8 @@ class TelegramBotService {
       this.registerDefaultButtons(); // 注册默认按钮
       this.isInitialized = true;
       
-      // 设置输入框占位符
-      await this.setInputFieldPlaceholder();
+      // 设置机器人命令
+      await this.setupBotCommands();
       
       // 启动机器人，添加错误处理
       await this.bot.launch().catch(error => {
@@ -502,6 +502,8 @@ class TelegramBotService {
       } else if (data.startsWith('container_')) {
         const [_, serverId, containerId, action] = data.split('_');
         await this.handleContainerAction(ctx, parseInt(serverId), containerId, action);
+      } else if (data === 'refresh_monitoring') {
+        await this.handleMonitoringCommand(ctx);
       }
     } catch (error) {
       logger.error('处理回调查询失败:', error);
@@ -607,10 +609,18 @@ class TelegramBotService {
         buttons.push([Markup.button.callback('🔙 返回服务器列表', 'servers')]);
       }
 
-      await ctx.reply(message, {
-        parse_mode: 'Markdown',
-        ...Markup.inlineKeyboard(buttons)
-      });
+      // 如果是刷新请求，编辑现有消息；否则发送新消息
+      if (ctx.callbackQuery) {
+        await ctx.editMessageText(message, {
+          parse_mode: 'Markdown',
+          ...Markup.inlineKeyboard(buttons)
+        });
+      } else {
+        await ctx.reply(message, {
+          parse_mode: 'Markdown',
+          ...Markup.inlineKeyboard(buttons)
+        });
+      }
     } catch (error) {
       logger.error('处理服务器详情失败:', error);
       
@@ -735,8 +745,8 @@ class TelegramBotService {
       ]);
       buttons.push([Markup.button.callback('🔙 返回服务器', 'servers')]);
 
-      // 如果是分页请求，编辑现有消息；否则发送新消息
-      if (currentPage > 1) {
+      // 如果是分页请求或刷新请求，编辑现有消息；否则发送新消息
+      if (currentPage > 1 || ctx.callbackQuery) {
         await ctx.editMessageText(message, { 
           parse_mode: 'Markdown',
           ...Markup.inlineKeyboard(buttons)
@@ -877,10 +887,18 @@ class TelegramBotService {
       
       buttons.push([Markup.button.callback('🔙 返回容器列表', `containers_${serverId}`)]);
 
-      await ctx.reply(message, { 
-        parse_mode: 'Markdown',
-        ...Markup.inlineKeyboard(buttons)
-      });
+      // 如果是刷新请求，编辑现有消息；否则发送新消息
+      if (ctx.callbackQuery) {
+        await ctx.editMessageText(message, { 
+          parse_mode: 'Markdown',
+          ...Markup.inlineKeyboard(buttons)
+        });
+      } else {
+        await ctx.reply(message, { 
+          parse_mode: 'Markdown',
+          ...Markup.inlineKeyboard(buttons)
+        });
+      }
     } catch (error) {
       logger.error('显示容器详情失败:', error);
       
@@ -1742,22 +1760,32 @@ class TelegramBotService {
   }
 
   /**
-   * 设置输入框占位符
+   * 设置机器人命令和描述
    */
-  async setInputFieldPlaceholder() {
+  async setupBotCommands() {
     try {
       if (!this.bot || !this.isInitialized) {
-        logger.warn('Telegram 机器人未初始化，跳过设置输入框占位符');
+        logger.warn('Telegram 机器人未初始化，跳过设置机器人命令');
         return;
       }
 
-      // 设置机器人信息
-      await this.bot.telegram.setMyDescription('Docker Manager - 服务器和容器管理工具');
-      await this.bot.telegram.setMyShortDescription('Docker管理工具');
-      await this.bot.telegram.setMyName('Docker Manager Bot');
-      
-      logger.info('✅ 输入框占位符设置成功');
+      // 先清理所有现有命令
+      await this.bot.telegram.deleteMyCommands();
+      logger.info('✅ 已清理现有机器人命令');
+
+      // 注册新的机器人命令
+      const commands = [
+        { command: 'start', description: '开始使用机器人' },
+        { command: 'help', description: '查看帮助信息' },
+        { command: 'servers', description: '查看服务器列表' },
+        { command: 'containers', description: '查看容器列表' },
+        { command: 'status', description: '查看系统状态' }
+      ];
+
+      await this.bot.telegram.setMyCommands(commands);
+      logger.info('✅ 机器人命令注册成功');
     } catch (error) {
+      logger.error('设置机器人命令失败:', error);
     }
   }
 
@@ -1903,10 +1931,21 @@ class TelegramBotService {
         `🖥️ 活跃服务器: ${status.activeServers}个\n\n` +
         `📈 系统运行时间: ${Math.floor(process.uptime() / 3600)}小时`;
 
-      await ctx.reply(message, Markup.inlineKeyboard([
-        [Markup.button.callback('🔄 刷新监控', 'refresh_monitoring')],
-        [Markup.button.callback('🏠 返回主菜单', 'main_menu')]
-      ]));
+      // 如果是刷新请求，编辑现有消息；否则发送新消息
+      if (ctx.callbackQuery) {
+        await ctx.editMessageText(message, {
+          parse_mode: 'Markdown',
+          ...Markup.inlineKeyboard([
+            [Markup.button.callback('🔄 刷新监控', 'refresh_monitoring')],
+            [Markup.button.callback('🏠 返回主菜单', 'main_menu')]
+          ])
+        });
+      } else {
+        await ctx.reply(message, Markup.inlineKeyboard([
+          [Markup.button.callback('🔄 刷新监控', 'refresh_monitoring')],
+          [Markup.button.callback('🏠 返回主菜单', 'main_menu')]
+        ]));
+      }
     } catch (error) {
       logger.error('处理监控命令失败:', error);
       await this.safeReply(ctx, '获取监控数据失败');

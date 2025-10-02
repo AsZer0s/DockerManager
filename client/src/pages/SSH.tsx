@@ -1,11 +1,11 @@
 import React, { useState } from 'react'
 import { Card, Select, Button, Space, Typography, Input, message } from 'antd'
+import { motion } from 'framer-motion'
 import { ConsoleSqlOutlined, SendOutlined, DisconnectOutlined } from '@ant-design/icons'
 import { useQuery } from 'react-query'
 
 import { serverAPI, sshAPI } from '@/services/api'
 
-const { Title } = Typography
 const { Option } = Select
 const { TextArea } = Input
 
@@ -73,8 +73,15 @@ const SSH: React.FC = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Title level={2}>SSH 控制台</Title>
+      <motion.div 
+        style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <Typography.Title level={1} className="page-title">
+          SSH 控制台
+        </Typography.Title>
         <Space>
           <Select
             placeholder="选择服务器"
@@ -108,7 +115,7 @@ const SSH: React.FC = () => {
             </Button>
           )}
         </Space>
-      </div>
+      </motion.div>
 
       <Card>
         <div style={{ height: 500, display: 'flex', flexDirection: 'column' }}>
@@ -159,7 +166,7 @@ const SSH: React.FC = () => {
         <Card style={{ marginTop: 16 }}>
           <div style={{ textAlign: 'center', padding: '40px 0' }}>
             <ConsoleSqlOutlined style={{ fontSize: 48, color: '#d9d9d9', marginBottom: 16 }} />
-            <Title level={4} type="secondary">请选择一个服务器进行 SSH 连接</Title>
+            <Typography.Title level={4} type="secondary">请选择一个服务器进行 SSH 连接</Typography.Title>
           </div>
         </Card>
       )}

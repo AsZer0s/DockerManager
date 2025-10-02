@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react'
-import { Card, Row, Col, Typography, Space, Button, Progress, Statistic, Tag, message } from 'antd'
+import { Row, Col, Typography, Space, Progress, Statistic, Tag, message, Button, Card } from 'antd'
+import { motion } from 'framer-motion'
 import { 
   ReloadOutlined, 
   MonitorOutlined, 
@@ -235,10 +236,28 @@ const Monitoring: React.FC = () => {
         .monitoring-card:hover .network-icon {
           transform: scale(1.1);
         }
+        /* 页面标题渐变效果 */
+        .page-title {
+          font-size: 2rem !important;
+          font-weight: 700 !important;
+          margin-bottom: 8px !important;
+          background: linear-gradient(135deg, #3b82f6, #8b5cf6) !important;
+          -webkit-background-clip: text !important;
+          -webkit-text-fill-color: transparent !important;
+          background-clip: text !important;
+          color: transparent !important;
+        }
       `}</style>
       
-      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Title level={2}>监控中心</Title>
+      <motion.div 
+        style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <Typography.Title level={1} className="page-title">
+          监控中心
+        </Typography.Title>
         <Space>
           <Button 
             icon={<ReloadOutlined />} 
@@ -249,7 +268,7 @@ const Monitoring: React.FC = () => {
             刷新
           </Button>
         </Space>
-      </div>
+      </motion.div>
 
       {/* 总体统计 */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>

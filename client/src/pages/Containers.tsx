@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { 
   Table, 
-  Button, 
   Space, 
   Tag, 
-  Card, 
   Row, 
   Col, 
   Statistic,
@@ -12,7 +10,10 @@ import {
   message,
   Popconfirm,
   Tooltip,
-  Segmented
+  Segmented,
+  Button,
+  Card,
+  Typography
 } from 'antd'
 import { 
   PlayCircleOutlined, 
@@ -27,7 +28,6 @@ import { useQuery, useMutation, useQueryClient } from 'react-query'
 import { useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { 
-  GradientText, 
   SlideInText 
 } from '@/components/animations/TextAnimations'
 
@@ -605,7 +605,6 @@ const Containers: React.FC = () => {
                 icon={<StopOutlined />}
                 onClick={() => handleContainerAction('stop', record)}
                 loading={stopMutation.isLoading}
-                style={{ borderRadius: '6px' }}
               >
                 关闭
               </Button>
@@ -614,7 +613,6 @@ const Containers: React.FC = () => {
                 icon={<ReloadOutlined />}
                 onClick={() => handleContainerAction('restart', record)}
                 loading={restartMutation.isLoading}
-                style={{ borderRadius: '6px' }}
               >
                 重启
               </Button>
@@ -622,11 +620,9 @@ const Containers: React.FC = () => {
           ) : (
             <Button
               size="small"
-              type="primary"
               icon={<PlayCircleOutlined />}
               onClick={() => handleContainerAction('start', record)}
               loading={startMutation.isLoading}
-              style={{ borderRadius: '6px' }}
             >
               启动
             </Button>
@@ -635,7 +631,6 @@ const Containers: React.FC = () => {
             size="small"
             icon={<FileTextOutlined />}
             onClick={() => handleViewLogs(record)}
-            style={{ borderRadius: '6px' }}
           >
             日志
           </Button>
@@ -648,10 +643,8 @@ const Containers: React.FC = () => {
           >
             <Button
               size="small"
-              danger
               icon={<DeleteOutlined />}
               loading={removeMutation.isLoading}
-              style={{ borderRadius: '6px' }}
             >
               删除
             </Button>
@@ -770,11 +763,9 @@ const Containers: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        <GradientText 
-          text="容器管理" 
-          className="page-title"
-          gradient="from-green-500 to-blue-600"
-        />
+        <Typography.Title level={1} className="page-title">
+          容器管理
+        </Typography.Title>
         <Space>
           <Segmented
             options={serverOptions}
@@ -794,8 +785,6 @@ const Containers: React.FC = () => {
             icon={<ReloadOutlined />} 
             onClick={() => refreshCacheMutation.mutate()}
             loading={refreshCacheMutation.isLoading}
-            type="primary"
-            ghost
           >
             刷新缓存
           </Button>
@@ -877,10 +866,6 @@ const Containers: React.FC = () => {
 
       {/* 容器列表 */}
       <Card 
-        style={{ 
-          borderRadius: '8px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-        }}
         styles={{ body: { padding: 0 } }}
       >
         <Table

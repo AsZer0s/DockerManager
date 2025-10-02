@@ -1,17 +1,18 @@
 import React from 'react'
 import { 
-  Card, 
   Form, 
-  Input, 
-  Button, 
   message, 
   Typography, 
   Space, 
   Alert,
   Row,
   Col,
-  Spin
+  Spin,
+  Card,
+  Input,
+  Button
 } from 'antd'
+import { motion } from 'framer-motion'
 import { 
   UserOutlined, 
   LockOutlined
@@ -21,7 +22,7 @@ import { useMutation, useQuery } from 'react-query'
 import { useAuthStore } from '@/stores/authStore'
 import { authAPI, settingsAPI } from '@/services/api'
 
-const { Title, Text } = Typography
+const { Text } = Typography
 
 const Admin: React.FC = () => {
   const [passwordForm] = Form.useForm()
@@ -71,22 +72,44 @@ const Admin: React.FC = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: 24 }}>
-        <Title level={2}>管理员设置</Title>
+      <style>{`
+        /* 页面标题渐变效果 */
+        .page-title {
+          font-size: 2rem !important;
+          font-weight: 700 !important;
+          margin-bottom: 8px !important;
+          background: linear-gradient(135deg, #3b82f6, #8b5cf6) !important;
+          -webkit-background-clip: text !important;
+          -webkit-text-fill-color: transparent !important;
+          background-clip: text !important;
+          color: transparent !important;
+        }
+      `}</style>
+      <motion.div 
+        style={{ marginBottom: 24 }}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <Typography.Title level={1} className="page-title">
+          管理员设置
+        </Typography.Title>
         <Text type="secondary">
           管理您的账户设置和安全选项
         </Text>
-      </div>
+      </motion.div>
 
       <Row gutter={[16, 16]}>
         {/* 账户信息 */}
         <Col xs={24} lg={12}>
-          <Card title={
-            <span>
-              <UserOutlined style={{ marginRight: 8 }} />
-              账户信息
-            </span>
-          }>
+          <Card 
+            title={
+              <span>
+                <UserOutlined style={{ marginRight: 8 }} />
+                账户信息
+              </span>
+            }
+          >
             {userLoading ? (
               <div style={{ textAlign: 'center', padding: '20px' }}>
                 <Spin size="large" />
@@ -119,12 +142,14 @@ const Admin: React.FC = () => {
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
         {/* 修改密码 */}
         <Col xs={24} lg={24}>
-          <Card title={
-            <span>
-              <LockOutlined style={{ marginRight: 8 }} />
-              修改密码
-            </span>
-          }>
+          <Card 
+            title={
+              <span>
+                <LockOutlined style={{ marginRight: 8 }} />
+                修改密码
+              </span>
+            }
+          >
             <Form
               form={passwordForm}
               layout="vertical"
@@ -137,7 +162,8 @@ const Admin: React.FC = () => {
                   { required: true, message: '请输入当前密码' }
                 ]}
               >
-                <Input.Password
+                <Input
+                  type="password"
                   prefix={<LockOutlined />}
                   placeholder="请输入当前密码"
                 />
@@ -151,7 +177,8 @@ const Admin: React.FC = () => {
                   { min: 6, message: '密码至少6个字符' }
                 ]}
               >
-                <Input.Password
+                <Input
+                  type="password"
                   prefix={<LockOutlined />}
                   placeholder="请输入新密码"
                 />
@@ -173,7 +200,8 @@ const Admin: React.FC = () => {
                   }),
                 ]}
               >
-                <Input.Password
+                <Input
+                  type="password"
                   prefix={<LockOutlined />}
                   placeholder="请再次输入新密码"
                 />
@@ -181,7 +209,6 @@ const Admin: React.FC = () => {
 
               <Form.Item>
                 <Button
-                  type="primary"
                   htmlType="submit"
                   loading={changePasswordMutation.isLoading}
                   style={{ width: '100%' }}
