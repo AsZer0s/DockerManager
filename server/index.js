@@ -78,7 +78,7 @@ async function gracefulShutdown() {
     await sshConnectionPool.closeAllConnections();
     
     console.log('💾 正在关闭数据库连接...');
-    await database.close();
+    await database.disconnect();
     
     console.log('🔄 正在停止轮询服务...');
     const pollingService = (await import('./services/pollingService.js')).default;

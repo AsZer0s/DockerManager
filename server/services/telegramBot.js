@@ -780,10 +780,15 @@ class TelegramBotService {
         const statusIcon = this.isContainerRunning(container) ? '🟢' : '🔴';
         const statusText = this.isContainerRunning(container) ? '运行中' : '已停止';
         
-        message += `${statusIcon} **${container.name}**\n`;
-        message += `   容器ID: \`${container.id}\`\n`;
+        // 转义Markdown特殊字符
+        const safeName = this.escapeMarkdown(container.name);
+        const safeId = this.escapeMarkdown(container.id);
+        const safeImage = this.escapeMarkdown(container.image);
+        
+        message += `${statusIcon} **${safeName}**\n`;
+        message += `   容器ID: \`${safeId}\`\n`;
         message += `   状态: ${statusText}\n`;
-        message += `   镜像: \`${container.image}\`\n\n`;
+        message += `   镜像: \`${safeImage}\`\n\n`;
 
         buttons.push([Markup.button.callback(
           `${statusIcon} ${container.name}`,
@@ -906,23 +911,31 @@ class TelegramBotService {
       const server = await this.getServerById(serverId);
       const serverName = server ? server.name : `服务器 ${serverId}`;
 
+      // 转义Markdown特殊字符
+      const safeContainerName = this.escapeMarkdown(container.name);
+      const safeContainerId = this.escapeMarkdown(container.id);
+      const safeContainerImage = this.escapeMarkdown(container.image);
+      const safeServerName = this.escapeMarkdown(serverName);
+
       let message = `🐳 **容器详情**\n\n`;
-      message += `**${container.name}**\n`;
-      message += `服务器: ${serverName}\n\n`;
+      message += `**${safeContainerName}**\n`;
+      message += `服务器: ${safeServerName}\n\n`;
       
       message += `📊 **状态信息**\n`;
-      message += `容器ID: \`${container.id}\`\n`;
+      message += `容器ID: \`${safeContainerId}\`\n`;
       message += `状态: ${statusIcon} ${statusText}\n`;
-      message += `镜像: \`${container.image}\`\n`;
+      message += `镜像: \`${safeContainerImage}\`\n`;
       message += `创建时间: ${new Date(container.created).toLocaleString('zh-CN')}\n\n`;
 
       if (container.ports && container.ports.length > 0) {
         message += `🔌 **端口映射**\n`;
         container.ports.forEach(port => {
           if (port.publicPort && port.privatePort) {
-            message += `\`${port.publicPort}:${port.privatePort}/${port.type}\`\n`;
+            const safePort = this.escapeMarkdown(`${port.publicPort}:${port.privatePort}/${port.type}`);
+            message += `\`${safePort}\`\n`;
           } else if (port.privatePort) {
-            message += `\`${port.privatePort}/${port.type}\` (仅内部)\n`;
+            const safePort = this.escapeMarkdown(`${port.privatePort}/${port.type}`);
+            message += `\`${safePort}\` (仅内部)\n`;
           }
         });
         message += '\n';
@@ -2017,6 +2030,33 @@ class TelegramBotService {
       logger.error('处理监控命令失败:', error);
       await this.safeReply(ctx, '获取监控数据失败');
     }
+  }
+
+  // 转义Markdown特殊字符
+  escapeMarkdown(text) {
+    if (!text) return '';
+    
+    // 转义Markdown特殊字符
+    return text.toString()
+      .replace(/\\/g, '\\\\')  // 反斜杠
+      .replace(/\*/g, '\\*')   // 星号
+      .replace(/_/g, '\\_')    // 下划线
+      .replace(/\[/g, '\\[')   // 左方括号
+      .replace(/\]/g, '\\]')   // 右方括号
+      .replace(/\(/g, '\\(')   // 左圆括号
+      .replace(/\)/g, '\\)')   // 右圆括号
+      .replace(/~/g, '\\~')    // 波浪号
+      .replace(/`/g, '\\`')    // 反引号
+      .replace(/>/g, '\\>')    // 大于号
+      .replace(/#/g, '\\#')    // 井号
+      .replace(/\+/g, '\\+')   // 加号
+      .replace(/-/g, '\\-')    // 减号
+      .replace(/=/g, '\\=')    // 等号
+      .replace(/\|/g, '\\|')   // 竖线
+      .replace(/\{/g, '\\{')   // 左花括号
+      .replace(/\}/g, '\\}')   // 右花括号
+      .replace(/\./g, '\\.')   // 点号
+      .replace(/!/g, '\\!');   // 感叹号
   }
 
 }

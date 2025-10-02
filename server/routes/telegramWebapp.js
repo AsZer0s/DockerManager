@@ -293,7 +293,7 @@ router.get('/servers', async (req, res) => {
     // 获取服务器状态
     const serversWithStatus = await Promise.all(
       servers.map(async (server) => {
-        const isOnline = await monitoringService.checkServerConnection(server.id);
+        const isOnline = await monitoringService.checkServerConnection(server.id, true);
         return {
           id: server.id,
           name: server.name,
@@ -352,7 +352,7 @@ router.post('/servers', async (req, res) => {
     // 获取服务器状态
     const serversWithStatus = await Promise.all(
       servers.map(async (server) => {
-        const isOnline = await monitoringService.checkServerConnection(server.id);
+        const isOnline = await monitoringService.checkServerConnection(server.id, true);
         return {
           id: server.id,
           name: server.name,

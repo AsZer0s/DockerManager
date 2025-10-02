@@ -618,10 +618,22 @@ class MonitoringService {
   /**
    * 检查服务器连接状态
    * @param {number} serverId - 服务器 ID
+   * @param {boolean} forceRealTime - 是否强制实时检查（忽略缓存）
    * @returns {Promise<boolean>} 连接状态
    */
-  async checkServerConnection(serverId) {
+  async checkServerConnection(serverId, forceRealTime = false) {
     try {
+      // 如果不强制实时检查，先尝试从缓存获取
+      if (!forceRealTime) {
+        const cacheService = (await import('./cacheService.js')).default;
+        const cachedStatus = cacheService.getServerStatus(serverId);
+        
+        if (cachedStatus) {
+          logger.debug(`使用缓存服务器状态: 服务器 ${serverId} - ${cachedStatus.status}`);
+          return cachedStatus.status === '在线';
+        }
+      }
+      
       // 获取完整的服务器信息（包括解密后的密码和私钥）
       const server = await this.getFullServerInfo(serverId);
       if (!server) {
@@ -630,8 +642,14 @@ class MonitoringService {
       
       // 通过 SSH 连接检查服务器状态
       const isOnline = await this.checkServerViaSSH(server);
+      
+      // 更新缓存
+      const cacheService = (await import('./cacheService.js')).default;
+      cacheService.setServerStatus(serverId, isOnline ? '在线' : '离线');
+      
       return isOnline;
     } catch (error) {
+      logger.error(`检查服务器 ${serverId} 连接状态失败:`, error);
       return false;
     }
   }
