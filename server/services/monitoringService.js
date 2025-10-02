@@ -226,9 +226,9 @@ class MonitoringService {
           const commands = [
             'uptime -p', // 获取运行时间
             'cat /proc/loadavg | cut -d" " -f1-3', // 获取负载平均值
-            'free | grep Mem | awk \'{print $3/$2 * 100.0}\'', // 获取内存使用率
-            'free | grep Mem | awk \'{print $2}\'', // 获取内存总量（KB）
-            'free | grep Mem | awk \'{print $3}\'', // 获取内存使用量（KB）
+            'free | grep -E "(Mem|内存)" | awk \'{print $3/$2 * 100.0}\'', // 获取内存使用率
+            'free | grep -E "(Mem|内存)" | awk \'{print $2}\'', // 获取内存总量（KB）
+            'free | grep -E "(Mem|内存)" | awk \'{print $3}\'', // 获取内存使用量（KB）
             'df / | tail -1 | awk \'{print $5}\' | sed \'s/%//\'', // 获取磁盘使用率
             'df / | tail -1 | awk \'{print $2}\'', // 获取磁盘总量（KB）
             'df / | tail -1 | awk \'{print $3}\'', // 获取磁盘使用量（KB）
@@ -243,6 +243,7 @@ class MonitoringService {
           commands.forEach((command, index) => {
             client.exec(command, (err, stream) => {
               if (err) {
+                logger.error(`执行命令失败 (${index}): ${command}`, err);
                 results[index] = null;
                 completedCommands++;
                 if (completedCommands === commands.length) {
@@ -267,6 +268,15 @@ class MonitoringService {
               });
             });
           });
+          
+          // 添加超时处理，防止命令执行时间过长
+          setTimeout(() => {
+            if (completedCommands < commands.length) {
+              logger.warn(`命令执行超时，已完成 ${completedCommands}/${commands.length} 个命令`);
+              client.end();
+              resolve(this.processSystemData(results));
+            }
+          }, 15000); // 15秒超时
         });
         
         client.on('error', (err) => {
@@ -318,26 +328,44 @@ class MonitoringService {
       
       // 解析内存使用率
       const memoryUsage = results[2] ? parseFloat(results[2]) : 0;
+      if (isNaN(memoryUsage)) {
+        logger.warn('内存使用率解析失败，原始值:', results[2]);
+      }
       
       // 解析内存总量和使用量
       const memoryTotalKB = results[3] ? parseInt(results[3]) : 0;
       const memoryUsedKB = results[4] ? parseInt(results[4]) : 0;
+      if (isNaN(memoryTotalKB) || isNaN(memoryUsedKB)) {
+        logger.warn('内存总量/使用量解析失败，原始值:', results[3], results[4]);
+      }
       
       // 解析磁盘使用率
       const diskUsage = results[5] ? parseFloat(results[5]) : 0;
+      if (isNaN(diskUsage)) {
+        logger.warn('磁盘使用率解析失败，原始值:', results[5]);
+      }
       
       // 解析磁盘总量和使用量
       const diskTotalKB = results[6] ? parseInt(results[6]) : 0;
       const diskUsedKB = results[7] ? parseInt(results[7]) : 0;
+      if (isNaN(diskTotalKB) || isNaN(diskUsedKB)) {
+        logger.warn('磁盘总量/使用量解析失败，原始值:', results[6], results[7]);
+      }
       
       // 解析CPU使用率
       const cpuUsage = results[8] ? parseFloat(results[8]) : 0;
+      if (isNaN(cpuUsage)) {
+        logger.warn('CPU使用率解析失败，原始值:', results[8]);
+      }
       
       // 解析实时网络
       const networkOutput = results[9] || '';
       const networkParts = networkOutput.split(' ');
       const networkIn = networkParts[0] ? parseInt(networkParts[0]) : 0;
       const networkOut = networkParts[1] ? parseInt(networkParts[1]) : 0;
+      if (isNaN(networkIn) || isNaN(networkOut)) {
+        logger.warn('网络数据解析失败，原始值:', results[9]);
+      }
       
       return {
         cpu_usage: parseFloat(cpuUsage.toFixed(2)),
@@ -379,24 +407,33 @@ class MonitoringService {
    */
   parseUptimeToSeconds(uptimeOutput) {
     try {
-      if (!uptimeOutput || !uptimeOutput.includes('up')) {
+      if (!uptimeOutput || (!uptimeOutput.includes('up') && !uptimeOutput.includes('运行'))) {
         return 0;
       }
 
       let totalSeconds = 0;
       
-      // 解析 "up 6 hours, 20 minutes" 格式
-      const timeStr = uptimeOutput.replace('up ', '').trim();
+      // 解析
+      const timeStr = uptimeOutput.replace(/^(up|运行)\s+/, '').trim();
       
       // 匹配各种时间单位
       const patterns = [
+        // 英文单位
         { regex: /(\d+)\s+year/i, multiplier: 365 * 24 * 60 * 60 },
         { regex: /(\d+)\s+month/i, multiplier: 30 * 24 * 60 * 60 },
         { regex: /(\d+)\s+week/i, multiplier: 7 * 24 * 60 * 60 },
         { regex: /(\d+)\s+day/i, multiplier: 24 * 60 * 60 },
         { regex: /(\d+)\s+hour/i, multiplier: 60 * 60 },
         { regex: /(\d+)\s+minute/i, multiplier: 60 },
-        { regex: /(\d+)\s+second/i, multiplier: 1 }
+        { regex: /(\d+)\s+second/i, multiplier: 1 },
+        // 中文单位
+        { regex: /(\d+)\s*年/i, multiplier: 365 * 24 * 60 * 60 },
+        { regex: /(\d+)\s*月/i, multiplier: 30 * 24 * 60 * 60 },
+        { regex: /(\d+)\s*周/i, multiplier: 7 * 24 * 60 * 60 },
+        { regex: /(\d+)\s*天/i, multiplier: 24 * 60 * 60 },
+        { regex: /(\d+)\s*小时/i, multiplier: 60 * 60 },
+        { regex: /(\d+)\s*分钟/i, multiplier: 60 },
+        { regex: /(\d+)\s*秒/i, multiplier: 1 }
       ];
       
       patterns.forEach(pattern => {
