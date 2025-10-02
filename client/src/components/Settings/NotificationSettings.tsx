@@ -4,7 +4,7 @@ import {
   Button, 
   Card, 
   Typography, 
-  message, 
+  notification, 
   Space,
   Divider,
   Row,
@@ -68,10 +68,18 @@ const NotificationSettings: React.FC = () => {
     (data: NotificationSettings) => settingsAPI.updateNotificationSettings(data),
     {
       onSuccess: () => {
-        message.success('通知设置保存成功')
+        notification.success({
+          message: '保存成功',
+          description: '通知设置保存成功',
+          placement: 'topRight',
+        })
       },
       onError: (error: any) => {
-        message.error(error.response?.data?.message || '保存失败')
+        notification.error({
+          message: '保存失败',
+          description: error.response?.data?.message || '通知设置保存失败',
+          placement: 'topRight',
+        })
       }
     }
   )
@@ -81,11 +89,19 @@ const NotificationSettings: React.FC = () => {
     (type: string) => settingsAPI.testNotification(type as 'email' | 'telegram' | 'browser'),
     {
       onSuccess: (response) => {
-        message.success(response.data.message)
+        notification.success({
+          message: '测试成功',
+          description: response.data.message,
+          placement: 'topRight',
+        })
         setTestModalVisible(false)
       },
       onError: (error: any) => {
-        message.error(error.response?.data?.message || '测试失败')
+        notification.error({
+          message: '测试失败',
+          description: error.response?.data?.message || '通知测试失败',
+          placement: 'topRight',
+        })
       }
     }
   )

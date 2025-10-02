@@ -1,7 +1,7 @@
 import React from 'react'
 import { 
   Form, 
-  message, 
+  notification, 
   Typography, 
   Space, 
   Alert,
@@ -52,11 +52,19 @@ const Admin: React.FC = () => {
     mutationFn: (data: { currentPassword: string; newPassword: string }) => 
       authAPI.changePassword(data),
     onSuccess: () => {
-      message.success('密码修改成功')
+      notification.success({
+        message: '修改成功',
+        description: '密码修改成功',
+        placement: 'topRight',
+      })
       passwordForm.resetFields()
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || '密码修改失败')
+      notification.error({
+        message: '修改失败',
+        description: error.response?.data?.message || '密码修改失败',
+        placement: 'topRight',
+      })
     },
   })
 

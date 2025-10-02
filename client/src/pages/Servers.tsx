@@ -7,7 +7,7 @@ import {
   Form, 
   Input,
   InputNumber, 
-  message, 
+  notification, 
   Popconfirm,
   Row,
   Col,
@@ -64,7 +64,11 @@ const Servers: React.FC = () => {
   const createMutation = useMutation({
     mutationFn: (data: Partial<Server>) => serverAPI.createServer(data),
     onSuccess: (response) => {
-      message.success('服务器创建成功')
+      notification.success({
+        message: '创建成功',
+        description: '服务器创建成功',
+        placement: 'topRight',
+      })
       setIsModalVisible(false)
       form.resetFields()
       
@@ -86,7 +90,11 @@ const Servers: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['servers'] })
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || '创建失败')
+      notification.error({
+        message: '创建失败',
+        description: error.response?.data?.message || '服务器创建失败',
+        placement: 'topRight',
+      })
     },
   })
 
@@ -95,7 +103,11 @@ const Servers: React.FC = () => {
     mutationFn: ({ id, data }: { id: number; data: Partial<Server> }) => 
       serverAPI.updateServer(id, data),
     onSuccess: (response) => {
-      message.success('服务器更新成功')
+      notification.success({
+        message: '更新成功',
+        description: '服务器更新成功',
+        placement: 'topRight',
+      })
       setIsModalVisible(false)
       setEditingServer(null)
       form.resetFields()
@@ -118,7 +130,11 @@ const Servers: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['servers'] })
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || '更新失败')
+      notification.error({
+        message: '更新失败',
+        description: error.response?.data?.message || '服务器更新失败',
+        placement: 'topRight',
+      })
     },
   })
 
@@ -126,7 +142,11 @@ const Servers: React.FC = () => {
   const deleteMutation = useMutation({
     mutationFn: (id: number) => serverAPI.deleteServer(id),
     onSuccess: (_, deletedId) => {
-      message.success('服务器删除成功')
+      notification.success({
+        message: '删除成功',
+        description: '服务器删除成功',
+        placement: 'topRight',
+      })
       
       // 立即更新缓存
       queryClient.setQueryData(['servers'], (oldData: any) => {
@@ -144,7 +164,11 @@ const Servers: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['servers'] })
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || '删除失败')
+      notification.error({
+        message: '删除失败',
+        description: error.response?.data?.message || '服务器删除失败',
+        placement: 'topRight',
+      })
     },
   })
 
@@ -164,9 +188,17 @@ const Servers: React.FC = () => {
       })
       
       if (response.data.success) {
-        message.success('连接测试成功')
+        notification.success({
+          message: '连接成功',
+          description: '服务器连接测试成功',
+          placement: 'topRight',
+        })
       } else {
-        message.error(response.data.message || '连接测试失败')
+        notification.error({
+          message: '连接失败',
+          description: response.data.message || '服务器连接测试失败',
+          placement: 'topRight',
+        })
       }
     },
     onError: (error: any, id) => {
@@ -177,14 +209,22 @@ const Servers: React.FC = () => {
         return newSet
       })
       
-      message.error(error.response?.data?.message || '连接测试失败')
+      notification.error({
+        message: '连接失败',
+        description: error.response?.data?.message || '服务器连接测试失败',
+        placement: 'topRight',
+      })
     },
   })
 
   // 防抖刷新函数
   const handleRefresh = useCallback(async () => {
     if (refreshCooldown) {
-      message.warning('请稍后再试，刷新过于频繁')
+      notification.warning({
+        message: '刷新过于频繁',
+        description: '请稍后再试',
+        placement: 'topRight',
+      })
       return
     }
 
@@ -193,9 +233,17 @@ const Servers: React.FC = () => {
 
     try {
       await refetch()
-      message.success('刷新成功')
+      notification.success({
+        message: '刷新成功',
+        description: '服务器列表已更新',
+        placement: 'topRight',
+      })
     } catch (error) {
-      message.error('刷新失败')
+      notification.error({
+        message: '刷新失败',
+        description: '无法刷新服务器列表',
+        placement: 'topRight',
+      })
     } finally {
       setIsRefreshing(false)
       // 2秒冷却时间
@@ -248,8 +296,8 @@ const Servers: React.FC = () => {
 
   // 列标题组件
   const ColumnTitle = ({ title, columnKey }: { title: string; columnKey: keyof typeof columnWidths }) => (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative' }}>
-      <span>{title}</span>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', width: '100%' }}>
+      <span style={{ textAlign: 'center', flex: 1 }}>{title}</span>
       <div
         style={{
           position: 'absolute',
@@ -339,8 +387,9 @@ const Servers: React.FC = () => {
       key: 'name',
       width: columnWidths.name,
       fixed: 'left' as const,
+      align: 'center' as const,
       render: (text: string) => (
-        <div style={{ fontWeight: 600, color: '#1890ff' }}>
+        <div style={{ fontWeight: 600, color: '#1890ff', textAlign: 'center' }}>
           {text}
         </div>
       ),
@@ -351,6 +400,7 @@ const Servers: React.FC = () => {
       key: 'host',
       width: columnWidths.host,
       ellipsis: true,
+      align: 'center' as const,
       render: (text: string, record: Server) => (
         <div style={{ 
           fontFamily: 'monospace', 
@@ -359,7 +409,8 @@ const Servers: React.FC = () => {
           background: 'var(--ant-color-fill-quaternary)',
           padding: '2px 6px',
           borderRadius: '4px',
-          display: 'inline-block'
+          display: 'inline-block',
+          textAlign: 'center'
         }}>
           {record.hide_sensitive_info ? '***.***.***.***' : text}
         </div>
@@ -379,7 +430,8 @@ const Servers: React.FC = () => {
           background: 'var(--ant-color-fill-quaternary)',
           padding: '2px 6px',
           borderRadius: '4px',
-          display: 'inline-block'
+          display: 'inline-block',
+          textAlign: 'center'
         }}>
           {record.hide_sensitive_info ? '***' : (record.ssh_port || record.port || 22)}
         </div>
@@ -391,6 +443,7 @@ const Servers: React.FC = () => {
       key: 'username',
       width: columnWidths.username,
       ellipsis: true,
+      align: 'center' as const,
       render: (text: string, record: Server) => (
         <div style={{ 
           fontFamily: 'monospace', 
@@ -399,7 +452,8 @@ const Servers: React.FC = () => {
           background: 'var(--ant-color-fill-quaternary)',
           padding: '2px 6px',
           borderRadius: '4px',
-          display: 'inline-block'
+          display: 'inline-block',
+          textAlign: 'center'
         }}>
           {record.hide_sensitive_info ? '***' : text}
         </div>
@@ -445,8 +499,9 @@ const Servers: React.FC = () => {
       dataIndex: 'created_at',
       key: 'created_at',
       width: columnWidths.created_at,
+      align: 'center' as const,
       render: (date: string) => (
-        <div style={{ fontSize: '12px', color: 'var(--ant-color-text-secondary)' }}>
+        <div style={{ fontSize: '12px', color: 'var(--ant-color-text-secondary)', textAlign: 'center' }}>
           {new Date(date).toLocaleString('zh-CN')}
         </div>
       ),
@@ -455,8 +510,9 @@ const Servers: React.FC = () => {
       title: '操作',
       key: 'action',
       fixed: 'right' as const,
+      align: 'center' as const,
       render: (record: Server) => (
-        <Space size="small">
+        <Space size="small" style={{ justifyContent: 'center', display: 'flex' }}>
           <Button
             size="small"
             type="link"

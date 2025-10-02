@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { Card, Select, Button, Space, message, Typography } from 'antd'
+import { Card, Select, Button, Space, notification, Typography } from 'antd'
 import { motion } from 'framer-motion'
 import { ConsoleSqlOutlined, ReloadOutlined, DisconnectOutlined, HistoryOutlined } from '@ant-design/icons'
 import { Server } from '@/services/api'
@@ -70,7 +70,11 @@ const SSHConsole: React.FC = () => {
   // 连接SSH
   const connectSSH = async () => {
     if (!selectedServer) {
-      message.warning('请选择服务器')
+      notification.warning({
+        message: '请选择服务器',
+        description: '请先选择一个服务器',
+        placement: 'topRight',
+      })
       return
     }
 
@@ -87,12 +91,20 @@ const SSHConsole: React.FC = () => {
       addToTerminal('欢迎使用DockerManager SSH控制台')
       
       setIsLoading(false)
-      message.success('SSH连接成功')
+      notification.success({
+        message: '连接成功',
+        description: 'SSH连接成功',
+        placement: 'topRight',
+      })
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || error.message || '连接失败'
       addToTerminal(`连接失败: ${errorMessage}`, 'error')
       setIsLoading(false)
-      message.error(errorMessage)
+      notification.error({
+        message: '连接失败',
+        description: errorMessage,
+        placement: 'topRight',
+      })
     }
   }
 

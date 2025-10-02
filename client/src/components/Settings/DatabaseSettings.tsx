@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { 
   Card, 
   Typography, 
-  message, 
+  notification, 
   Space,
   Divider,
   Row,
@@ -51,12 +51,20 @@ const DatabaseSettings: React.FC = () => {
     () => settingsAPI.backupDatabase(),
     {
       onSuccess: (response) => {
-        message.success(response.data.message)
+        notification.success({
+          message: '备份成功',
+          description: response.data.message,
+          placement: 'topRight',
+        })
         setBackupModalVisible(false)
         refetchStats()
       },
       onError: (error: any) => {
-        message.error(error.response?.data?.message || '备份失败')
+        notification.error({
+          message: '备份失败',
+          description: error.response?.data?.message || '数据库备份失败',
+          placement: 'topRight',
+        })
       }
     }
   )
@@ -66,12 +74,20 @@ const DatabaseSettings: React.FC = () => {
     (days: number) => settingsAPI.cleanupDatabase(days),
     {
       onSuccess: (response) => {
-        message.success(response.data.message)
+        notification.success({
+          message: '清理成功',
+          description: response.data.message,
+          placement: 'topRight',
+        })
         setCleanupModalVisible(false)
         refetchStats()
       },
       onError: (error: any) => {
-        message.error(error.response?.data?.message || '清理失败')
+        notification.error({
+          message: '清理失败',
+          description: error.response?.data?.message || '数据库清理失败',
+          placement: 'topRight',
+        })
       }
     }
   )
@@ -223,7 +239,11 @@ const DatabaseSettings: React.FC = () => {
           </Button>
           <Button 
             icon={<ToolOutlined />}
-            onClick={() => message.info('数据库优化功能待实现')}
+            onClick={() => notification.info({
+              message: '功能待实现',
+              description: '数据库优化功能待实现',
+              placement: 'topRight',
+            })}
           >
             优化数据库
           </Button>

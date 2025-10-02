@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react'
-import { Row, Col, Typography, Space, Progress, Statistic, Tag, message, Button, Card } from 'antd'
+import { Row, Col, Typography, Space, Progress, Statistic, Tag, notification, Button, Card } from 'antd'
 import { motion } from 'framer-motion'
 import { 
   ReloadOutlined, 
@@ -99,7 +99,11 @@ const Monitoring: React.FC = () => {
   // 防抖刷新函数
   const handleRefresh = useCallback(async () => {
     if (refreshCooldown) {
-      message.warning('请稍后再试，刷新过于频繁')
+      notification.warning({
+        message: '刷新过于频繁',
+        description: '请稍后再试',
+        placement: 'topRight',
+      })
       return
     }
 
@@ -111,9 +115,17 @@ const Monitoring: React.FC = () => {
         refetchServers(),
         refetchMonitoring()
       ])
-      message.success('刷新成功')
+      notification.success({
+        message: '刷新成功',
+        description: '监控数据已更新',
+        placement: 'topRight',
+      })
     } catch (error) {
-      message.error('刷新失败')
+      notification.error({
+        message: '刷新失败',
+        description: '无法刷新监控数据',
+        placement: 'topRight',
+      })
     } finally {
       setIsRefreshing(false)
       // 2秒冷却时间

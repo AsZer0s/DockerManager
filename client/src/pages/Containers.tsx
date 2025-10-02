@@ -7,7 +7,7 @@ import {
   Col, 
   Statistic,
   Modal,
-  message,
+  notification,
   Popconfirm,
   Tooltip,
   Segmented,
@@ -109,11 +109,19 @@ const Containers: React.FC = () => {
     mutationFn: ({ serverId, containerId }: { serverId: number; containerId: string }) =>
       containerAPI.startContainer(serverId, containerId),
     onSuccess: () => {
-      message.success('容器启动成功')
+      notification.success({
+        message: '启动成功',
+        description: '容器启动成功',
+        placement: 'topRight',
+      })
       queryClient.invalidateQueries({ queryKey: ['containers'] })
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || '启动失败')
+      notification.error({
+        message: '启动失败',
+        description: error.response?.data?.message || '容器启动失败',
+        placement: 'topRight',
+      })
     },
   })
 
@@ -121,22 +129,38 @@ const Containers: React.FC = () => {
     mutationFn: ({ serverId, containerId }: { serverId: number; containerId: string }) =>
       containerAPI.stopContainer(serverId, containerId),
     onSuccess: () => {
-      message.success('容器停止成功')
+      notification.success({
+        message: '停止成功',
+        description: '容器停止成功',
+        placement: 'topRight',
+      })
       queryClient.invalidateQueries({ queryKey: ['containers'] })
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || '停止失败')
+      notification.error({
+        message: '停止失败',
+        description: error.response?.data?.message || '容器停止失败',
+        placement: 'topRight',
+      })
     },
   })
 
   const refreshCacheMutation = useMutation({
     mutationFn: () => containerAPI.refreshCache(),
     onSuccess: () => {
-      message.success('缓存已刷新')
+      notification.success({
+        message: '刷新成功',
+        description: '缓存已刷新',
+        placement: 'topRight',
+      })
       queryClient.invalidateQueries({ queryKey: ['containers'] })
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || '刷新缓存失败')
+      notification.error({
+        message: '刷新失败',
+        description: error.response?.data?.message || '刷新缓存失败',
+        placement: 'topRight',
+      })
     },
   })
 
@@ -144,11 +168,19 @@ const Containers: React.FC = () => {
     mutationFn: ({ serverId, containerId }: { serverId: number; containerId: string }) =>
       containerAPI.restartContainer(serverId, containerId),
     onSuccess: () => {
-      message.success('容器重启成功')
+      notification.success({
+        message: '重启成功',
+        description: '容器重启成功',
+        placement: 'topRight',
+      })
       queryClient.invalidateQueries({ queryKey: ['containers'] })
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || '重启失败')
+      notification.error({
+        message: '重启失败',
+        description: error.response?.data?.message || '容器重启失败',
+        placement: 'topRight',
+      })
     },
   })
 
@@ -156,11 +188,19 @@ const Containers: React.FC = () => {
     mutationFn: ({ serverId, containerId }: { serverId: number; containerId: string }) =>
       containerAPI.removeContainer(serverId, containerId, true),
     onSuccess: () => {
-      message.success('容器删除成功')
+      notification.success({
+        message: '删除成功',
+        description: '容器删除成功',
+        placement: 'topRight',
+      })
       queryClient.invalidateQueries({ queryKey: ['containers'] })
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || '删除失败')
+      notification.error({
+        message: '删除失败',
+        description: error.response?.data?.message || '容器删除失败',
+        placement: 'topRight',
+      })
     },
   })
 
@@ -350,7 +390,11 @@ const Containers: React.FC = () => {
   // 防抖刷新函数
   const handleRefresh = useCallback(async () => {
     if (refreshCooldown) {
-      message.warning('请稍后再试，刷新过于频繁')
+      notification.warning({
+        message: '刷新过于频繁',
+        description: '请稍后再试',
+        placement: 'topRight',
+      })
       return
     }
 
@@ -359,9 +403,17 @@ const Containers: React.FC = () => {
 
     try {
       await refetch()
-      message.success('刷新成功')
+      notification.success({
+        message: '刷新成功',
+        description: '容器列表已更新',
+        placement: 'topRight',
+      })
     } catch (error) {
-      message.error('刷新失败')
+      notification.error({
+        message: '刷新失败',
+        description: '无法刷新容器列表',
+        placement: 'topRight',
+      })
     } finally {
       setIsRefreshing(false)
       // 2秒冷却时间
@@ -414,8 +466,8 @@ const Containers: React.FC = () => {
 
   // 列标题组件
   const ColumnTitle = ({ title, columnKey }: { title: string; columnKey: keyof typeof columnWidths }) => (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative' }}>
-      <span>{title}</span>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', width: '100%' }}>
+      <span style={{ textAlign: 'center', flex: 1 }}>{title}</span>
       <div
         style={{
           position: 'absolute',
@@ -459,8 +511,9 @@ const Containers: React.FC = () => {
       key: 'serverName',
       width: columnWidths.serverName,
       fixed: 'left' as const,
+      align: 'center' as const,
       render: (text: string) => (
-        <Tag color="blue" style={{ margin: 0 }}>
+        <Tag color="blue" style={{ margin: 0, textAlign: 'center' }}>
           {text}
         </Tag>
       ),
@@ -470,8 +523,9 @@ const Containers: React.FC = () => {
       dataIndex: 'name',
       key: 'name',
       width: columnWidths.name,
+      align: 'center' as const,
       render: (text: string) => (
-        <div style={{ fontWeight: 600, color: '#1890ff' }}>
+        <div style={{ fontWeight: 600, color: '#1890ff', textAlign: 'center' }}>
           {text}
         </div>
       ),
@@ -482,6 +536,7 @@ const Containers: React.FC = () => {
       key: 'image',
       width: columnWidths.image,
       ellipsis: true,
+      align: 'center' as const,
       render: (text: string) => (
         <div style={{ 
           fontFamily: 'monospace', 
@@ -490,7 +545,8 @@ const Containers: React.FC = () => {
           background: 'var(--ant-color-fill-quaternary)',
           padding: '2px 6px',
           borderRadius: '4px',
-          display: 'inline-block'
+          display: 'inline-block',
+          textAlign: 'center'
         }}>
           {text}
         </div>
@@ -520,11 +576,12 @@ const Containers: React.FC = () => {
       dataIndex: 'ports',
       key: 'ports',
       width: columnWidths.ports,
+      align: 'center' as const,
       render: (ports: any) => {
         // 处理端口数据，可能是数组或字符串
         if (Array.isArray(ports) && ports.length > 0) {
           return (
-            <div>
+            <div style={{ textAlign: 'center' }}>
               {ports.slice(0, 2).map((port, index) => {
                 // 处理解析后的端口对象
                 if (port.PublicPort && port.PrivatePort) {
@@ -570,13 +627,15 @@ const Containers: React.FC = () => {
         } else if (typeof ports === 'string' && ports.trim()) {
           // 如果是字符串，直接显示
           return (
-            <Tag color="green" style={{ margin: 0, fontSize: '11px' }}>
-              {ports}
-            </Tag>
+            <div style={{ textAlign: 'center' }}>
+              <Tag color="green" style={{ margin: 0, fontSize: '11px' }}>
+                {ports}
+              </Tag>
+            </div>
           );
         } else {
           // 空端口
-          return <span style={{ color: '#ccc' }}>-</span>;
+          return <span style={{ color: '#ccc', textAlign: 'center', display: 'block' }}>-</span>;
         }
       },
     },
@@ -585,8 +644,9 @@ const Containers: React.FC = () => {
       dataIndex: 'created',
       key: 'created',
       width: columnWidths.created,
+      align: 'center' as const,
       render: (date: string) => (
-        <div style={{ fontSize: '12px', color: 'var(--ant-color-text-secondary)' }}>
+        <div style={{ fontSize: '12px', color: 'var(--ant-color-text-secondary)', textAlign: 'center' }}>
           {new Date(date).toLocaleString('zh-CN')}
         </div>
       ),
@@ -596,8 +656,9 @@ const Containers: React.FC = () => {
       key: 'action',
       width: columnWidths.action,
       fixed: 'right' as const,
+      align: 'center' as const,
       render: (record: Container & { serverId: number }) => (
-        <Space size="small">
+        <Space size="small" style={{ justifyContent: 'center', display: 'flex' }}>
           {record.status && record.status.includes('Up') ? (
             <>
               <Button

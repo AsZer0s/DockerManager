@@ -1,5 +1,5 @@
 import React from 'react'
-import { Form, Typography, message, Card, Input, Button } from 'antd'
+import { Form, Typography, notification, Card, Input, Button } from 'antd'
 import { LockOutlined, MailOutlined } from '@ant-design/icons'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useMutation } from 'react-query'
@@ -33,11 +33,19 @@ const Login: React.FC = () => {
     onSuccess: (response) => {
       const { user, token } = response.data
       login(token, user)
-      message.success('登录成功')
+      notification.success({
+        message: '登录成功',
+        description: '欢迎回来！',
+        placement: 'topRight',
+      })
       navigate(from, { replace: true })
     },
     onError: (error: any) => {
-      message.error(error.response?.data?.message || '登录失败')
+      notification.error({
+        message: '登录失败',
+        description: error.response?.data?.message || '用户名或密码错误',
+        placement: 'topRight',
+      })
     },
   })
 

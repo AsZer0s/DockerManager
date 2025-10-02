@@ -4,7 +4,7 @@ import {
   Button, 
   Card, 
   Typography, 
-  message, 
+  notification, 
   Space,
   Divider,
   Row,
@@ -67,10 +67,18 @@ const SystemSettings: React.FC = () => {
     (data: SystemSettings) => settingsAPI.updateSystemSettings(data),
     {
       onSuccess: () => {
-        message.success('系统设置保存成功')
+        notification.success({
+          message: '保存成功',
+          description: '系统设置保存成功',
+          placement: 'topRight',
+        })
       },
       onError: (error: any) => {
-        message.error(error.response?.data?.message || '保存失败')
+        notification.error({
+          message: '保存失败',
+          description: error.response?.data?.message || '系统设置保存失败',
+          placement: 'topRight',
+        })
       }
     }
   )
@@ -95,11 +103,19 @@ const SystemSettings: React.FC = () => {
         } else {
           setTestResult(result)
         }
-        message.success('代理测试成功')
+        notification.success({
+          message: '测试成功',
+          description: '代理连接测试成功',
+          placement: 'topRight',
+        })
       },
       onError: (error: any) => {
         setTestResult('')
-        message.error(error.response?.data?.message || '代理测试失败')
+        notification.error({
+          message: '测试失败',
+          description: error.response?.data?.message || '代理连接测试失败',
+          placement: 'topRight',
+        })
       }
     }
   )
@@ -125,19 +141,31 @@ const SystemSettings: React.FC = () => {
   // 重置设置
   const handleReset = () => {
     form.resetFields()
-    message.info('设置已重置')
+    notification.info({
+      message: '设置重置',
+      description: '系统设置已重置为默认值',
+      placement: 'topRight',
+    })
   }
 
   // 测试代理
   const handleTestProxy = () => {
     const values = form.getFieldsValue()
     if (!values.proxyEnabled) {
-      message.warning('请先启用代理')
+      notification.warning({
+        message: '代理未启用',
+        description: '请先启用代理',
+        placement: 'topRight',
+      })
       return
     }
     
     if (!values.proxyHost || !values.proxyPort) {
-      message.warning('请填写完整的代理配置')
+      notification.warning({
+        message: '配置不完整',
+        description: '请填写完整的代理配置',
+        placement: 'topRight',
+      })
       return
     }
 

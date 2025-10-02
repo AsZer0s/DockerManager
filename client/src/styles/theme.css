@@ -160,6 +160,14 @@
 .dark .ant-notification {
   background-color: #141414 !important;
   border: 1px solid #424242 !important;
+  border-radius: 12px !important;
+}
+
+.dark .ant-notification-notice {
+  background-color: #141414 !important;
+  border: 1px solid #424242 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 3px 6px -4px rgba(0, 0, 0, 0.12), 0 9px 28px 8px rgba(0, 0, 0, 0.05) !important;
 }
 
 .dark .ant-notification-notice-message {
@@ -215,6 +223,51 @@
   background-color: #ffffff !important;
   color: #000000d9 !important;
   padding: 8px 16px !important;
+}
+
+/* 浅色模式通知样式优化 */
+.light .ant-notification {
+  background-color: #ffffff !important;
+  border: 1px solid #d9d9d9 !important;
+  border-radius: 12px !important;
+}
+
+.light .ant-notification-notice {
+  background-color: #ffffff !important;
+  border: 1px solid #d9d9d9 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 3px 6px -4px rgba(0, 0, 0, 0.12), 0 9px 28px 8px rgba(0, 0, 0, 0.05) !important;
+}
+
+.light .ant-notification-notice-message {
+  color: #000000d9 !important;
+}
+
+.light .ant-notification-notice-description {
+  color: #00000073 !important;
+}
+
+/* 表格样式优化 */
+.dark .ant-table-thead > tr > th {
+  text-align: center !important;
+  font-weight: 600 !important;
+  background-color: #1f1f1f !important;
+  color: #ffffffd9 !important;
+}
+
+.dark .ant-table-thead > tr > th .ant-table-column-title {
+  text-align: center !important;
+}
+
+.light .ant-table-thead > tr > th {
+  text-align: center !important;
+  font-weight: 600 !important;
+  background-color: #fafafa !important;
+  color: #000000d9 !important;
+}
+
+.light .ant-table-thead > tr > th .ant-table-column-title {
+  text-align: center !important;
 }
 
 /* 工具提示样式优化 */

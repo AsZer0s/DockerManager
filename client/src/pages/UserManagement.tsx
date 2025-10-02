@@ -5,7 +5,7 @@ import {
   Form, 
   Input,
   Select, 
-  message, 
+  notification, 
   Space, 
   Popconfirm,
   Typography,
@@ -109,13 +109,21 @@ const UserManagement: React.FC = () => {
     (data: any) => userManagementAPI.createUser(data),
     {
       onSuccess: () => {
-        message.success('用户创建成功')
+        notification.success({
+          message: '创建成功',
+          description: '用户创建成功',
+          placement: 'topRight',
+        })
         setVisible(false)
         form.resetFields()
         queryClient.invalidateQueries('users')
       },
       onError: (error: any) => {
-        message.error(error.response?.data?.message || '创建用户失败')
+        notification.error({
+          message: '创建失败',
+          description: error.response?.data?.message || '创建用户失败',
+          placement: 'topRight',
+        })
       }
     }
   )
@@ -125,13 +133,21 @@ const UserManagement: React.FC = () => {
     ({ id, data }: { id: number; data: any }) => userManagementAPI.updateUser(id, data),
     {
       onSuccess: () => {
-        message.success('用户更新成功')
+        notification.success({
+          message: '更新成功',
+          description: '用户更新成功',
+          placement: 'topRight',
+        })
         setEditingUser(null)
         editForm.resetFields()
         queryClient.invalidateQueries('users')
       },
       onError: (error: any) => {
-        message.error(error.response?.data?.message || '更新用户失败')
+        notification.error({
+          message: '更新失败',
+          description: error.response?.data?.message || '更新用户失败',
+          placement: 'topRight',
+        })
       }
     }
   )
@@ -141,11 +157,19 @@ const UserManagement: React.FC = () => {
     (id: number) => userManagementAPI.deleteUser(id),
     {
       onSuccess: () => {
-        message.success('用户删除成功')
+        notification.success({
+          message: '删除成功',
+          description: '用户删除成功',
+          placement: 'topRight',
+        })
         queryClient.invalidateQueries('users')
       },
       onError: (error: any) => {
-        message.error(error.response?.data?.message || '删除用户失败')
+        notification.error({
+          message: '删除失败',
+          description: error.response?.data?.message || '删除用户失败',
+          placement: 'topRight',
+        })
       }
     }
   )
@@ -156,13 +180,21 @@ const UserManagement: React.FC = () => {
       userManagementAPI.updateUserServers(userId, serverIds),
     {
       onSuccess: () => {
-        message.success('用户可见服务器更新成功')
+        notification.success({
+          message: '更新成功',
+          description: '用户可见服务器更新成功',
+          placement: 'topRight',
+        })
         setServerModalVisible(false)
         setSelectedUser(null)
         queryClient.invalidateQueries('users')
       },
       onError: (error: any) => {
-        message.error(error.response?.data?.message || '更新失败')
+        notification.error({
+          message: '更新失败',
+          description: error.response?.data?.message || '用户可见服务器更新失败',
+          placement: 'topRight',
+        })
       }
     }
   )
@@ -173,13 +205,21 @@ const UserManagement: React.FC = () => {
       userManagementAPI.updateUserContainers(userId, containerIds),
     {
       onSuccess: () => {
-        message.success('用户可见容器更新成功')
+        notification.success({
+          message: '更新成功',
+          description: '用户可见容器更新成功',
+          placement: 'topRight',
+        })
         setContainerModalVisible(false)
         setSelectedUser(null)
         queryClient.invalidateQueries('users')
       },
       onError: (error: any) => {
-        message.error(error.response?.data?.message || '更新失败')
+        notification.error({
+          message: '更新失败',
+          description: error.response?.data?.message || '用户可见容器更新失败',
+          placement: 'topRight',
+        })
       }
     }
   )
@@ -287,8 +327,8 @@ const UserManagement: React.FC = () => {
 
   // 列标题组件
   const ColumnTitle = ({ title, columnKey }: { title: string; columnKey: keyof typeof columnWidths }) => (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative' }}>
-      <span>{title}</span>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', width: '100%' }}>
+      <span style={{ textAlign: 'center', flex: 1 }}>{title}</span>
       <div
         style={{
           position: 'absolute',
@@ -325,8 +365,9 @@ const UserManagement: React.FC = () => {
       key: 'username',
       width: columnWidths.username,
       fixed: 'left' as const,
+      align: 'center' as const,
       render: (text: string) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
           <UserOutlined style={{ color: '#1890ff' }} />
           <div style={{ fontWeight: 600, color: '#1890ff' }}>
             {text}
@@ -340,6 +381,7 @@ const UserManagement: React.FC = () => {
       key: 'email',
       width: columnWidths.email,
       ellipsis: true,
+      align: 'center' as const,
       render: (text: string) => (
         <div style={{ 
           fontFamily: 'monospace', 
@@ -348,7 +390,8 @@ const UserManagement: React.FC = () => {
           background: themeToken.colorFillSecondary,
           padding: '2px 6px',
           borderRadius: '4px',
-          display: 'inline-block'
+          display: 'inline-block',
+          textAlign: 'center'
         }}>
           {text}
         </div>
@@ -455,8 +498,9 @@ const UserManagement: React.FC = () => {
       dataIndex: 'createdAt',
       key: 'createdAt',
       width: columnWidths.createdAt,
+      align: 'center' as const,
       render: (date: string) => (
-        <div style={{ fontSize: '12px', color: themeToken.colorTextSecondary }}>
+        <div style={{ fontSize: '12px', color: themeToken.colorTextSecondary, textAlign: 'center' }}>
           {new Date(date).toLocaleString('zh-CN')}
         </div>
       )
@@ -465,8 +509,9 @@ const UserManagement: React.FC = () => {
       title: '操作',
       key: 'action',
       fixed: 'right' as const,
+      align: 'center' as const,
       render: (_: any, record: User) => (
-        <Space size="small">
+        <Space size="small" style={{ justifyContent: 'center', display: 'flex' }}>
           <Button
             size="small"
             type="link"

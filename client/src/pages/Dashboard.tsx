@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react'
-import { Row, Col, Statistic, Table, Tag, Space, Typography, message, Card, Button } from 'antd'
+import { Row, Col, Statistic, Table, Tag, Space, Typography, notification, Card, Button } from 'antd'
 import { 
   DatabaseOutlined, 
   ContainerOutlined, 
@@ -74,7 +74,11 @@ const Dashboard: React.FC = () => {
   // 防抖刷新函数
   const handleRefresh = useCallback(async () => {
     if (refreshCooldown) {
-      message.warning('请稍后再试，刷新过于频繁')
+      notification.warning({
+        message: '刷新过于频繁',
+        description: '请稍后再试',
+        placement: 'topRight',
+      })
       return
     }
 
@@ -86,9 +90,17 @@ const Dashboard: React.FC = () => {
         refetchServers(),
         // 可以添加其他需要刷新的查询
       ])
-      message.success('刷新成功')
+      notification.success({
+        message: '刷新成功',
+        description: '仪表板数据已更新',
+        placement: 'topRight',
+      })
     } catch (error) {
-      message.error('刷新失败')
+      notification.error({
+        message: '刷新失败',
+        description: '无法刷新仪表板数据',
+        placement: 'topRight',
+      })
     } finally {
       setIsRefreshing(false)
       // 2秒冷却时间
@@ -104,31 +116,46 @@ const Dashboard: React.FC = () => {
       title: '服务器名称',
       dataIndex: 'name',
       key: 'name',
+      align: 'center' as const,
+      render: (text: string) => (
+        <div style={{ textAlign: 'center', fontWeight: 600, color: '#1890ff' }}>
+          {text}
+        </div>
+      ),
     },
     {
       title: '主机地址',
       dataIndex: 'host',
       key: 'host',
-      render: (text: string, record: any) => 
-        record.hide_sensitive_info ? '***.***.***.***' : text,
+      align: 'center' as const,
+      render: (text: string, record: any) => (
+        <div style={{ textAlign: 'center' }}>
+          {record.hide_sensitive_info ? '***.***.***.***' : text}
+        </div>
+      ),
     },
     {
       title: '端口',
       dataIndex: 'port',
       key: 'port',
-      render: (text: number, record: any) => 
-        record.hide_sensitive_info ? '***' : text,
+      align: 'center' as const,
+      render: (text: number, record: any) => (
+        <div style={{ textAlign: 'center' }}>
+          {record.hide_sensitive_info ? '***' : text}
+        </div>
+      ),
     },
     {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
+      align: 'center' as const,
       render: (status: string, record: any) => {
         if (!record.is_active) {
-          return <Tag color="red">禁用</Tag>
+          return <Tag color="red" style={{ margin: 0 }}>禁用</Tag>
         }
         return (
-          <Tag color={status === '在线' ? 'green' : 'red'}>
+          <Tag color={status === '在线' ? 'green' : 'red'} style={{ margin: 0 }}>
             {status || '未知'}
           </Tag>
         )
@@ -137,8 +164,9 @@ const Dashboard: React.FC = () => {
     {
       title: '操作',
       key: 'action',
+      align: 'center' as const,
       render: (record: any) => (
-        <Space>
+        <Space style={{ justifyContent: 'center', display: 'flex' }}>
           <Button 
             size="small" 
             onClick={() => navigate(`/containers?server=${record.id}`)}

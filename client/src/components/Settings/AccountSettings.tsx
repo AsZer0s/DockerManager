@@ -5,7 +5,7 @@ import {
   Button, 
   Card, 
   Typography, 
-  message, 
+  notification, 
   Space,
   Divider,
   Modal,
@@ -58,12 +58,20 @@ const AccountSettings: React.FC = () => {
       authAPI.changePassword(data),
     {
       onSuccess: () => {
-        message.success('密码修改成功')
+        notification.success({
+          message: '修改成功',
+          description: '密码修改成功',
+          placement: 'topRight',
+        })
         setChangePasswordVisible(false)
         passwordForm.resetFields()
       },
       onError: (error: any) => {
-        message.error(error.response?.data?.message || '密码修改失败')
+        notification.error({
+          message: '修改失败',
+          description: error.response?.data?.message || '密码修改失败',
+          placement: 'topRight',
+        })
       }
     }
   )
@@ -73,13 +81,21 @@ const AccountSettings: React.FC = () => {
     (data: { email: string }) => settingsAPI.updateProfile(data),
     {
       onSuccess: () => {
-        message.success('邮箱修改成功')
+        notification.success({
+          message: '修改成功',
+          description: '邮箱修改成功',
+          placement: 'topRight',
+        })
         setChangeEmailVisible(false)
         emailForm.resetFields()
         queryClient.invalidateQueries('userProfile')
       },
       onError: (error: any) => {
-        message.error(error.response?.data?.message || '邮箱修改失败')
+        notification.error({
+          message: '修改失败',
+          description: error.response?.data?.message || '邮箱修改失败',
+          placement: 'topRight',
+        })
       }
     }
   )
@@ -90,12 +106,20 @@ const AccountSettings: React.FC = () => {
       settingsAPI.sendTelegramCode(telegramId),
     {
       onSuccess: () => {
-        message.success('验证码已发送，请检查您的Telegram')
+        notification.success({
+          message: '验证码已发送',
+          description: '请检查您的Telegram',
+          placement: 'topRight',
+        })
         setBindTelegramVisible(false)
         setVerificationCodeVisible(true)
       },
       onError: (error: any) => {
-        message.error(error.response?.data?.message || '发送验证码失败')
+        notification.error({
+          message: '发送失败',
+          description: error.response?.data?.message || '发送验证码失败',
+          placement: 'topRight',
+        })
       }
     }
   )
@@ -107,13 +131,21 @@ const AccountSettings: React.FC = () => {
       settingsAPI.completeTelegramBinding(data.telegramId, data.code, data.userId),
     {
       onSuccess: () => {
-        message.success('Telegram绑定成功')
+        notification.success({
+          message: '绑定成功',
+          description: 'Telegram绑定成功',
+          placement: 'topRight',
+        })
         setVerificationCodeVisible(false)
         verificationForm.resetFields()
         queryClient.invalidateQueries('userProfile')
       },
       onError: (error: any) => {
-        message.error(error.response?.data?.message || '绑定失败')
+        notification.error({
+          message: '绑定失败',
+          description: error.response?.data?.message || 'Telegram绑定失败',
+          placement: 'topRight',
+        })
       }
     }
   )
@@ -125,11 +157,19 @@ const AccountSettings: React.FC = () => {
       settingsAPI.sendUnbindCode(userId),
     {
       onSuccess: () => {
-        message.success('解绑验证码已发送，请检查您的Telegram')
+        notification.success({
+          message: '验证码已发送',
+          description: '解绑验证码已发送，请检查您的Telegram',
+          placement: 'topRight',
+        })
         setUnbindCodeVisible(true)
       },
       onError: (error: any) => {
-        message.error(error.response?.data?.message || '发送解绑验证码失败')
+        notification.error({
+          message: '发送失败',
+          description: error.response?.data?.message || '发送解绑验证码失败',
+          placement: 'topRight',
+        })
       }
     }
   )
@@ -140,13 +180,21 @@ const AccountSettings: React.FC = () => {
       settingsAPI.verifyUnbindCode(data.userId, data.code),
     {
       onSuccess: () => {
-        message.success('Telegram解绑成功')
+        notification.success({
+          message: '解绑成功',
+          description: 'Telegram解绑成功',
+          placement: 'topRight',
+        })
         setUnbindCodeVisible(false)
         unbindForm.resetFields()
         queryClient.invalidateQueries('userProfile')
       },
       onError: (error: any) => {
-        message.error(error.response?.data?.message || '解绑失败')
+        notification.error({
+          message: '解绑失败',
+          description: error.response?.data?.message || 'Telegram解绑失败',
+          placement: 'topRight',
+        })
       }
     }
   )
@@ -174,7 +222,11 @@ const AccountSettings: React.FC = () => {
 
   const handleVerifyCode = (values: any) => {
     if (!user?.id) {
-      message.error('用户信息获取失败，请重新登录')
+      notification.error({
+        message: '获取失败',
+        description: '用户信息获取失败，请重新登录',
+        placement: 'topRight',
+      })
       return
     }
     
@@ -188,7 +240,11 @@ const AccountSettings: React.FC = () => {
   // 处理Telegram解绑
   const handleUnbindTelegram = () => {
     if (!user?.id) {
-      message.error('用户信息获取失败，请重新登录')
+      notification.error({
+        message: '获取失败',
+        description: '用户信息获取失败，请重新登录',
+        placement: 'topRight',
+      })
       return
     }
     
@@ -198,7 +254,11 @@ const AccountSettings: React.FC = () => {
   // 处理解绑验证码验证
   const handleVerifyUnbindCode = (values: any) => {
     if (!user?.id) {
-      message.error('用户信息获取失败，请重新登录')
+      notification.error({
+        message: '获取失败',
+        description: '用户信息获取失败，请重新登录',
+        placement: 'topRight',
+      })
       return
     }
     
@@ -230,7 +290,11 @@ const AccountSettings: React.FC = () => {
       cancelText: '取消',
       onOk() {
         // 这里需要实现删除账户的API
-        message.success('账户删除功能待实现')
+        notification.success({
+          message: '功能待实现',
+          description: '账户删除功能待实现',
+          placement: 'topRight',
+        })
       }
     })
   }

@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Card, Select, Button, Space, Typography, Input, message } from 'antd'
+import { Card, Select, Button, Space, Typography, Input, notification } from 'antd'
 import { motion } from 'framer-motion'
 import { ConsoleSqlOutlined, SendOutlined, DisconnectOutlined } from '@ant-design/icons'
 import { useQuery } from 'react-query'
@@ -26,7 +26,11 @@ const SSH: React.FC = () => {
   // 处理连接
   const handleConnect = async () => {
     if (!selectedServer) {
-      message.error('请选择服务器')
+      notification.error({
+        message: '错误',
+        description: '请选择服务器',
+        placement: 'topRight',
+      })
       return
     }
 
@@ -34,9 +38,17 @@ const SSH: React.FC = () => {
       await sshAPI.testConnection(selectedServer)
       setIsConnected(true)
       setOutput('SSH 连接已建立\n')
-      message.success('SSH 连接成功')
+      notification.success({
+        message: '连接成功',
+        description: 'SSH 连接已建立',
+        placement: 'topRight',
+      })
     } catch (error: any) {
-      message.error(error.response?.data?.message || '连接失败')
+      notification.error({
+        message: '连接失败',
+        description: error.response?.data?.message || '无法连接到服务器',
+        placement: 'topRight',
+      })
     }
   }
 
@@ -44,13 +56,21 @@ const SSH: React.FC = () => {
   const handleDisconnect = () => {
     setIsConnected(false)
     setOutput('')
-    message.info('SSH 连接已断开')
+    notification.info({
+      message: '连接断开',
+      description: 'SSH 连接已断开',
+      placement: 'topRight',
+    })
   }
 
   // 处理命令执行
   const handleExecuteCommand = async () => {
     if (!selectedServer || !command.trim()) {
-      message.error('请输入命令')
+      notification.error({
+        message: '错误',
+        description: '请输入命令',
+        placement: 'topRight',
+      })
       return
     }
 
