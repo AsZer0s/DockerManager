@@ -34,6 +34,12 @@ class TelegramBotService {
         return;
       }
 
+      // 如果已有机器人实例，先停止
+      if (this.bot) {
+        logger.info('检测到现有机器人实例，正在停止...');
+        await this.stop();
+      }
+
       // 确保数据库连接
       await database.connect();
       if (!database.isConnected) {
@@ -77,12 +83,8 @@ class TelegramBotService {
       // 设置机器人命令
       await this.setupBotCommands();
       
-      // 启动机器人，添加错误处理
-      await this.bot.launch().catch(error => {
-        logger.error('Telegram 机器人启动失败:', error);
-        this.isInitialized = false;
-        this.bot = null;
-      });
+      // 启动机器人，添加重试机制
+      await this.launchWithRetry();
       
       if (this.isInitialized) {
         logger.info('Telegram 机器人初始化成功');
@@ -95,6 +97,71 @@ class TelegramBotService {
       this.isInitialized = false;
       this.bot = null;
       // 不抛出错误，让服务器继续运行
+    }
+  }
+
+  /**
+   * 带重试机制的启动方法
+   */
+  async launchWithRetry(maxRetries = 3, retryDelay = 5000) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        logger.info(`尝试启动 Telegram 机器人 (第 ${attempt}/${maxRetries} 次)`);
+        
+        await this.bot.launch();
+        this.isInitialized = true;
+        logger.info('Telegram 机器人启动成功');
+        
+        if (process.env.TGBOT_PROXY) {
+          logger.info(`通过代理 ${process.env.TGBOT_PROXY} 连接成功`);
+        }
+        
+        return; // 启动成功，退出重试循环
+        
+      } catch (error) {
+        logger.error(`Telegram 机器人启动失败 (第 ${attempt}/${maxRetries} 次):`, error);
+        
+        // 检查是否是409冲突错误
+        if (error.message && error.message.includes('409')) {
+          logger.warn('检测到机器人实例冲突，等待其他实例停止...');
+          
+          if (attempt < maxRetries) {
+            logger.info(`等待 ${retryDelay}ms 后重试...`);
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+            retryDelay *= 2; // 指数退避
+            continue;
+          }
+        }
+        
+        // 如果是最后一次尝试，记录错误但不抛出
+        if (attempt === maxRetries) {
+          logger.error('Telegram 机器人启动失败，已达到最大重试次数');
+          this.isInitialized = false;
+          this.bot = null;
+          return;
+        }
+        
+        // 等待后重试
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        retryDelay *= 2; // 指数退避
+      }
+    }
+  }
+
+  /**
+   * 停止机器人
+   */
+  async stop() {
+    try {
+      if (this.bot) {
+        logger.info('正在停止 Telegram 机器人...');
+        await this.bot.stop();
+        this.bot = null;
+        this.isInitialized = false;
+        logger.info('Telegram 机器人已停止');
+      }
+    } catch (error) {
+      logger.error('停止 Telegram 机器人时出错:', error);
     }
   }
 

@@ -54,6 +54,44 @@ process.on('unhandledRejection', (reason, promise) => {
   // 不立即退出，记录错误后继续运行
 });
 
+// 优雅关闭处理
+process.on('SIGINT', async () => {
+  console.log('\n🛑 收到 SIGINT 信号，正在优雅关闭服务器...');
+  await gracefulShutdown();
+});
+
+process.on('SIGTERM', async () => {
+  console.log('\n🛑 收到 SIGTERM 信号，正在优雅关闭服务器...');
+  await gracefulShutdown();
+});
+
+// 优雅关闭函数
+async function gracefulShutdown() {
+  try {
+    console.log('📡 正在停止 Telegram 机器人...');
+    if (telegramBot && telegramBot.stop) {
+      await telegramBot.stop();
+    }
+    
+    console.log('🔗 正在关闭 SSH 连接池...');
+    const sshConnectionPool = (await import('./services/sshConnectionPool.js')).default;
+    await sshConnectionPool.closeAllConnections();
+    
+    console.log('💾 正在关闭数据库连接...');
+    await database.close();
+    
+    console.log('🔄 正在停止轮询服务...');
+    const pollingService = (await import('./services/pollingService.js')).default;
+    pollingService.stopPolling();
+    
+    console.log('✅ 服务器已优雅关闭');
+    process.exit(0);
+  } catch (error) {
+    console.error('❌ 优雅关闭过程中出错:', error);
+    process.exit(1);
+  }
+}
+
 const app = express();
 
 app.set('trust proxy', true);
