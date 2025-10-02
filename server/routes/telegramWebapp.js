@@ -7,6 +7,106 @@ import monitoringService from '../services/monitoringService.js';
 const router = express.Router();
 
 /**
+ * @route POST /api/telegram-webapp/auth
+ * @desc 用户认证（Telegram WebApp专用）
+ * @access Public
+ */
+router.post('/auth', async (req, res) => {
+  try {
+    const { user_id } = req.body;
+
+    if (!user_id) {
+      return res.status(400).json({
+        success: false,
+        message: '用户ID不能为空'
+      });
+    }
+
+    // 验证用户权限
+    const user = await database.db.get(
+      'SELECT * FROM users WHERE telegram_id = ? AND (is_active = 1 OR is_active = true)',
+      [user_id.toString()]
+    );
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: '用户未找到或未激活'
+      });
+    }
+
+    // 生成临时token（可选，用于后续请求验证）
+    const token = `tg_${user_id}_${Date.now()}`;
+
+    res.json({
+      success: true,
+      token: token,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        telegram_id: user.telegram_id
+      }
+    });
+
+  } catch (error) {
+    logger.error('用户认证失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '用户认证失败'
+    });
+  }
+});
+
+/**
+ * @route POST /api/telegram-webapp/log
+ * @desc 记录日志（Telegram WebApp专用）
+ * @access Public
+ */
+router.post('/log', async (req, res) => {
+  try {
+    const { level, message, data, timestamp, userAgent, url } = req.body;
+
+    // 记录到服务器日志
+    const logMessage = `[Telegram WebApp] ${level.toUpperCase()}: ${message}`;
+    const logData = {
+      level,
+      message,
+      data,
+      timestamp,
+      userAgent,
+      url
+    };
+
+    switch (level.toLowerCase()) {
+      case 'error':
+        logger.error(logMessage, logData);
+        break;
+      case 'warn':
+        logger.warn(logMessage, logData);
+        break;
+      case 'info':
+      default:
+        logger.info(logMessage, logData);
+        break;
+    }
+
+    res.json({
+      success: true,
+      message: '日志记录成功'
+    });
+
+  } catch (error) {
+    logger.error('记录日志失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '记录日志失败'
+    });
+  }
+});
+
+/**
  * @route POST /api/telegram-webapp/servers/:serverId/containers
  * @desc 获取指定服务器的容器列表（Telegram WebApp专用）
  * @access Public

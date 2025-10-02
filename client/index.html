@@ -210,27 +210,16 @@
                   window.telegramWebApp = webApp;
                   
                   try {
-                    // 获取用户信息
-                    const userInfo = getUserInfo();
+                    // 执行所有初始化操作
+                    await Promise.all([
+                      fetchUserInfoByTelegram(telegramUserData.id),
+                      fetchEmbyServers(telegramUserData.id),
+                      fetchSiteSettings()
+                    ]);
                     
-                    if (userInfo.user_id) {
-                      await sendLogToServer('info', '开始执行初始化操作', { userId: userInfo.user_id });
-                      
-                      // 执行所有初始化操作
-                      await Promise.all([
-                        fetchUserInfoByTelegram(userInfo.user_id),
-                        fetchEmbyServers(userInfo.user_id),
-                        fetchSiteSettings()
-                      ]);
-                      
-                      await sendLogToServer('info', '初始化完成，继续加载 React 应用');
-                      console.log('初始化完成，继续加载 React 应用');
-                      return true;
-                    } else {
-                      await sendLogToServer('error', '无法获取用户ID');
-                      showError('无法获取用户ID，请从Telegram机器人菜单重新打开');
-                      return false;
-                    }
+                    await sendLogToServer('info', '初始化完成，继续加载 React 应用');
+                    console.log('初始化完成，继续加载 React 应用');
+                    return true;
                   } catch (error) {
                     await sendLogToServer('error', '初始化过程中发生错误', { error: error.message });
                     showError('加载数据失败，请重试');
