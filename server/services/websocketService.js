@@ -1,6 +1,9 @@
 import logger from '../utils/logger.js';
 import dockerService from './dockerService.js';
 import monitoringService from './monitoringService.js';
+import { Client } from 'ssh2';
+import database from '../config/database.js';
+import encryption from '../utils/encryption.js';
 
 class WebSocketService {
   constructor() {
@@ -371,32 +374,153 @@ class WebSocketService {
       const client = this.connectedClients.get(socket.id);
       
       if (!client || !client.userId) {
-        socket.emit('error', { message: '未认证' });
+        socket.emit('ssh_error', { message: '未认证' });
         return;
       }
 
       // 检查权限
       const permission = client.permissions.find(p => p.id === serverId);
       if (!permission || !permission.can_ssh) {
-        socket.emit('error', { message: '无权限 SSH 访问此服务器' });
+        socket.emit('ssh_error', { message: '无权限 SSH 访问此服务器' });
         return;
       }
 
-      // 这里应该实现 SSH 连接逻辑
-      // 为了简化，这里只是模拟
+      // 获取服务器信息
+      const serverResult = await database.query(
+        'SELECT * FROM servers WHERE id = $1 AND is_active = true',
+        [serverId]
+      );
+
+      if (serverResult.rows.length === 0) {
+        socket.emit('ssh_error', { message: '服务器不存在或未激活' });
+        return;
+      }
+
+      const server = serverResult.rows[0];
+      
+      // 解密服务器凭据
+      let password = null;
+      let privateKey = null;
+      
+      if (server.password_encrypted) {
+        password = encryption.decrypt(server.password_encrypted);
+      }
+      
+      if (server.private_key_encrypted) {
+        privateKey = encryption.decrypt(server.private_key_encrypted);
+      }
+
+      if (!password && !privateKey) {
+        socket.emit('ssh_error', { message: '服务器缺少SSH认证信息' });
+        return;
+      }
+
+      // 创建SSH客户端
+      const sshClient = new Client();
       const sessionId = `ssh_${socket.id}_${Date.now()}`;
-      this.sshSessions.set(sessionId, {
-        socketId: socket.id,
-        serverId,
-        connectedAt: new Date()
+
+      // SSH连接配置
+      const sshConfig = {
+        host: server.host,
+        port: server.ssh_port || 22,
+        username: server.username || 'root',
+        readyTimeout: 10000,
+        keepaliveInterval: 1000
+      };
+
+      if (password) {
+        sshConfig.password = password;
+      }
+      if (privateKey) {
+        sshConfig.privateKey = privateKey;
+      }
+
+      // 连接SSH
+      sshClient.on('ready', () => {
+        logger.info(`SSH 连接成功: ${server.name} (${sessionId})`);
+        
+        // 创建shell
+        sshClient.shell((err, stream) => {
+          if (err) {
+            logger.error('创建SSH shell失败:', err);
+            socket.emit('ssh_error', { message: '创建SSH shell失败' });
+            return;
+          }
+
+          // 存储SSH会话
+          this.sshSessions.set(sessionId, {
+            socketId: socket.id,
+            serverId,
+            serverName: server.name,
+            sshClient,
+            stream,
+            connectedAt: new Date()
+          });
+
+          // 发送连接成功消息
+          socket.emit('ssh_connected', { 
+            sessionId,
+            serverName: server.name,
+            message: 'SSH连接已建立'
+          });
+
+          // 监听SSH输出
+          stream.on('data', (data) => {
+            const output = this.cleanTerminalOutput(data.toString());
+            socket.emit('ssh_output', { sessionId, output });
+          });
+
+          stream.on('close', () => {
+            logger.info(`SSH shell 关闭: ${sessionId}`);
+            socket.emit('ssh_disconnected', { sessionId });
+            this.cleanupSshSession(sessionId);
+          });
+
+          // 发送欢迎消息
+          socket.emit('ssh_output', { 
+            sessionId, 
+            output: `欢迎使用DockerManager SSH控制台\n连接到服务器: ${server.name}\n` 
+          });
+        });
       });
 
-      socket.emit('ssh_connected', { sessionId });
-      logger.info(`SSH 会话建立: ${sessionId}`);
+      sshClient.on('error', (err) => {
+        logger.error(`SSH 连接错误: ${server.name}`, err);
+        socket.emit('ssh_error', { 
+          message: `SSH连接失败: ${err.message}` 
+        });
+      });
+
+      // 开始连接
+      sshClient.connect(sshConfig);
+
     } catch (error) {
       logger.error('SSH 连接失败:', error);
-      socket.emit('error', { message: 'SSH 连接失败' });
+      socket.emit('ssh_error', { message: 'SSH 连接失败' });
     }
+  }
+
+  /**
+   * 清理终端控制序列
+   * @param {string} text - 原始文本
+   * @returns {string} - 清理后的文本
+   */
+  cleanTerminalOutput(text) {
+    if (!text) return '';
+    
+    return text
+      // 移除 bracketed paste mode 序列
+      .replace(/\x1b\[\?2004[hl]/g, '')
+      // 移除其他常见的 ANSI 转义序列
+      .replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '')
+      // 移除回车符和换行符的重复
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n')
+      // 移除多余的空行
+      .replace(/\n{3,}/g, '\n\n')
+      // 移除行首行尾的空白字符
+      .split('\n').map(line => line.trimEnd()).join('\n')
+      .trim();
   }
 
   /**
@@ -410,18 +534,34 @@ class WebSocketService {
       const session = this.sshSessions.get(sessionId);
       
       if (!session || session.socketId !== socket.id) {
-        socket.emit('error', { message: '无效的 SSH 会话' });
+        socket.emit('ssh_error', { message: '无效的 SSH 会话' });
         return;
       }
 
-      // 这里应该执行实际的 SSH 命令
-      // 为了简化，这里只是模拟
-      const output = `$ ${command}\n模拟命令输出: ${command}\n`;
+      if (!session.stream) {
+        socket.emit('ssh_error', { message: 'SSH 流不存在' });
+        return;
+      }
+
+      // 发送命令到SSH流
+      session.stream.write(command + '\n');
       
-      socket.emit('ssh_output', { sessionId, output });
+      // 记录操作日志
+      try {
+        const client = this.connectedClients.get(socket.id);
+        if (client && client.userId) {
+          await database.query(`
+            INSERT INTO operation_logs (user_id, server_id, action, details, timestamp)
+            VALUES ($1, $2, 'ssh_command', $3, CURRENT_TIMESTAMP)
+          `, [client.userId, session.serverId, `命令: ${command}`]);
+        }
+      } catch (logError) {
+        logger.error('记录SSH操作日志失败:', logError);
+      }
+
     } catch (error) {
       logger.error('SSH 命令执行失败:', error);
-      socket.emit('error', { message: 'SSH 命令执行失败' });
+      socket.emit('ssh_error', { message: 'SSH 命令执行失败' });
     }
   }
 
@@ -433,15 +573,36 @@ class WebSocketService {
   async handleSshDisconnect(socket, data) {
     try {
       const { sessionId } = data;
-      const session = this.sshSessions.get(sessionId);
-      
-      if (session && session.socketId === socket.id) {
-        this.sshSessions.delete(sessionId);
-        socket.emit('ssh_disconnected', { sessionId });
-        logger.info(`SSH 会话断开: ${sessionId}`);
-      }
+      await this.cleanupSshSession(sessionId, socket.id);
+      socket.emit('ssh_disconnected', { sessionId });
+      logger.info(`SSH 会话断开: ${sessionId}`);
     } catch (error) {
       logger.error('SSH 断开连接失败:', error);
+    }
+  }
+
+  /**
+   * 清理SSH会话
+   * @param {string} sessionId - 会话ID
+   * @param {string} socketId - Socket ID（可选）
+   */
+  async cleanupSshSession(sessionId, socketId = null) {
+    const session = this.sshSessions.get(sessionId);
+    if (session && (!socketId || session.socketId === socketId)) {
+      try {
+        // 关闭SSH流
+        if (session.stream) {
+          session.stream.end();
+        }
+        // 关闭SSH客户端
+        if (session.sshClient) {
+          session.sshClient.end();
+        }
+      } catch (error) {
+        logger.error(`清理SSH会话失败: ${sessionId}`, error);
+      }
+      // 从会话映射中移除
+      this.sshSessions.delete(sessionId);
     }
   }
 
@@ -458,7 +619,7 @@ class WebSocketService {
     // 清理 SSH 会话
     for (const [sessionId, session] of this.sshSessions) {
       if (session.socketId === socket.id) {
-        this.sshSessions.delete(sessionId);
+        this.cleanupSshSession(sessionId);
       }
     }
   }

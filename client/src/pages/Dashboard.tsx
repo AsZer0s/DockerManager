@@ -35,32 +35,28 @@ const Dashboard: React.FC = () => {
   const { data: containersStats } = useQuery({
     queryKey: ['containers-stats'],
     queryFn: async () => {
-      if (!serversData?.data.servers) return { total: 0, running: 0, stopped: 0 }
-      
       let total = 0
       let running = 0
       let stopped = 0
       
-      // 只对在线服务器获取容器信息
-      const onlineServers = serversData.data.servers.filter(server => 
-        server.is_active && server.status === '在线'
-      )
-      
-      for (const server of onlineServers) {
-        try {
-          const response = await containerAPI.getContainers(server.id, true)
-          const containers = response.data.containers
-          total += containers.length
-          running += containers.filter(c => c.status === 'running').length
-          stopped += containers.filter(c => c.status !== 'running').length
-        } catch (error) {
-          console.error(`获取服务器 ${server.name} 容器失败:`, error)
+      try {
+        // 使用新的API获取容器统计信息
+        const response = await containerAPI.getAllContainers(true)
+        const containersData = response.data.data
+        
+        for (const [serverId, serverData] of Object.entries(containersData)) {
+          const serverContainers = serverData.containers || []
+          total += serverContainers.length
+          running += serverContainers.filter(c => c.state === 'running').length
+          stopped += serverContainers.filter(c => c.state !== 'running').length
         }
+      } catch (error) {
+        console.error('获取容器统计失败:', error)
       }
       
       return { total, running, stopped }
     },
-    enabled: !!serversData?.data.servers,
+    enabled: true,
     refetchInterval: 30000,
   })
 

@@ -86,6 +86,30 @@ class SSHSessionService {
   }
 
   /**
+   * 清理终端控制序列
+   * @param {string} text - 原始文本
+   * @returns {string} - 清理后的文本
+   */
+  cleanTerminalOutput(text) {
+    if (!text) return '';
+    
+    // 移除常见的终端控制序列
+    return text
+      // 移除 bracketed paste mode 序列
+      .replace(/\x1b\[\?2004[hl]/g, '')
+      // 移除其他常见的 ANSI 转义序列
+      .replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '')
+      // 移除回车符和换行符的重复
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n')
+      // 移除多余的空行
+      .replace(/\n{3,}/g, '\n\n')
+      // 移除行首行尾的空白字符
+      .split('\n').map(line => line.trimEnd()).join('\n')
+      .trim();
+  }
+
+  /**
    * 在SSH会话中执行命令
    * @param {string} sessionId - 会话ID
    * @param {string} command - 要执行的命令
@@ -138,10 +162,22 @@ class SSHSessionService {
             this.updateCurrentPath(sessionId);
           }
 
+          // 清理输出，移除重复的命令行
+          let cleanedOutput = this.cleanTerminalOutput(output);
+          
+          // 智能处理命令重复：只在输出确实以命令开头且后面紧跟换行符时移除
+          const commandPattern = new RegExp(`^${command.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\n`);
+          if (commandPattern.test(cleanedOutput)) {
+            cleanedOutput = cleanedOutput.replace(commandPattern, '');
+          }
+          
+          // 移除输出开头的多余换行符，但保留必要的换行
+          cleanedOutput = cleanedOutput.replace(/^\n{2,}/, '\n');
+
           resolve({
             command,
-            output: output.trim(),
-            error: errorOutput.trim(),
+            output: cleanedOutput,
+            error: this.cleanTerminalOutput(errorOutput),
             timestamp: new Date()
           });
         } else {

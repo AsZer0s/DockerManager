@@ -64,7 +64,7 @@ const App: React.FC = () => {
                   <Route path="/servers" element={<Servers />} />
                   <Route path="/containers" element={<Containers />} />
                   <Route path="/monitoring" element={<Monitoring />} />
-            <Route path="/ssh" element={<SSHConsole />} />
+                  <Route path="/ssh" element={<SSHConsole />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/user-management" element={<UserManagement />} />
             <Route path="/admin" element={<Admin />} />

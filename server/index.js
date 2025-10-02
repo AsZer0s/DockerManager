@@ -32,7 +32,6 @@ import containerRoutes from './routes/containers.js';
 import monitoringRoutes from './routes/monitoring.js';
 import sshRoutes from './routes/ssh.js';
 import telegramRoutes from './routes/telegram.js';
-import telegramWebAppRoutes from './routes/telegramWebApp.js';
 import telegramVerificationRoutes from './routes/telegramVerification.js';
 import settingsRoutes from './routes/settings.js';
 import userManagementRoutes from './routes/userManagement.js';
@@ -114,7 +113,6 @@ app.use('/api/containers', containerRoutes);
 app.use('/api/monitoring', monitoringRoutes);
 app.use('/api/ssh', sshRoutes);
 app.use('/api/telegram', telegramRoutes);
-app.use('/api/telegram-webapp', telegramWebAppRoutes);
 app.use('/api/telegram-verification', telegramVerificationRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/user-management', userManagementRoutes);
@@ -549,16 +547,20 @@ async function createAdminUser(dbPath) {
     
     const passwordHash = await bcrypt.hash(randomPassword, 12);
     
+    // 从环境变量获取管理员账户信息，如果没有则使用默认值
+    const adminUsername = process.env.ADMIN_USERNAME || 'admin';
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@ztms.top';
+    
     // 创建管理员用户
     await db.run(`
       INSERT INTO users (username, email, password_hash, role, is_active)
       VALUES (?, ?, ?, ?, ?)
-    `, ['admin', 'admin@ztms.top', passwordHash, 'admin', true]);
+    `, [adminUsername, adminEmail, passwordHash, 'admin', true]);
     
     console.log('✅ 管理员账户创建成功');
     console.log('========================');
-    console.log(`用户名: admin`);
-    console.log(`邮箱: admin@ztms.top`);
+    console.log(`用户名: ${adminUsername}`);
+    console.log(`邮箱: ${adminEmail}`);
     console.log(`密码: ${randomPassword}`);
     console.log('========================');
     console.log('⚠️  请妥善保存此密码！');
@@ -612,6 +614,12 @@ async function initializeServices() {
     const sshSessionService = (await import('./services/sshSessionService.js')).default;
     sshSessionService.initialize();
     console.log('✅ SSH 会话服务初始化成功');
+
+    // 初始化缓存服务
+    console.log('💾 初始化缓存服务...');
+    const cacheService = (await import('./services/cacheService.js')).default;
+    cacheService.startPolling();
+    console.log('✅ 缓存服务初始化成功');
 
     // 启动服务器
     const PORT = 3000;
@@ -699,6 +707,7 @@ console.log('🎯 准备启动应用...');
 console.log('环境变量检查:');
 console.log('- NODE_ENV:', process.env.NODE_ENV);
 console.log('- ENCRYPTION_KEY length:', process.env.ENCRYPTION_KEY?.length);
+console.log('- ENCRYPTION_KEY:', process.env.ENCRYPTION_KEY);
 console.log('- TGBOT_PROXY:', process.env.TGBOT_PROXY ? `已设置 (${process.env.TGBOT_PROXY})` : '未设置');
 
 initializeServices().catch(error => {

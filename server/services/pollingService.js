@@ -134,15 +134,15 @@ class PollingService {
         await database.connect();
       }
       
-      const result = await database.query(`
+      const result = await database.db.all(`
         SELECT s.*, p.can_view, p.can_control, p.can_ssh, p.hide_sensitive_info
         FROM servers s
         LEFT JOIN user_server_permissions p ON s.id = p.server_id AND p.user_id = ?
-        WHERE s.is_active = true
+        WHERE s.is_active = 1
         ORDER BY s.created_at DESC
       `, [userId]);
 
-      return result.rows.map(server => ({
+      return result.map(server => ({
         ...server,
         password_encrypted: server.hide_sensitive_info ? '[隐藏]' : server.password_encrypted,
         private_key_encrypted: server.hide_sensitive_info ? '[隐藏]' : server.private_key_encrypted
@@ -165,16 +165,16 @@ class PollingService {
         await database.connect();
       }
       
-      const serversResult = await database.query(`
+      const serversResult = await database.db.all(`
         SELECT s.*, p.can_view, p.can_control
         FROM servers s
         LEFT JOIN user_server_permissions p ON s.id = p.server_id AND p.user_id = ?
-        WHERE s.is_active = true AND (p.can_view = true OR p.can_control = true)
+        WHERE s.is_active = 1 AND (p.can_view = 1 OR p.can_control = 1)
       `, [userId]);
 
       const containersData = {};
       
-      for (const server of serversResult.rows) {
+      for (const server of serversResult) {
         try {
           const containers = await dockerService.getContainers(server.id);
           containersData[server.id] = {

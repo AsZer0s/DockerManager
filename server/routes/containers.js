@@ -5,6 +5,7 @@ import { body, validationResult } from 'express-validator';
 import database from '../config/database.js';
 import logger from '../utils/logger.js';
 import dockerService from '../services/dockerService.js';
+import cacheService from '../services/cacheService.js';
 import { containerValidation, validate, validateParams, commonValidation } from '../utils/validation.js';
 
 const router = express.Router();
@@ -23,19 +24,19 @@ const authenticateToken = async (req, res, next) => {
     const token = authHeader.substring(7);
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    const result = await database.query(
-      'SELECT * FROM users WHERE id = $1 AND is_active = true',
+    const result = await database.db.get(
+      'SELECT * FROM users WHERE id = ? AND is_active = 1',
       [decoded.userId]
     );
 
-    if (result.rows.length === 0) {
+    if (!result) {
       return res.status(401).json({
         error: '令牌无效',
         message: '用户不存在或已禁用'
       });
     }
 
-    req.user = result.rows[0];
+    req.user = result;
     next();
   } catch (error) {
     return res.status(401).json({
@@ -56,12 +57,12 @@ const checkServerPermission = async (req, res, next) => {
     }
 
     // 先检查服务器是否存在
-    const serverExists = await database.query(
-      'SELECT id FROM servers WHERE id = $1 AND is_active = true',
+    const serverExists = await database.db.get(
+      'SELECT id FROM servers WHERE id = ? AND is_active = 1',
       [serverId]
     );
 
-    if (serverExists.rows.length === 0) {
+    if (!serverExists) {
       return res.status(404).json({
         error: '服务器不存在',
         message: '指定的服务器不存在或已被禁用'
@@ -69,19 +70,19 @@ const checkServerPermission = async (req, res, next) => {
     }
 
     // 检查用户权限
-    const result = await database.query(
-      'SELECT can_view, can_control, can_ssh, hide_sensitive_info FROM user_server_permissions WHERE user_id = $1 AND server_id = $2',
+    const result = await database.db.get(
+      'SELECT can_view, can_control, can_ssh, hide_sensitive_info FROM user_server_permissions WHERE user_id = ? AND server_id = ?',
       [req.user.id, serverId]
     );
 
-    if (result.rows.length === 0) {
+    if (!result) {
       return res.status(403).json({
         error: '权限不足',
         message: '您没有权限访问此服务器'
       });
     }
 
-    req.serverPermission = result.rows[0];
+    req.serverPermission = result;
     next();
   } catch (error) {
     return res.status(500).json({
@@ -90,6 +91,101 @@ const checkServerPermission = async (req, res, next) => {
     });
   }
 };
+
+/**
+ * @route GET /api/containers/all
+ * @desc 获取所有服务器的容器信息
+ * @access Private
+ */
+router.get('/all',
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const { all = 'true' } = req.query;
+      
+      // 获取用户有权限的服务器列表
+      let servers;
+      if (req.user.role === 'admin') {
+        servers = await database.db.all(`
+          SELECT s.*
+          FROM servers s
+          WHERE s.is_active = 1
+          ORDER BY s.created_at DESC
+        `);
+      } else {
+        servers = await database.db.all(`
+          SELECT s.*, p.can_view, p.can_control, p.can_ssh, p.hide_sensitive_info
+          FROM servers s
+          JOIN user_server_permissions p ON s.id = p.server_id
+          WHERE p.user_id = ? AND s.is_active = 1 AND p.can_view = 1
+          ORDER BY s.name
+        `, [req.user.id]);
+      }
+
+      const containersData = {};
+      
+      for (const server of servers) {
+        try {
+          // 获取用户有权限的容器列表
+          let userContainerIds = [];
+          if (req.user.role !== 'admin') {
+            const userContainers = await database.db.all(
+              'SELECT container_id FROM user_containers WHERE user_id = ?',
+              [req.user.id]
+            );
+            userContainerIds = userContainers.map(uc => uc.container_id);
+          }
+
+          // 从缓存或Docker服务获取容器列表
+          let containers = cacheService.getContainers(server.id);
+          if (containers) {
+            containers = containers.containers;
+            logger.debug(`使用缓存容器列表: 服务器 ${server.name} - ${containers.length} 个容器`);
+          } else {
+            // 如果缓存中没有，从 Docker 服务获取
+            containers = await dockerService.getContainers(server.id, all === 'true');
+            logger.debug(`从 Docker 服务获取容器列表: 服务器 ${server.name} - ${containers.length} 个容器`);
+          }
+
+          // 根据权限过滤容器
+          const filteredContainers = containers.filter(container => {
+            // 管理员可以看到所有容器
+            if (req.user.role === 'admin') {
+              return true;
+            }
+            // 普通用户只能看到有权限的容器
+            return userContainerIds.includes(container.id);
+          });
+
+          containersData[server.id] = {
+            serverName: server.name,
+            containers: filteredContainers,
+            lastUpdate: Date.now()
+          };
+        } catch (error) {
+          logger.error(`获取服务器 ${server.name} 容器状态失败:`, error);
+          containersData[server.id] = {
+            serverName: server.name,
+            containers: [],
+            error: error.message,
+            lastUpdate: Date.now()
+          };
+        }
+      }
+
+      res.json({
+        success: true,
+        data: containersData
+      });
+    } catch (error) {
+      logger.error('获取所有容器信息失败:', error);
+      res.status(500).json({
+        error: '获取容器信息失败',
+        message: '服务器内部错误'
+      });
+    }
+  }
+);
 
 /**
  * @route GET /api/containers/:serverId
@@ -112,27 +208,62 @@ router.get('/:serverId',
         });
       }
 
-      const containers = await dockerService.getContainers(serverId, all === 'true');
+      // 首先尝试从缓存获取容器列表
+      const cachedContainers = cacheService.getContainers(serverId);
+      let containers;
+      let fromCache = false;
 
-      // 根据权限隐藏敏感信息
-      const filteredContainers = containers.map(container => {
-        if (req.serverPermission.hide_sensitive_info) {
-          return {
-            ...container,
-            id: container.id.substring(0, 12) + '...',
-            ports: container.ports.map(port => ({
-              ...port,
-              publicPort: port.publicPort ? '***' : port.publicPort
-            }))
-          };
-        }
-        return container;
-      });
+      if (cachedContainers) {
+        containers = cachedContainers.containers;
+        fromCache = true;
+        logger.debug(`使用缓存容器列表: 服务器 ${serverId} - ${containers.length} 个容器`);
+      } else {
+        // 如果缓存中没有，从 Docker 服务获取
+        containers = await dockerService.getContainers(serverId, all === 'true');
+        logger.debug(`从 Docker 服务获取容器列表: 服务器 ${serverId} - ${containers.length} 个容器`);
+      }
+
+      // 获取用户有权限的容器列表
+      let userContainerIds = [];
+      if (req.user.role !== 'admin') {
+        const userContainers = await database.db.all(
+          'SELECT container_id FROM user_containers WHERE user_id = ?',
+          [req.user.id]
+        );
+        userContainerIds = userContainers.map(uc => uc.container_id);
+        logger.debug(`用户 ${req.user.id} 有权限的容器:`, userContainerIds);
+      }
+
+      // 根据权限过滤容器
+      const filteredContainers = containers
+        .filter(container => {
+          // 管理员可以看到所有容器
+          if (req.user.role === 'admin') {
+            return true;
+          }
+          // 普通用户只能看到有权限的容器
+          return userContainerIds.includes(container.id);
+        })
+        .map(container => {
+          if (req.serverPermission.hide_sensitive_info) {
+            return {
+              ...container,
+              id: container.id.substring(0, 12) + '...',
+              ports: container.ports.map(port => ({
+                ...port,
+                publicPort: port.publicPort ? '***' : port.publicPort
+              }))
+            };
+          }
+          return container;
+        });
 
       res.json({
         serverId,
         containers: filteredContainers,
-        total: filteredContainers.length
+        total: filteredContainers.length,
+        fromCache,
+        cacheAge: fromCache ? cachedContainers.cacheAge : 0
       });
     } catch (error) {
       logger.error('获取容器列表失败:', error);

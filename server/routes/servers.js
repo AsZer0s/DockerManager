@@ -6,6 +6,7 @@ import database from '../config/database.js';
 import logger from '../utils/logger.js';
 import encryption from '../utils/encryption.js';
 import dockerService from '../services/dockerService.js';
+import cacheService from '../services/cacheService.js';
 import { serverValidation, validate, validateParams, commonValidation } from '../utils/validation.js';
 
 const router = express.Router();
@@ -14,12 +15,25 @@ const router = express.Router();
 const statusCache = new Map();
 const CACHE_DURATION = 30000; // 30秒缓存
 
-// 辅助函数：检查服务器连接状态
-async function checkServerStatus(server) {
+// 辅助函数：检查服务器连接状态（优先使用缓存）
+async function checkServerStatus(server, forceRealTime = false) {
+  logger.debug(`开始检查服务器状态: ${server.name} (ID: ${server.id}), forceRealTime: ${forceRealTime}`);
+  
+  // 如果强制实时检查，跳过缓存
+  if (!forceRealTime) {
+    // 首先尝试从缓存服务获取状态
+    const cachedStatus = cacheService.getServerStatus(server.id);
+    if (cachedStatus) {
+      logger.debug(`使用缓存状态: 服务器 ${server.name} - ${cachedStatus.status}`);
+      return cachedStatus.status;
+    }
+  }
+  
+  // 如果缓存中没有，使用原有的检查逻辑
   const cacheKey = `server_${server.id}`;
   const now = Date.now();
   
-  // 检查缓存
+  // 检查本地缓存
   if (statusCache.has(cacheKey)) {
     const cached = statusCache.get(cacheKey);
     if (now - cached.timestamp < CACHE_DURATION) {
@@ -29,22 +43,30 @@ async function checkServerStatus(server) {
   
   try {
     // 获取完整的服务器信息（包括解密后的密码和私钥）
+    logger.debug(`获取服务器完整信息: ${server.name}`);
     const fullServerInfo = await getFullServerInfo(server.id);
     if (!fullServerInfo) {
+      logger.debug(`服务器 ${server.name} 完整信息获取失败`);
       const status = '离线';
       statusCache.set(cacheKey, { status, timestamp: now });
       return status;
     }
     
+    logger.debug(`开始SSH连接检查: ${server.name} (${fullServerInfo.host}:${fullServerInfo.ssh_port || fullServerInfo.port || 22})`);
     // 通过 SSH 连接检查服务器状态
     const isOnline = await checkServerViaSSH(fullServerInfo);
     
     const status = isOnline ? '在线' : '离线';
+    logger.debug(`SSH连接检查结果: ${server.name} - ${status}`);
     statusCache.set(cacheKey, { status, timestamp: now });
+    
+    // 同时更新缓存服务
+    cacheService.setServerStatus(server.id, status);
+    
     return status;
   } catch (error) {
     // 记录错误但不抛出，避免未处理的 Promise 拒绝
-    logger.debug(`服务器 ${server.name} 状态检查失败:`, error.message);
+    logger.error(`服务器 ${server.name} 状态检查失败:`, error);
     const status = '离线';
     statusCache.set(cacheKey, { status, timestamp: now });
     return status;
@@ -83,20 +105,25 @@ async function getFullServerInfo(serverId) {
 // 通过 SSH 检查服务器状态
 async function checkServerViaSSH(server) {
   return new Promise(async (resolve) => {
+    logger.debug(`SSH连接配置: ${server.host}:${server.ssh_port || server.port || 22}, 用户: ${server.username}`);
+    
     const { Client } = await import('ssh2');
     const client = new Client();
     
     const timeout = setTimeout(() => {
+      logger.debug(`SSH连接超时: ${server.host}`);
       client.destroy();
       resolve(false);
     }, 5000); // 5秒超时
     
     client.on('ready', () => {
       clearTimeout(timeout);
+      logger.debug(`SSH连接成功: ${server.host}`);
       
       // 执行 docker ps 命令检查 Docker 是否运行
       client.exec('docker ps --format "table {{.Names}}\t{{.Status}}"', (err, stream) => {
         if (err) {
+          logger.debug(`Docker命令执行失败: ${server.host} - ${err.message}`);
           client.end();
           resolve(false);
           return;
@@ -104,6 +131,7 @@ async function checkServerViaSSH(server) {
         
         let output = '';
         stream.on('close', (code) => {
+          logger.debug(`Docker命令执行完成: ${server.host}, 退出码: ${code}`);
           client.end();
           // 如果命令执行成功（退出码为0），说明服务器在线且Docker可用
           resolve(code === 0);
@@ -114,20 +142,21 @@ async function checkServerViaSSH(server) {
         });
         
         stream.stderr.on('data', (data) => {
-          // 忽略错误输出，主要看退出码
+          logger.debug(`Docker命令错误输出: ${server.host} - ${data.toString()}`);
         });
       });
     });
     
-    client.on('error', () => {
+    client.on('error', (err) => {
       clearTimeout(timeout);
+      logger.debug(`SSH连接错误: ${server.host} - ${err.message}`);
       resolve(false);
     });
     
     // 连接配置
     const connectConfig = {
       host: server.host,
-      port: server.ssh_port || 22,
+      port: server.ssh_port || server.port || 22,
       username: server.username || 'root',
       readyTimeout: 5000,
       keepaliveInterval: 1000
@@ -232,10 +261,10 @@ router.get('/', authenticateToken, async (req, res) => {
       `, [req.user.id]);
     }
     
-    // 根据权限隐藏敏感信息并检查状态
+    // 根据权限隐藏敏感信息并检查状态（强制实时检查）
     const serversWithStatus = await Promise.all(servers.map(async (server) => {
       const serverData = { ...server };
-      serverData.status = await checkServerStatus(server);
+      serverData.status = await checkServerStatus(server, true); // 强制实时检查
       return serverData;
     }));
 
@@ -480,6 +509,14 @@ router.post('/',
 
       logger.info(`管理员 ${req.user.username} 创建服务器: ${name} (${host}:${port})`);
 
+      // 强制刷新缓存
+      try {
+        await cacheService.updateAllCaches();
+        logger.debug('服务器创建后缓存已刷新');
+      } catch (cacheError) {
+        logger.warn('刷新缓存失败:', cacheError);
+      }
+
       res.status(201).json({
         message: '服务器创建成功',
         server
@@ -643,6 +680,14 @@ router.put('/:id',
 
       logger.info(`管理员 ${req.user.username} 更新服务器: ${server.name}`);
 
+      // 强制刷新缓存
+      try {
+        await cacheService.updateAllCaches();
+        logger.debug('服务器更新后缓存已刷新');
+      } catch (cacheError) {
+        logger.warn('刷新缓存失败:', cacheError);
+      }
+
       res.json({
         message: '服务器更新成功',
         server
@@ -698,6 +743,14 @@ router.delete('/:id',
       );
 
       logger.info(`管理员 ${req.user.username} 删除服务器: ${serverName}`);
+
+      // 强制刷新缓存
+      try {
+        await cacheService.updateAllCaches();
+        logger.debug('服务器删除后缓存已刷新');
+      } catch (cacheError) {
+        logger.warn('刷新缓存失败:', cacheError);
+      }
 
       res.json({
         message: '服务器删除成功'
@@ -979,6 +1032,14 @@ router.post('/:id/permissions',
 
       logger.info(`管理员 ${req.user.username} 为用户分配服务器权限`);
 
+      // 强制刷新缓存
+      try {
+        await cacheService.updateAllCaches();
+        logger.debug('权限分配后缓存已刷新');
+      } catch (cacheError) {
+        logger.warn('刷新缓存失败:', cacheError);
+      }
+
       res.status(201).json({
         message: '权限分配成功'
       });
@@ -1076,6 +1137,14 @@ router.put('/:id/permissions/:permissionId',
 
       logger.info(`管理员 ${req.user.username} 更新用户 ${permissionResult.rows[0].username} 的服务器 ${permissionResult.rows[0].server_name} 权限`);
 
+      // 强制刷新缓存
+      try {
+        await cacheService.updateAllCaches();
+        logger.debug('权限更新后缓存已刷新');
+      } catch (cacheError) {
+        logger.warn('刷新缓存失败:', cacheError);
+      }
+
       res.json({
         message: '权限更新成功',
         permission
@@ -1127,6 +1196,14 @@ router.delete('/:id/permissions/:permissionId',
       );
 
       logger.info(`管理员 ${req.user.username} 删除用户 ${permissionResult.rows[0].username} 的服务器 ${permissionResult.rows[0].server_name} 权限`);
+
+      // 强制刷新缓存
+      try {
+        await cacheService.updateAllCaches();
+        logger.debug('权限删除后缓存已刷新');
+      } catch (cacheError) {
+        logger.warn('刷新缓存失败:', cacheError);
+      }
 
       res.json({
         message: '权限删除成功'
@@ -1380,7 +1457,7 @@ async function getDockerInfoViaSSH(server) {
       // 连接配置
       const connectConfig = {
         host: server.host,
-        port: server.ssh_port || 22,
+        port: server.ssh_port || server.port || 22,
         username: server.username || 'root',
         readyTimeout: 5000,
         keepaliveInterval: 1000
@@ -1475,7 +1552,7 @@ async function getImagesViaSSH(server) {
       // 连接配置
       const connectConfig = {
         host: server.host,
-        port: server.ssh_port || 22,
+        port: server.ssh_port || server.port || 22,
         username: server.username || 'root',
         readyTimeout: 5000,
         keepaliveInterval: 1000

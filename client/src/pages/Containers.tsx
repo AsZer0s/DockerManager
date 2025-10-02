@@ -52,6 +52,8 @@ const Containers: React.FC = () => {
   })
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [refreshCooldown, setRefreshCooldown] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(5)
   const [autoScroll, setAutoScroll] = useState(true)
   const [logsContainerRef, setLogsContainerRef] = useState<HTMLDivElement | null>(null)
   const queryClient = useQueryClient()
@@ -64,40 +66,40 @@ const Containers: React.FC = () => {
     queryKey: ['containers', selectedServer],
     queryFn: async () => {
       if (selectedServer === 'all') {
-        // 获取所有在线服务器的容器（包括停止的容器）
-        const onlineServers = serversData?.data.servers.filter(server => 
-          server.is_active && server.status === '在线'
-        ) || []
+        // 使用新的API获取所有容器信息
+        const response = await containerAPI.getAllContainers(true)
+        const containersData = response.data.data
         
         const allContainers = []
-        for (const server of onlineServers) {
-          try {
-            const response = await containerAPI.getContainers(server.id, true)
-            const containers = response.data.containers.map((container: any) => ({
-              ...container,
-              serverName: server.name,
-              serverId: server.id
-            }))
-            allContainers.push(...containers)
-          } catch (error) {
-            console.warn(`获取服务器 ${server.name} 容器失败:`, error)
-          }
+        for (const [serverId, serverData] of Object.entries(containersData)) {
+          const containers = serverData.containers.map((container: any) => ({
+            ...container,
+            serverName: serverData.serverName,
+            serverId: parseInt(serverId)
+          }))
+          allContainers.push(...containers)
         }
         
         return { data: { containers: allContainers, total: allContainers.length } }
       } else {
-        // 获取指定服务器的容器（始终获取所有容器，包括停止的）
-        const response = await containerAPI.getContainers(selectedServer, true)
-        const server = serversData?.data.servers.find(s => s.id === selectedServer)
-        const containers = response.data.containers.map((container: any) => ({
+        // 使用新的API获取指定服务器的容器
+        const response = await containerAPI.getAllContainers(true)
+        const containersData = response.data.data
+        const serverData = containersData[selectedServer]
+        
+        if (!serverData) {
+          return { data: { containers: [], total: 0 } }
+        }
+        
+        const containers = serverData.containers.map((container: any) => ({
           ...container,
-          serverName: server?.name || '未知服务器',
+          serverName: serverData.serverName,
           serverId: selectedServer
         }))
         return { data: { containers, total: containers.length } }
       }
     },
-    enabled: !!serversData,
+    enabled: true,
     refetchInterval: 10000, // 10秒刷新一次
   })
 
@@ -198,6 +200,7 @@ const Containers: React.FC = () => {
   // 处理服务器选择
   const handleServerChange = (value: number | 'all') => {
     setSelectedServer(value)
+    setCurrentPage(1) // 切换服务器时重置到第一页
     if (value === 'all') {
       setSearchParams({})
     } else {
@@ -865,10 +868,20 @@ const Containers: React.FC = () => {
           loading={isLoading}
           rowKey={(record) => `${record.serverId}-${record.id}`}
           pagination={{
-            pageSize: 10,
+            current: currentPage,
+            pageSize: pageSize,
+            total: containers.length,
             showSizeChanger: true,
             showQuickJumper: true,
-            showTotal: (total) => `共 ${total} 个容器`,
+            showTotal: (total, range) => `第 ${range[0]}-${range[1]} 个，共 ${total} 个容器`,
+            pageSizeOptions: ['5', '10', '20', '50'],
+            onChange: (page, size) => {
+              setCurrentPage(page)
+              if (size !== pageSize) {
+                setPageSize(size)
+                setCurrentPage(1) // 重置到第一页
+              }
+            },
             style: { padding: '16px 24px' }
           }}
           scroll={{ x: 1200 }}

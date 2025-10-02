@@ -56,19 +56,19 @@ const checkSshPermission = async (req, res, next) => {
       return next();
     }
 
-    const result = await database.query(
-      'SELECT can_ssh FROM user_server_permissions WHERE user_id = $1 AND server_id = $2',
+    const result = await database.db.get(
+      'SELECT can_ssh FROM user_server_permissions WHERE user_id = ? AND server_id = ?',
       [req.user.id, serverId]
     );
 
-    if (result.rows.length === 0 || !result.rows[0].can_ssh) {
+    if (!result || !result.can_ssh) {
       return res.status(403).json({
         error: '权限不足',
         message: '您没有权限 SSH 访问此服务器'
       });
     }
 
-    req.serverPermission = result.rows[0];
+    req.serverPermission = result;
     next();
   } catch (error) {
     return res.status(500).json({

@@ -704,7 +704,7 @@ const Servers: React.FC = () => {
             name="ssh_port"
             label="SSH 端口"
             rules={[{ required: true, message: '请输入SSH端口' }]}
-            initialValue={22}
+            initialValue={editingServer?.ssh_port || 22}
           >
             <InputNumber
               min={1}

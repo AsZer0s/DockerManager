@@ -15,10 +15,15 @@ class Encryption {
   initialize() {
     let keyString = process.env.ENCRYPTION_KEY;
     
-    if (!keyString || keyString.length !== 32) {
+    // 检查密钥是否有效（32个字符的十六进制字符串）
+    const isValidKey = keyString && 
+                      keyString.length === 32 && 
+                      /^[0-9a-fA-F]+$/.test(keyString);
+    
+    if (!isValidKey) {
       console.log('⚠️  ENCRYPTION_KEY 不符合要求，正在自动生成新的密钥...');
       
-      // 生成32个字符的随机字符串
+      // 生成32个字符的随机十六进制字符串
       keyString = this.generateRandomString(16); // 16字节 = 32个十六进制字符
       
       // 更新环境变量
@@ -30,6 +35,9 @@ class Encryption {
       console.log('✅ 已自动生成新的 ENCRYPTION_KEY');
       console.log('🔑 新的 ENCRYPTION_KEY:', keyString);
       console.log('📝 已更新 .env 文件，请妥善保存此密钥！');
+    } else {
+      console.log('✅ 使用现有的 ENCRYPTION_KEY');
+      console.log('🔑 ENCRYPTION_KEY:', keyString);
     }
     
     // 将字符串转换为 Buffer

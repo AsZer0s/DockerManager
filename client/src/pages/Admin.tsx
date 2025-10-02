@@ -9,22 +9,42 @@ import {
   Space, 
   Alert,
   Row,
-  Col
+  Col,
+  Spin
 } from 'antd'
 import { 
   UserOutlined, 
   LockOutlined
 } from '@ant-design/icons'
-import { useMutation } from 'react-query'
+import { useMutation, useQuery } from 'react-query'
 
 import { useAuthStore } from '@/stores/authStore'
-import { authAPI } from '@/services/api'
+import { authAPI, settingsAPI } from '@/services/api'
 
 const { Title, Text } = Typography
 
 const Admin: React.FC = () => {
   const [passwordForm] = Form.useForm()
-  const { user } = useAuthStore()
+  const { user, updateUser } = useAuthStore()
+
+  // 获取最新的用户信息
+  const { data: userData, isLoading: userLoading } = useQuery(
+    'userProfile',
+    () => settingsAPI.getProfile(),
+    {
+      select: (response) => response.data.user,
+      onSuccess: (data) => {
+        // 更新 authStore 中的用户信息
+        updateUser({
+          id: data.id,
+          username: data.username,
+          email: data.email,
+          role: data.role as 'admin' | 'user',
+          telegramId: data.telegramId
+        })
+      }
+    }
+  )
 
   // 修改密码 mutation
   const changePasswordMutation = useMutation({
@@ -67,24 +87,30 @@ const Admin: React.FC = () => {
               账户信息
             </span>
           }>
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <div>
-                <Text strong>用户名: </Text>
-                <Text>{user?.username}</Text>
+            {userLoading ? (
+              <div style={{ textAlign: 'center', padding: '20px' }}>
+                <Spin size="large" />
               </div>
-              <div>
-                <Text strong>邮箱: </Text>
-                <Text>{user?.email}</Text>
-              </div>
-              <div>
-                <Text strong>角色: </Text>
-                <Text type="success">{user?.role}</Text>
-              </div>
-              <div>
-                <Text strong>Telegram ID: </Text>
-                <Text>{user?.telegramId || '未绑定'}</Text>
-              </div>
-            </Space>
+            ) : (
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <div>
+                  <Text strong>用户名: </Text>
+                  <Text>{userData?.username || user?.username}</Text>
+                </div>
+                <div>
+                  <Text strong>邮箱: </Text>
+                  <Text>{userData?.email || user?.email}</Text>
+                </div>
+                <div>
+                  <Text strong>角色: </Text>
+                  <Text type="success">{userData?.role || user?.role}</Text>
+                </div>
+                <div>
+                  <Text strong>Telegram ID: </Text>
+                  <Text>{userData?.telegramId || user?.telegramId || '未绑定'}</Text>
+                </div>
+              </Space>
+            )}
           </Card>
         </Col>
 

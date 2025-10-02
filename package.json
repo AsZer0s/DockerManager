@@ -1,6 +1,6 @@
 {
   "name": "docker-manager",
-  "version": "0.46.4",
+  "version": "0.47.1",
   "description": "Docker 管理系统",
   "main": "server/index.js",
   "type": "module",

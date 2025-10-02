@@ -11,8 +11,7 @@ import {
   Modal,
   Alert,
   Row,
-  Col,
-  Switch
+  Col
 } from 'antd'
 import { 
   LockOutlined, 
@@ -296,7 +295,7 @@ const AccountSettings: React.FC = () => {
               <br />
               <Text type="secondary">
                 {userData?.telegramId ? 
-                  (userData.telegramUsername ? `已绑定：${userData.telegramUsername}` : `已绑定：ID ${userData.telegramId}`) : 
+                  `已绑定：ID ${userData.telegramId}` : 
                   '未绑定Telegram账号'
                 }
               </Text>
@@ -326,26 +325,6 @@ const AccountSettings: React.FC = () => {
         </Row>
       </Card>
 
-      {/* 两步验证 */}
-      <Card title="两步验证" size="small" style={{ marginBottom: 24 }}>
-        <Row gutter={16} align="middle">
-          <Col span={16}>
-            <div>
-              <Text strong>两步验证</Text>
-              <br />
-              <Text type="secondary">为您的账户添加额外的安全保护</Text>
-            </div>
-          </Col>
-          <Col span={8} style={{ textAlign: 'right' }}>
-            <Switch 
-              checked={false} 
-              onChange={(checked) => {
-                message.info(checked ? '启用两步验证' : '禁用两步验证')
-              }}
-            />
-          </Col>
-        </Row>
-      </Card>
 
       {/* 登录设备 */}
       <Card title="登录设备" size="small" style={{ marginBottom: 24 }}>

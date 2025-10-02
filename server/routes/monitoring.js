@@ -50,25 +50,29 @@ const checkServerPermission = async (req, res, next) => {
     const serverId = parseInt(req.params.serverId || req.query.serverId);
     
     if (req.user.role === 'admin') {
-      req.serverPermission = { canView: true, hideSensitiveInfo: false };
+      req.serverPermission = { can_view: true, hide_sensitive_info: false };
       return next();
     }
 
-    const result = await database.db.get(
-      'SELECT can_view, hide_sensitive_info FROM user_server_permissions WHERE user_id = ? AND server_id = ?',
-      [req.user.id, serverId]
-    );
+    // 检查服务器是否存在且用户有权限
+    const result = await database.db.get(`
+      SELECT s.id, p.can_view, p.can_control, p.can_ssh, p.hide_sensitive_info
+      FROM servers s
+      JOIN user_server_permissions p ON s.id = p.server_id
+      WHERE s.id = ? AND p.user_id = ? AND s.is_active = 1 AND p.can_view = 1
+    `, [serverId, req.user.id]);
 
     if (!result) {
       return res.status(403).json({
         error: '权限不足',
-        message: '您没有权限访问此服务器'
+        message: '您没有权限查看此服务器的监控数据'
       });
     }
 
     req.serverPermission = result;
     next();
   } catch (error) {
+    logger.error('监控权限检查失败:', error);
     return res.status(500).json({
       error: '权限检查失败',
       message: '服务器内部错误'
@@ -91,7 +95,7 @@ router.get('/servers/:serverId',
       const serverId = parseInt(req.params.serverId);
       const { timeRange = '24h', interval = '5m' } = req.query;
 
-      if (!req.serverPermission.canView) {
+      if (!req.serverPermission.can_view) {
         return res.status(403).json({
           error: '权限不足',
           message: '您没有权限查看此服务器的监控数据'
@@ -148,7 +152,7 @@ router.get('/containers/:serverId/:containerId',
       const containerId = req.params.containerId;
       const { timeRange = '24h', interval = '5m' } = req.query;
 
-      if (!req.serverPermission.canView) {
+      if (!req.serverPermission.can_view) {
         return res.status(403).json({
           error: '权限不足',
           message: '您没有权限查看此服务器的监控数据'
@@ -193,7 +197,7 @@ router.get('/current/:serverId',
     try {
       const serverId = parseInt(req.params.serverId);
 
-      if (!req.serverPermission.canView) {
+      if (!req.serverPermission.can_view) {
         return res.status(403).json({
           error: '权限不足',
           message: '您没有权限查看此服务器的监控数据'
@@ -240,7 +244,7 @@ router.get('/containers/current/:serverId/:containerId',
       const serverId = parseInt(req.params.serverId);
       const containerId = req.params.containerId;
 
-      if (!req.serverPermission.canView) {
+      if (!req.serverPermission.can_view) {
         return res.status(403).json({
           error: '权限不足',
           message: '您没有权限查看此服务器的监控数据'

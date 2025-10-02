@@ -638,7 +638,19 @@ class TelegramBotService {
         return;
       }
 
-      const containers = await dockerService.getContainers(serverId);
+      // 优先使用缓存获取容器列表
+      const cacheService = (await import('./cacheService.js')).default;
+      const cachedContainers = cacheService.getContainers(serverId);
+      
+      let containers;
+      if (cachedContainers) {
+        containers = cachedContainers.containers;
+        logger.debug(`Telegram Bot 使用缓存容器列表: 服务器 ${serverId} - ${containers.length} 个容器`);
+      } else {
+        // 如果缓存中没有，从 Docker 服务获取
+        containers = await dockerService.getContainers(serverId);
+        logger.debug(`Telegram Bot 从 Docker 服务获取容器列表: 服务器 ${serverId} - ${containers.length} 个容器`);
+      }
       
       if (containers.length === 0) {
         await this.safeReply(ctx, '该服务器上没有容器');
@@ -1477,7 +1489,16 @@ class TelegramBotService {
 
   async checkServerStatus(serverId) {
     try {
-      // 获取服务器完整信息
+      // 优先使用缓存检查服务器状态
+      const cacheService = (await import('./cacheService.js')).default;
+      const cachedStatus = cacheService.getServerStatus(serverId);
+      
+      if (cachedStatus) {
+        logger.debug(`Telegram Bot 使用缓存服务器状态: 服务器 ${serverId} - ${cachedStatus.status}`);
+        return cachedStatus.status === '在线';
+      }
+      
+      // 如果缓存中没有，使用原有逻辑
       const server = await database.db.get(
         'SELECT * FROM servers WHERE id = ? AND (is_active = 1 OR is_active = true)',
         [serverId]

@@ -16,13 +16,13 @@ const router = express.Router();
 router.get('/users', authenticateToken, requireAdmin, async (req, res) => {
   try {
     // 获取服务器和容器的总数
-    const serverCountResult = await database.query('SELECT COUNT(*) as total FROM servers WHERE is_active = true');
-    const containerCountResult = await database.query('SELECT COUNT(*) as total FROM containers');
+    const serverCountResult = await database.db.get('SELECT COUNT(*) as total FROM servers WHERE is_active = 1');
+    const containerCountResult = await database.db.get('SELECT COUNT(*) as total FROM containers');
     
-    const totalServers = parseInt(serverCountResult.rows[0].total);
-    const totalContainers = parseInt(containerCountResult.rows[0].total);
+    const totalServers = parseInt(serverCountResult.total);
+    const totalContainers = parseInt(containerCountResult.total);
 
-    const result = await database.query(`
+    const result = await database.db.all(`
       SELECT 
         u.id, u.username, u.email, u.role, u.is_active, u.created_at,
         GROUP_CONCAT(DISTINCT p.server_id) as visible_servers,
@@ -34,14 +34,18 @@ router.get('/users', authenticateToken, requireAdmin, async (req, res) => {
       ORDER BY u.created_at DESC
     `);
 
-    const users = result.rows.map(user => {
+    // 获取所有容器的实际ID（用于管理员显示）
+    const allContainers = await database.db.all('SELECT container_id FROM containers');
+    const allContainerIds = allContainers.map(c => c.container_id);
+
+    const users = result.map(user => {
       let visibleServers = [];
       let visibleContainers = [];
       
       if (user.role === 'admin') {
         // 管理员显示全部服务器和容器
         visibleServers = Array.from({length: totalServers}, (_, i) => i + 1);
-        visibleContainers = Array.from({length: totalContainers}, (_, i) => `admin_all_${i + 1}`);
+        visibleContainers = allContainerIds; // 使用真实的容器ID
       } else {
         // 普通用户显示实际权限
         visibleServers = user.visible_servers ? user.visible_servers.split(',').map(Number) : [];
@@ -329,17 +333,17 @@ router.get('/servers', authenticateToken, requireAdmin, async (req, res) => {
  */
 router.get('/containers', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const result = await database.query(`
+    const result = await database.db.all(`
       SELECT 
-        c.id, c.name, c.status, c.server_id,
+        c.id, c.container_id, c.name, c.status, c.server_id,
         s.name as server_name
       FROM containers c
       JOIN servers s ON c.server_id = s.id
       ORDER BY s.name, c.name
     `);
 
-    const containers = result.rows.map(container => ({
-      id: container.id,
+    const containers = result.map(container => ({
+      id: container.container_id,
       name: container.name,
       status: container.status,
       serverId: container.server_id,
@@ -409,7 +413,7 @@ router.put('/users/:id/servers',
 
           // 自动给该服务器的所有容器分配权限
           const containers = await database.db.all(
-            'SELECT id FROM containers WHERE server_id = ?',
+            'SELECT container_id FROM containers WHERE server_id = ?',
             [serverId]
           );
 
@@ -417,7 +421,7 @@ router.put('/users/:id/servers',
             await database.db.run(`
               INSERT OR IGNORE INTO user_containers (user_id, container_id)
               VALUES (?, ?)
-            `, [userId, container.id]);
+            `, [userId, container.container_id]);
           }
         }
       }
@@ -475,7 +479,7 @@ router.put('/users/:id/containers',
       }
 
       // 删除现有权限
-      await database.query('DELETE FROM user_containers WHERE user_id = $1', [userId]);
+      await database.db.run('DELETE FROM user_containers WHERE user_id = ?', [userId]);
 
       // 添加新权限
       if (containerIds && containerIds.length > 0) {
@@ -483,13 +487,19 @@ router.put('/users/:id/containers',
         const serverIds = new Set();
         
         for (const containerId of containerIds) {
-          const container = await database.query(
-            'SELECT server_id FROM containers WHERE id = $1',
+          const container = await database.db.get(
+            'SELECT server_id, container_id FROM containers WHERE container_id = ?',
             [containerId]
           );
           
-          if (container.rows.length > 0) {
-            serverIds.add(container.rows[0].server_id);
+          if (container) {
+            serverIds.add(container.server_id);
+            
+            // 使用 Docker 容器的实际 ID 分配权限
+            await database.db.run(`
+              INSERT OR IGNORE INTO user_containers (user_id, container_id)
+              VALUES (?, ?)
+            `, [userId, container.container_id]);
           }
         }
 
@@ -501,18 +511,6 @@ router.put('/users/:id/containers',
             VALUES (?, ?, 1, 0, 0, 0)
           `, [userId, serverId]);
         }
-
-        // 再给用户分配容器权限
-        const values = containerIds.map((containerId, index) => 
-          `($1, $${index + 2})`
-        ).join(', ');
-        
-        const query = `
-          INSERT INTO user_containers (user_id, container_id) 
-          VALUES ${values}
-        `;
-        
-        await database.query(query, [userId, ...containerIds]);
       }
 
       logger.info(`管理员 ${req.user.username} 更新了用户 ${existingUser.rows[0].username} 的容器权限`);

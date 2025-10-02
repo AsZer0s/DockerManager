@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Card, Select, Button, Space, message } from 'antd'
 import { ConsoleSqlOutlined, ReloadOutlined, DisconnectOutlined, HistoryOutlined } from '@ant-design/icons'
-import { sshAPI, Server } from '@/services/api'
+import { Server } from '@/services/api'
 import sshSessionAPI from '@/services/sshSessionAPI'
 import { useGlobalServers } from '@/hooks/useGlobalServers'
 import './SSHConsole.css'
@@ -22,7 +22,6 @@ const SSHConsole: React.FC = () => {
   const [historyIndex, setHistoryIndex] = useState(-1)
   const [isLoading, setIsLoading] = useState(false)
   const [sessionId, setSessionId] = useState<string | null>(null)
-  const [currentPath, setCurrentPath] = useState('/root')
   
   const terminalRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -40,32 +39,32 @@ const SSHConsole: React.FC = () => {
     }
   }, [])
 
-  // 获取提示符
-  const getPrompt = useCallback(() => {
-    const serverName = onlineServers.find((s: Server) => s.id === selectedServer)?.name || 'server'
-    return `[${serverName}] ${currentPath} $ `
-  }, [selectedServer, currentPath, onlineServers])
-
-  // 更新当前路径
-  const updateCurrentPath = async () => {
-    if (!sessionId) return
+  // 清理终端控制序列
+  const cleanTerminalOutput = useCallback((text: string) => {
+    if (!text) return '';
     
-    try {
-      const result = await sshSessionAPI.executeCommand(sessionId, 'pwd')
-      const newPath = result.output?.trim() || '/root'
-      setCurrentPath(newPath)
-    } catch (error) {
-      // 如果获取路径失败，保持当前路径
-      console.warn('获取当前路径失败:', error)
-    }
-  }
+    return text
+      // 移除 bracketed paste mode 序列
+      .replace(/\x1b\[\?2004[hl]/g, '')
+      // 移除其他常见的 ANSI 转义序列，但保留一些基本的颜色和格式
+      .replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '')
+      // 移除回车符和换行符的重复
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n')
+      // 移除多余的空行，但保留必要的换行
+      .replace(/\n{3,}/g, '\n\n')
+      // 移除行尾的空白字符，但保留行首的缩进
+      .split('\n').map(line => line.replace(/\s+$/, '')).join('\n')
+      .trim();
+  }, [])
 
   // 添加输出到终端
   const addToTerminal = useCallback((text: string, type: 'output' | 'error' | 'command' = 'output') => {
     const prefix = type === 'command' ? '$ ' : type === 'error' ? '! ' : ''
-    setTerminalOutput(prev => [...prev, `${prefix}${text}`])
+    const cleanedText = cleanTerminalOutput(text)
+    setTerminalOutput(prev => [...prev, `${prefix}${cleanedText}`])
     setTimeout(scrollToBottom, 10)
-  }, [scrollToBottom])
+  }, [scrollToBottom, cleanTerminalOutput])
 
   // 连接SSH
   const connectSSH = async () => {
@@ -85,9 +84,6 @@ const SSHConsole: React.FC = () => {
       setSessionId(result.sessionId)
       addToTerminal('SSH连接已建立')
       addToTerminal('欢迎使用DockerManager SSH控制台')
-      
-      // 初始化当前路径
-      await updateCurrentPath()
       
       setIsLoading(false)
       message.success('SSH连接成功')
@@ -132,8 +128,7 @@ const SSHConsole: React.FC = () => {
     setCommandHistory(prev => [newHistory, ...prev.slice(0, 99)]) // 保留最近100条
     setHistoryIndex(-1)
 
-    // 显示命令（带路径前缀）
-    addToTerminal(`${getPrompt()}${trimmedCommand}`, 'command')
+    // 不手动显示命令，让SSH服务器返回的完整输出自然显示
 
     // 处理特殊命令
     if (trimmedCommand === 'clear') {
@@ -154,11 +149,6 @@ const SSHConsole: React.FC = () => {
       
       if (result.error) {
         addToTerminal(result.error, 'error')
-      }
-
-      // 更新当前路径（如果是cd命令）
-      if (trimmedCommand.startsWith('cd ')) {
-        await updateCurrentPath()
       }
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || error.message || '命令执行失败'
@@ -334,7 +324,6 @@ const SSHConsole: React.FC = () => {
           
           {isConnected && (
             <div className="terminal-input">
-              <span className="prompt">{getPrompt()}</span>
               <input
                 ref={inputRef}
                 type="text"

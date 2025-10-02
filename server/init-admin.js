@@ -298,16 +298,20 @@ async function initAdmin() {
       
       const passwordHash = await bcrypt.hash(randomPassword, 12);
       
+      // 从环境变量获取管理员账户信息，如果没有则使用默认值
+      const adminUsername = process.env.ADMIN_USERNAME || 'admin';
+      const adminEmail = process.env.ADMIN_EMAIL || 'admin@ztms.top';
+      
       // 创建管理员用户
       await db.run(`
         INSERT INTO users (username, email, password_hash, role, is_active)
         VALUES (?, ?, ?, ?, ?)
-      `, ['admin', 'admin@ztms.top', passwordHash, 'admin', true]);
+      `, [adminUsername, adminEmail, passwordHash, 'admin', true]);
       
       console.log('✅ 管理员账户创建成功');
       console.log('========================');
-      console.log(`用户名: admin`);
-      console.log(`邮箱: admin@ztms.top`);
+      console.log(`用户名: ${adminUsername}`);
+      console.log(`邮箱: ${adminEmail}`);
       console.log(`密码: ${randomPassword}`);
       console.log('========================');
       console.log('⚠️  请妥善保存此密码！');
