@@ -53,7 +53,7 @@ const Containers: React.FC = () => {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [refreshCooldown, setRefreshCooldown] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
-  const [pageSize, setPageSize] = useState(5)
+  const [pageSize, setPageSize] = useState(10)
   const [autoScroll, setAutoScroll] = useState(true)
   const [logsContainerRef, setLogsContainerRef] = useState<HTMLDivElement | null>(null)
   const queryClient = useQueryClient()
@@ -126,6 +126,17 @@ const Containers: React.FC = () => {
     },
     onError: (error: any) => {
       message.error(error.response?.data?.message || '停止失败')
+    },
+  })
+
+  const refreshCacheMutation = useMutation({
+    mutationFn: () => containerAPI.refreshCache(),
+    onSuccess: () => {
+      message.success('缓存已刷新')
+      queryClient.invalidateQueries({ queryKey: ['containers'] })
+    },
+    onError: (error: any) => {
+      message.error(error.response?.data?.message || '刷新缓存失败')
     },
   })
 
@@ -779,6 +790,15 @@ const Containers: React.FC = () => {
           >
             刷新
           </Button>
+          <Button 
+            icon={<ReloadOutlined />} 
+            onClick={() => refreshCacheMutation.mutate()}
+            loading={refreshCacheMutation.isLoading}
+            type="primary"
+            ghost
+          >
+            刷新缓存
+          </Button>
         </Space>
       </motion.div>
 
@@ -875,7 +895,7 @@ const Containers: React.FC = () => {
             showSizeChanger: true,
             showQuickJumper: true,
             showTotal: (total, range) => `第 ${range[0]}-${range[1]} 个，共 ${total} 个容器`,
-            pageSizeOptions: ['5', '10', '20', '50'],
+            pageSizeOptions: ['10', '20', '50'],
             onChange: (page, size) => {
               setCurrentPage(page)
               if (size !== pageSize) {

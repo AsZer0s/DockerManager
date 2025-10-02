@@ -188,6 +188,40 @@ router.get('/all',
 );
 
 /**
+ * @route POST /api/containers/refresh-cache
+ * @desc 强制刷新容器缓存
+ * @access Private (Admin only)
+ */
+router.post('/refresh-cache',
+  authenticateToken,
+  async (req, res) => {
+    try {
+      // 只有管理员可以强制刷新缓存
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({
+          error: '权限不足',
+          message: '只有管理员可以强制刷新缓存'
+        });
+      }
+
+      // 强制刷新缓存
+      await cacheService.forceRefreshAllCaches();
+      
+      res.json({
+        success: true,
+        message: '缓存已强制刷新'
+      });
+    } catch (error) {
+      logger.error('强制刷新缓存失败:', error);
+      res.status(500).json({
+        error: '刷新缓存失败',
+        message: '服务器内部错误'
+      });
+    }
+  }
+);
+
+/**
  * @route GET /api/containers/:serverId
  * @desc 获取服务器的容器列表
  * @access Private

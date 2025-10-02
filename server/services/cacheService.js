@@ -7,7 +7,7 @@ class CacheService {
   constructor() {
     this.serverStatusCache = new Map(); // 服务器状态缓存
     this.containerCache = new Map(); // 容器列表缓存
-    this.cacheDuration = 10 * 60 * 1000; // 10分钟缓存时间
+    this.cacheDuration = 1 * 60 * 1000; // 1分钟缓存时间
     this.pollingInterval = null;
     this.isPolling = false;
   }
@@ -22,12 +22,12 @@ class CacheService {
     }
 
     this.isPolling = true;
-    logger.info('启动缓存轮询服务，每10分钟更新一次');
+    logger.info('启动缓存轮询服务，每1分钟更新一次');
 
     // 立即执行一次
     this.updateAllCaches();
 
-    // 设置定时器，每10分钟执行一次
+    // 设置定时器，每1分钟执行一次
     this.pollingInterval = setInterval(() => {
       this.updateAllCaches();
     }, this.cacheDuration);
@@ -75,6 +75,41 @@ class CacheService {
       logger.info(`缓存更新完成，处理了 ${servers.length} 个服务器`);
     } catch (error) {
       logger.error('更新缓存失败:', error);
+    }
+  }
+
+  /**
+   * 强制刷新所有缓存（忽略缓存时间）
+   */
+  async forceRefreshAllCaches() {
+    try {
+      logger.info('强制刷新所有缓存数据...');
+      
+      // 清空现有缓存
+      this.serverStatusCache.clear();
+      this.containerCache.clear();
+      
+      // 确保数据库连接
+      if (!database.isConnected) {
+        await database.connect();
+      }
+
+      // 获取所有活跃的服务器
+      const servers = await this.getAllActiveServers();
+      
+      // 并行更新服务器状态和容器列表
+      const updatePromises = servers.map(server => 
+        Promise.allSettled([
+          this.updateServerStatusCache(server),
+          this.updateContainerCache(server)
+        ])
+      );
+
+      await Promise.all(updatePromises);
+      
+      logger.info(`强制刷新完成，处理了 ${servers.length} 个服务器`);
+    } catch (error) {
+      logger.error('强制刷新缓存失败:', error);
     }
   }
 

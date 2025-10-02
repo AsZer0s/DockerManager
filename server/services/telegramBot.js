@@ -489,8 +489,16 @@ class TelegramBotService {
         const serverId = parseInt(data.split('_')[1]);
         await this.handleServerDetails(ctx, serverId);
       } else if (data.startsWith('containers_')) {
-        const serverId = parseInt(data.split('_')[1]);
-        await this.handleServerContainers(ctx, serverId);
+        const parts = data.split('_');
+        const serverId = parseInt(parts[1]);
+        
+        // 检查是否是分页请求
+        if (parts.length === 4 && parts[2] === 'page') {
+          const page = parseInt(parts[3]);
+          await this.handleServerContainers(ctx, serverId, page);
+        } else {
+          await this.handleServerContainers(ctx, serverId);
+        }
       } else if (data.startsWith('container_')) {
         const [_, serverId, containerId, action] = data.split('_');
         await this.handleContainerAction(ctx, parseInt(serverId), containerId, action);
@@ -614,7 +622,7 @@ class TelegramBotService {
     }
   }
 
-  async handleServerContainers(ctx, serverId) {
+  async handleServerContainers(ctx, serverId, currentPage = 1) {
     try {
       // 先检查服务器状态
       const status = await this.checkServerStatus(serverId);
@@ -679,17 +687,26 @@ class TelegramBotService {
       message += `🟢 运行中: ${runningCount}\n`;
       message += `🔴 已停止: ${stoppedCount}\n\n`;
 
-      // 容器列表
-      message += `📋 **容器列表**\n`;
+      // 容器列表 - 支持分页
+      const pageSize = 5; // 每页显示5个容器
+      const totalPages = Math.ceil(containers.length / pageSize);
+      
+      message += `📋 **容器列表** (第 ${currentPage}/${totalPages} 页)\n`;
       const buttons = [];
 
-      for (const container of containers.slice(0, 8)) { // 限制显示前8个容器
+      // 显示当前页的容器
+      const startIndex = (currentPage - 1) * pageSize;
+      const endIndex = Math.min(startIndex + pageSize, containers.length);
+      const currentPageContainers = containers.slice(startIndex, endIndex);
+
+      for (const container of currentPageContainers) {
         const statusIcon = this.isContainerRunning(container) ? '🟢' : '🔴';
         const statusText = this.isContainerRunning(container) ? '运行中' : '已停止';
         
         message += `${statusIcon} **${container.name}**\n`;
+        message += `   容器ID: \`${container.id}\`\n`;
         message += `   状态: ${statusText}\n`;
-        message += `   镜像: ${container.image}\n\n`;
+        message += `   镜像: \`${container.image}\`\n\n`;
 
         buttons.push([Markup.button.callback(
           `${statusIcon} ${container.name}`,
@@ -697,8 +714,18 @@ class TelegramBotService {
         )]);
       }
 
-      if (containers.length > 8) {
-        message += `... 还有 ${containers.length - 8} 个容器`;
+      // 添加分页按钮
+      const paginationButtons = [];
+      if (totalPages > 1) {
+        if (currentPage > 1) {
+          paginationButtons.push(Markup.button.callback('⬅️ 上一页', `containers_${serverId}_page_${currentPage - 1}`));
+        }
+        if (currentPage < totalPages) {
+          paginationButtons.push(Markup.button.callback('下一页 ➡️', `containers_${serverId}_page_${currentPage + 1}`));
+        }
+        if (paginationButtons.length > 0) {
+          buttons.push(paginationButtons);
+        }
       }
 
       // 添加控制按钮
@@ -708,10 +735,18 @@ class TelegramBotService {
       ]);
       buttons.push([Markup.button.callback('🔙 返回服务器', 'servers')]);
 
-      await ctx.reply(message, { 
-        parse_mode: 'Markdown',
-        ...Markup.inlineKeyboard(buttons)
-      });
+      // 如果是分页请求，编辑现有消息；否则发送新消息
+      if (currentPage > 1) {
+        await ctx.editMessageText(message, { 
+          parse_mode: 'Markdown',
+          ...Markup.inlineKeyboard(buttons)
+        });
+      } else {
+        await ctx.reply(message, { 
+          parse_mode: 'Markdown',
+          ...Markup.inlineKeyboard(buttons)
+        });
+      }
     } catch (error) {
       logger.error('处理服务器容器失败:', error);
       
@@ -727,6 +762,8 @@ class TelegramBotService {
     try {
       if (action === 'details') {
         await this.showContainerDetails(ctx, serverId, containerId);
+      } else if (action === 'logs') {
+        await this.showContainerLogs(ctx, serverId, containerId);
       } else if (['start', 'stop', 'restart'].includes(action)) {
         await this.performContainerAction(ctx, serverId, containerId, action);
       }
@@ -797,6 +834,7 @@ class TelegramBotService {
       message += `服务器: ${serverName}\n\n`;
       
       message += `📊 **状态信息**\n`;
+      message += `容器ID: \`${container.id}\`\n`;
       message += `状态: ${statusIcon} ${statusText}\n`;
       message += `镜像: \`${container.image}\`\n`;
       message += `创建时间: ${new Date(container.created).toLocaleString('zh-CN')}\n\n`;
@@ -872,6 +910,7 @@ class TelegramBotService {
         
         let message = `⚠️ 当前服务器状态异常，请稍后重试\n\n`;
         message += `服务器: ${serverName}\n`;
+        message += `容器ID: \`${containerId}\`\n`;
         message += `无法执行容器操作，请检查服务器连接状态。`;
 
         const buttons = [
@@ -982,6 +1021,21 @@ class TelegramBotService {
   // 新增：显示容器日志
   async showContainerLogs(ctx, serverId, containerId) {
     try {
+      const userId = ctx.from.id;
+      const user = await this.getUserByTelegramId(userId);
+      
+      if (!user) {
+        await ctx.reply('❌ 用户未找到，请先注册');
+        return;
+      }
+
+      // 检查用户权限
+      const hasViewPermission = await this.checkUserServerViewPermission(user.id, serverId);
+      if (!hasViewPermission) {
+        await ctx.reply('❌ 您没有权限查看此服务器的容器日志');
+        return;
+      }
+
       // 先检查服务器状态
       const status = await this.checkServerStatus(serverId);
       if (!status) {
@@ -991,6 +1045,7 @@ class TelegramBotService {
         let message = `📋 **容器日志**\n\n`;
         message += `服务器: ${serverName}\n\n`;
         message += `⚠️ 当前服务器状态异常，请稍后重试\n\n`;
+        message += `容器ID: \`${containerId}\`\n`;
         message += `无法获取容器日志，请检查服务器连接状态。`;
 
         const buttons = [
@@ -1008,11 +1063,10 @@ class TelegramBotService {
       const logs = await dockerService.getContainerLogs(serverId, containerId, { tail: 20 });
       
       let message = `📋 **容器日志**\n\n`;
-      if (logs && logs.length > 0) {
-        // 限制日志长度，避免消息过长
-        const recentLogs = logs.slice(-10);
+      if (logs && logs.trim()) {
+        // 显示最新的20条日志
         message += '```\n';
-        message += recentLogs.join('\n');
+        message += logs.trim();
         message += '\n```';
       } else {
         message += '暂无日志信息';
@@ -1704,7 +1758,6 @@ class TelegramBotService {
       
       logger.info('✅ 输入框占位符设置成功');
     } catch (error) {
-      logger.error('设置输入框占位符失败:', error);
     }
   }
 

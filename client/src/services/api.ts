@@ -405,6 +405,9 @@ export const containerAPI = {
   getAllContainers: (all = true): Promise<AxiosResponse<{ success: boolean; data: any }>> =>
     api.get(`/containers/all?all=${all}`),
     
+  refreshCache: (): Promise<AxiosResponse<{ success: boolean; message: string }>> =>
+    api.post('/containers/refresh-cache'),
+    
   getContainers: (serverId: number, all = false): Promise<AxiosResponse<{ serverId: number; containers: Container[]; total: number }>> =>
     api.get(`/containers/${serverId}?all=${all}`),
     
