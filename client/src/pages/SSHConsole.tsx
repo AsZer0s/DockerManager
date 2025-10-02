@@ -101,7 +101,7 @@ const SSHConsole: React.FC = () => {
       try {
         await sshSessionAPI.closeSession(sessionId)
       } catch (error) {
-        console.error('关闭SSH会话失败:', error)
+        // 关闭SSH会话失败，静默处理
       }
     }
     

@@ -57,13 +57,6 @@ class ConnectionMonitor {
       critical: true
     });
 
-    // WebSocket连接检查
-    this.healthChecks.set('websocket', {
-      name: 'WebSocket服务',
-      check: this.checkWebSocketService.bind(this),
-      autoRecover: false,
-      critical: false
-    });
 
     // SSH连接池检查
     this.healthChecks.set('ssh_pool', {
@@ -142,19 +135,6 @@ class ConnectionMonitor {
     }
   }
 
-  /**
-   * 检查WebSocket服务
-   */
-  async checkWebSocketService() {
-    try {
-      // 这里可以添加WebSocket服务的健康检查逻辑
-      // 例如检查活跃连接数、内存使用等
-      return true;
-    } catch (error) {
-      logger.error('WebSocket服务检查失败:', error);
-      return false;
-    }
-  }
 
   /**
    * 检查SSH连接池

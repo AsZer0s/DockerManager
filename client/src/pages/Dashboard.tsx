@@ -44,14 +44,15 @@ const Dashboard: React.FC = () => {
         const response = await containerAPI.getAllContainers(true)
         const containersData = response.data.data
         
-        for (const [serverId, serverData] of Object.entries(containersData)) {
-          const serverContainers = serverData.containers || []
+        for (const [, serverData] of Object.entries(containersData)) {
+          const serverDataTyped = serverData as { containers?: any[] }
+          const serverContainers = serverDataTyped.containers || []
           total += serverContainers.length
-          running += serverContainers.filter(c => c.state === 'running').length
-          stopped += serverContainers.filter(c => c.state !== 'running').length
+          running += serverContainers.filter((c: any) => c.state === 'running').length
+          stopped += serverContainers.filter((c: any) => c.state !== 'running').length
         }
       } catch (error) {
-        console.error('获取容器统计失败:', error)
+        // 静默处理错误，避免控制台输出
       }
       
       return { total, running, stopped }

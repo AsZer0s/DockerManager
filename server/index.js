@@ -4,7 +4,6 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import compression from 'compression';
 import { createServer } from 'http';
-import { Server } from 'socket.io';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -19,7 +18,6 @@ import jwtManager from './utils/jwt.js';
 import telegramBot from './services/telegramBot.js';
 import monitoringService from './services/monitoringService.js';
 import connectionMonitor from './services/connectionMonitor.js';
-import websocketService from './services/websocketService.js';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { open } from 'sqlite';
@@ -60,24 +58,6 @@ const app = express();
 app.set('trust proxy', true);
 
 const server = createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: true, // 允许所有来源
-    methods: ["GET", "POST"],
-    credentials: true
-  },
-  // 连接优化配置
-  pingTimeout: 120000, // 增加ping超时时间到2分钟
-  pingInterval: 60000,  // 增加ping间隔到1分钟
-  transports: ['polling', 'websocket'], // 优先使用polling
-  allowEIO3: true, // 兼容旧版本
-  // 连接限制
-  maxHttpBufferSize: 1e6, // 1MB
-  // 错误处理
-  connectTimeout: 45000,
-  // 减少连接断开频率
-  upgradeTimeout: 10000
-});
 
 // 中间件配置
 app.use(helmet({
@@ -87,7 +67,7 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'"],
       scriptSrc: ["'self'", "'unsafe-inline'", "https://telegram.org"],
       imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", "ws:", "wss:", "https://telegram.org"],
+      connectSrc: ["'self'", "https://telegram.org"],
       objectSrc: ["'none'"]
     }
   }
@@ -173,26 +153,6 @@ app.post('/api/health-check', async (req, res) => {
   }
 });
 
-// WebSocket连接状态端点
-app.get('/api/websocket-status', async (req, res) => {
-  try {
-    const stats = websocketService.getStats();
-    res.json({
-      websocket: {
-        connectedClients: stats.connectedClients,
-        activeSshSessions: stats.activeSshSessions,
-        clients: stats.clients
-      },
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    logger.error('获取WebSocket状态失败:', error);
-    res.status(500).json({
-      error: '获取WebSocket状态失败',
-      message: error.message
-    });
-  }
-});
 
 // 错误处理中间件
 app.use((err, req, res, next) => {
@@ -598,10 +558,6 @@ async function initializeServices() {
     jwtManager.initialize();
     console.log('✅ JWT 管理器初始化成功');
 
-    // 初始化 WebSocket 服务
-    console.log('🔌 初始化 WebSocket 服务...');
-    websocketService.initialize(io);
-    console.log('✅ WebSocket 服务初始化成功');
 
     // 初始化 HTTP 轮询服务
     console.log('🔄 初始化 HTTP 轮询服务...');

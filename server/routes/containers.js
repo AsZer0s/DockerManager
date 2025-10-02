@@ -140,11 +140,11 @@ router.get('/all',
           let containers = cacheService.getContainers(server.id);
           if (containers) {
             containers = containers.containers;
-            logger.debug(`使用缓存容器列表: 服务器 ${server.name} - ${containers.length} 个容器`);
+            // 使用缓存容器列表
           } else {
             // 如果缓存中没有，从 Docker 服务获取
             containers = await dockerService.getContainers(server.id, all === 'true');
-            logger.debug(`从 Docker 服务获取容器列表: 服务器 ${server.name} - ${containers.length} 个容器`);
+            // 从 Docker 服务获取容器列表
           }
 
           // 根据权限过滤容器
@@ -216,11 +216,11 @@ router.get('/:serverId',
       if (cachedContainers) {
         containers = cachedContainers.containers;
         fromCache = true;
-        logger.debug(`使用缓存容器列表: 服务器 ${serverId} - ${containers.length} 个容器`);
+        // 使用缓存容器列表
       } else {
         // 如果缓存中没有，从 Docker 服务获取
         containers = await dockerService.getContainers(serverId, all === 'true');
-        logger.debug(`从 Docker 服务获取容器列表: 服务器 ${serverId} - ${containers.length} 个容器`);
+        // 从 Docker 服务获取容器列表
       }
 
       // 获取用户有权限的容器列表
@@ -231,7 +231,7 @@ router.get('/:serverId',
           [req.user.id]
         );
         userContainerIds = userContainers.map(uc => uc.container_id);
-        logger.debug(`用户 ${req.user.id} 有权限的容器:`, userContainerIds);
+        // 用户有权限的容器
       }
 
       // 根据权限过滤容器

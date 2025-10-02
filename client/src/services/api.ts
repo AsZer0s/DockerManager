@@ -45,7 +45,7 @@ api.interceptors.request.use(
           config.headers.Authorization = `Bearer ${authData.state.token}`
         }
       } catch (error) {
-        console.error('解析 token 失败:', error)
+        // Token解析失败，静默处理
       }
     }
     
@@ -78,7 +78,7 @@ api.interceptors.response.use(
         
         // 等待重试延迟
         const delay = retryConfig.retryDelay((config as any).retryCount)
-        console.log(`请求失败，${delay}ms后重试 (${(config as any).retryCount}/${retryConfig.retries}):`, error.message)
+        // 请求失败，正在重试
         
         await new Promise(resolve => setTimeout(resolve, delay))
         

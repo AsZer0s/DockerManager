@@ -72,9 +72,10 @@ const Containers: React.FC = () => {
         
         const allContainers = []
         for (const [serverId, serverData] of Object.entries(containersData)) {
-          const containers = serverData.containers.map((container: any) => ({
+          const serverDataTyped = serverData as { containers: any[]; serverName: string }
+          const containers = serverDataTyped.containers.map((container: any) => ({
             ...container,
-            serverName: serverData.serverName,
+            serverName: serverDataTyped.serverName,
             serverId: parseInt(serverId)
           }))
           allContainers.push(...containers)
@@ -652,8 +653,8 @@ const Containers: React.FC = () => {
   // 计算统计信息
   const stats = {
     total: containers.length,
-    running: containers.filter(c => c.status && c.status.includes('Up')).length,
-    stopped: containers.filter(c => c.status && !c.status.includes('Up')).length,
+    running: containers.filter((c: any) => c.status && c.status.includes('Up')).length,
+    stopped: containers.filter((c: any) => c.status && !c.status.includes('Up')).length,
   }
 
   // 准备服务器选项（只显示在线服务器）
@@ -866,7 +867,7 @@ const Containers: React.FC = () => {
           columns={columns}
           dataSource={containers}
           loading={isLoading}
-          rowKey={(record) => `${record.serverId}-${record.id}`}
+          rowKey={(record: any) => `${record?.serverId || 'unknown'}-${record?.id || 'unknown'}`}
           pagination={{
             current: currentPage,
             pageSize: pageSize,

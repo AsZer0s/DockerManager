@@ -102,11 +102,7 @@ const TelegramWebApp: React.FC = () => {
           setToken(authToken);
           setUser(telegramUserData);
           setServers(serversList);
-          console.log('使用内联脚本准备的数据初始化完成', {
-            telegramUser: telegramUserData,
-            backendUser: userInfo,
-            serversCount: serversList.length
-          });
+          // 使用内联脚本准备的数据初始化完成
           setLoading(false);
           return;
         }
@@ -117,13 +113,7 @@ const TelegramWebApp: React.FC = () => {
       }
       
       // 如果超时仍未获取到数据，显示错误
-      console.error('等待内联脚本初始化超时', {
-        authToken: (window as any).authToken,
-        userInfo: (window as any).userInfo,
-        serversList: (window as any).serversList,
-        telegramUserData: (window as any).telegramUserData,
-        stopReactApp: (window as any).stopReactApp
-      });
+      // 等待内联脚本初始化超时
       setError('数据初始化超时，请刷新页面重试');
       setLoading(false);
     };
@@ -165,13 +155,13 @@ const TelegramWebApp: React.FC = () => {
       
       if (data.success) {
         setContainers(data.containers);
-        console.log(`加载服务器 ${serverId} 的容器列表成功`, { count: data.containers.length });
+        // 加载容器列表成功
       } else {
-        console.error('加载容器列表失败:', data.message);
+        // 加载容器列表失败
         setError(data.message || '加载容器列表失败');
       }
     } catch (err) {
-      console.error('加载容器失败:', err);
+      // 加载容器失败
       setError('加载容器失败');
     }
   };
@@ -198,13 +188,13 @@ const TelegramWebApp: React.FC = () => {
         if (selectedContainer?.id === containerId) {
           await loadContainerDetails(serverId, containerId);
         }
-        console.log(`容器 ${containerId} ${action} 操作成功`);
+        // 容器操作成功
       } else {
-        console.error(`容器${action}失败:`, data.message);
+        // 容器操作失败
         setError(data.message || `容器${action}失败`);
       }
     } catch (err) {
-      console.error('执行容器操作失败:', err);
+      // 执行容器操作失败
       setError(`容器${action}失败`);
     }
   };
@@ -227,13 +217,13 @@ const TelegramWebApp: React.FC = () => {
       
       if (data.success) {
         setSelectedContainer(data.container);
-        console.log(`加载容器 ${containerId} 详情成功`);
+        // 加载容器详情成功
       } else {
-        console.error('加载容器详情失败:', data.message);
+        // 加载容器详情失败
         setError(data.message || '加载容器详情失败');
       }
     } catch (err) {
-      console.error('加载容器详情失败:', err);
+      // 加载容器详情失败
       setError('加载容器详情失败');
     }
   };
@@ -309,12 +299,12 @@ const TelegramWebApp: React.FC = () => {
       const data = await response.json();
       if (data.success) {
         setServers(data.servers);
-        console.log('服务器列表刷新成功', { count: data.servers.length });
+        // 服务器列表刷新成功
       } else {
-        console.error('刷新服务器列表失败:', data.message);
+        // 刷新服务器列表失败
       }
     } catch (error) {
-      console.error('刷新服务器列表异常:', error);
+      // 刷新服务器列表异常
     } finally {
       setRefreshing(false);
     }

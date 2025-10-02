@@ -17,14 +17,14 @@ const CACHE_DURATION = 30000; // 30秒缓存
 
 // 辅助函数：检查服务器连接状态（优先使用缓存）
 async function checkServerStatus(server, forceRealTime = false) {
-  logger.debug(`开始检查服务器状态: ${server.name} (ID: ${server.id}), forceRealTime: ${forceRealTime}`);
+  // 开始检查服务器状态
   
   // 如果强制实时检查，跳过缓存
   if (!forceRealTime) {
     // 首先尝试从缓存服务获取状态
     const cachedStatus = cacheService.getServerStatus(server.id);
     if (cachedStatus) {
-      logger.debug(`使用缓存状态: 服务器 ${server.name} - ${cachedStatus.status}`);
+      // 使用缓存状态
       return cachedStatus.status;
     }
   }
@@ -43,10 +43,10 @@ async function checkServerStatus(server, forceRealTime = false) {
   
   try {
     // 获取完整的服务器信息（包括解密后的密码和私钥）
-    logger.debug(`获取服务器完整信息: ${server.name}`);
+    // 获取服务器完整信息
     const fullServerInfo = await getFullServerInfo(server.id);
     if (!fullServerInfo) {
-      logger.debug(`服务器 ${server.name} 完整信息获取失败`);
+      // 服务器完整信息获取失败
       const status = '离线';
       statusCache.set(cacheKey, { status, timestamp: now });
       return status;

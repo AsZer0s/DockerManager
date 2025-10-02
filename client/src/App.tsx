@@ -18,7 +18,6 @@ import Settings from '@/pages/Settings'
 import Admin from '@/pages/Admin'
 import UserManagement from '@/pages/UserManagement'
 import TelegramWebApp from '@/pages/TelegramWebApp'
-import TelegramDebug from '@/pages/TelegramDebug'
 
 // 布局组件
 import AppLayout from '@/components/Layout/AppLayout'
@@ -50,7 +49,6 @@ const App: React.FC = () => {
         
         {/* Telegram Web App 路由 - 不需要认证 */}
         <Route path="/telegram-webapp" element={<TelegramWebApp />} />
-        <Route path="/telegram-debug" element={<TelegramDebug />} />
         
         {/* 受保护的路由 */}
         <Route

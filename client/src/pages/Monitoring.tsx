@@ -88,11 +88,12 @@ const Monitoring: React.FC = () => {
       
       return Promise.all(monitoringPromises)
     },
-    enabled: !!serversData?.data.servers,
+    enabled: !!serversData?.data.servers, // 只有当服务器数据加载完成后才开始监控数据查询
   })
 
   const servers = serversData?.data.servers || []
   const monitoringData = allMonitoringData || []
+  const isInitialLoading = !serversData || isLoading
 
   // 防抖刷新函数
   const handleRefresh = useCallback(async () => {
@@ -253,7 +254,7 @@ const Monitoring: React.FC = () => {
       {/* 总体统计 */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={12} lg={6}>
-          <Card className="stat-card">
+          <Card className="stat-card" loading={isInitialLoading}>
             <Statistic
               title="总服务器数"
               value={servers.length}
@@ -263,7 +264,7 @@ const Monitoring: React.FC = () => {
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card className="stat-card">
+          <Card className="stat-card" loading={isInitialLoading}>
             <Statistic
               title="在线服务器"
               value={servers.filter(s => s.is_active && s.status === '在线').length}
@@ -273,7 +274,7 @@ const Monitoring: React.FC = () => {
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card className="stat-card">
+          <Card className="stat-card" loading={isInitialLoading}>
             <Statistic
               title="平均CPU使用率"
               value={monitoringData.length > 0 ? 
@@ -286,7 +287,7 @@ const Monitoring: React.FC = () => {
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card className="stat-card">
+          <Card className="stat-card" loading={isInitialLoading}>
             <Statistic
               title="平均内存使用率"
               value={monitoringData.length > 0 ? 
@@ -301,8 +302,21 @@ const Monitoring: React.FC = () => {
       </Row>
 
       {/* 服务器监控卡片 */}
-      <Row gutter={[16, 16]} className={isRefreshing ? 'table-refreshing' : ''}>
-        {monitoringData.map((data: ServerMonitoringData) => (
+      {isInitialLoading ? (
+        <Row gutter={[16, 16]}>
+          <Col span={24}>
+            <Card>
+              <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                <MonitorOutlined style={{ fontSize: '48px', color: '#1890ff', marginBottom: '16px' }} />
+                <Title level={4} type="secondary">正在加载监控数据...</Title>
+                <Text type="secondary">请稍候，正在获取服务器状态和性能数据</Text>
+              </div>
+            </Card>
+          </Col>
+        </Row>
+      ) : (
+        <Row gutter={[16, 16]} className={isRefreshing ? 'table-refreshing' : ''}>
+          {monitoringData.map((data: ServerMonitoringData) => (
           <Col xs={24} sm={12} lg={8} xl={6} key={data.serverId}>
             <Card
               className="monitoring-card"
@@ -416,7 +430,8 @@ const Monitoring: React.FC = () => {
             </Card>
           </Col>
         ))}
-      </Row>
+        </Row>
+      )}
 
       {/* 无数据提示 */}
       {monitoringData.length === 0 && !isLoading && (

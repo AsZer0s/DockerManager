@@ -39,14 +39,14 @@ class PollingService {
       this.subscriptions = subscriptions;
       this.isPolling = true;
 
-      console.log('🔄 HTTP轮询服务启动成功', { sessionId: this.sessionId });
+      // HTTP轮询服务启动成功
 
       // 开始轮询
       this.startPollingLoop();
 
       return this.sessionId;
     } catch (error) {
-      console.error('启动轮询失败:', error);
+      // 启动轮询失败，静默处理
       throw error;
     }
   }
