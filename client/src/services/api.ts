@@ -398,6 +398,9 @@ export const serverAPI = {
     
   getServerContainers: (id: number): Promise<AxiosResponse<{ serverId: number; containers: Container[]; total: number }>> =>
     api.get(`/servers/${id}/containers`),
+    
+  getVersion: (): Promise<AxiosResponse<{ success: boolean; version: string; name: string; description: string }>> =>
+    api.get('/servers/version'),
 }
 
 // 容器相关 API

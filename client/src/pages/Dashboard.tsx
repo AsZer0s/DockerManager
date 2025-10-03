@@ -9,7 +9,7 @@ import {
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from 'react-query'
-import { containerAPI, monitoringAPI } from '@/services/api'
+import { containerAPI, monitoringAPI, serverAPI } from '@/services/api'
 import { useGlobalServers } from '@/hooks/useGlobalServers'
 import { useAuthStore } from '@/stores/authStore'
 import { motion } from 'framer-motion'
@@ -65,6 +65,14 @@ const Dashboard: React.FC = () => {
     queryKey: ['system-stats'],
     queryFn: () => monitoringAPI.getMonitoringStats(),
     refetchInterval: 60000, // 1分钟刷新一次
+    enabled: user?.role === 'admin', // 只有管理员才调用这个 API
+  })
+
+  // 获取版本信息
+  const { data: versionInfo } = useQuery({
+    queryKey: ['version-info'],
+    queryFn: () => serverAPI.getVersion(),
+    refetchInterval: 300000, // 5分钟刷新一次
     enabled: user?.role === 'admin', // 只有管理员才调用这个 API
   })
 
@@ -394,6 +402,10 @@ const Dashboard: React.FC = () => {
               <div>
                 <Text strong>监控间隔: </Text>
                 <Text>{systemStats?.data.monitoring.monitoringInterval || 0}ms</Text>
+              </div>
+              <div>
+                <Text strong>系统版本: </Text>
+                <Text>v{versionInfo?.data.version || '未知'}</Text>
               </div>
               <div>
                 <Text strong>数据库连接: </Text>

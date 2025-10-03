@@ -2188,11 +2188,16 @@ class TelegramBotService {
       }
 
       const status = monitoringService.getStatus();
+      
+      // 获取版本号
+      const packageJson = await import('../package.json', { assert: { type: 'json' } });
+      const version = packageJson.default.version;
+      
       const message = 
         `📊 实时监控数据\n\n` +
-        `🟢 监控服务: ${status.isRunning ? '运行中' : '已停止'}\n` +
         `⏱️ 监控间隔: ${status.monitoringInterval}ms\n` +
-        `🖥️ 活跃服务器: ${status.activeServers}个\n\n` +
+        `🖥️ 活跃服务器: ${status.activeServers}个\n` +
+        `📦 系统版本: v${version}\n\n` +
         `📈 系统运行时间: ${Math.floor(process.uptime() / 3600)}小时`;
 
       // 如果是刷新请求，编辑现有消息；否则发送新消息
