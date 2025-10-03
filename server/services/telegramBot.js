@@ -434,10 +434,22 @@ class TelegramBotService {
       ]);
       buttons.push([Markup.button.callback('🏠 主菜单', 'main_menu')]);
 
-      await ctx.editMessageText(message, {
-        parse_mode: 'Markdown',
-        reply_markup: Markup.inlineKeyboard(buttons).reply_markup
-      });
+      try {
+        await ctx.editMessageText(message, {
+          parse_mode: 'Markdown',
+          reply_markup: Markup.inlineKeyboard(buttons).reply_markup
+        });
+      } catch (error) {
+        // 如果消息内容相同导致编辑失败，发送新消息
+        if (error.description && error.description.includes('message is not modified')) {
+          await ctx.reply(message, {
+            parse_mode: 'Markdown',
+            reply_markup: Markup.inlineKeyboard(buttons).reply_markup
+          });
+        } else {
+          throw error;
+        }
+      }
     } catch (error) {
       logger.error('刷新服务器列表失败:', error);
       await this.safeEditMessageText(ctx, '抱歉，刷新失败，请稍后重试');
@@ -677,10 +689,22 @@ class TelegramBotService {
 
       // 如果是刷新请求，编辑现有消息；否则发送新消息
       if (ctx.callbackQuery) {
-        await ctx.editMessageText(message, {
-          parse_mode: 'Markdown',
-          ...Markup.inlineKeyboard(buttons)
-        });
+        try {
+          await ctx.editMessageText(message, {
+            parse_mode: 'Markdown',
+            ...Markup.inlineKeyboard(buttons)
+          });
+        } catch (error) {
+          // 如果消息内容相同导致编辑失败，发送新消息
+          if (error.description && error.description.includes('message is not modified')) {
+            await ctx.reply(message, {
+              parse_mode: 'Markdown',
+              ...Markup.inlineKeyboard(buttons)
+            });
+          } else {
+            throw error;
+          }
+        }
       } else {
         await ctx.reply(message, {
           parse_mode: 'Markdown',
@@ -818,10 +842,22 @@ class TelegramBotService {
 
       // 如果是分页请求或刷新请求，编辑现有消息；否则发送新消息
       if (currentPage > 1 || ctx.callbackQuery) {
-        await ctx.editMessageText(message, { 
-          parse_mode: 'Markdown',
-          ...Markup.inlineKeyboard(buttons)
-        });
+        try {
+          await ctx.editMessageText(message, { 
+            parse_mode: 'Markdown',
+            ...Markup.inlineKeyboard(buttons)
+          });
+        } catch (error) {
+          // 如果消息内容相同导致编辑失败，发送新消息
+          if (error.description && error.description.includes('message is not modified')) {
+            await ctx.reply(message, { 
+              parse_mode: 'Markdown',
+              ...Markup.inlineKeyboard(buttons)
+            });
+          } else {
+            throw error;
+          }
+        }
       } else {
         await ctx.reply(message, { 
           parse_mode: 'Markdown',
@@ -968,10 +1004,22 @@ class TelegramBotService {
 
       // 如果是刷新请求，编辑现有消息；否则发送新消息
       if (ctx.callbackQuery) {
-        await ctx.editMessageText(message, { 
-          parse_mode: 'Markdown',
-          ...Markup.inlineKeyboard(buttons)
-        });
+        try {
+          await ctx.editMessageText(message, { 
+            parse_mode: 'Markdown',
+            ...Markup.inlineKeyboard(buttons)
+          });
+        } catch (error) {
+          // 如果消息内容相同导致编辑失败，发送新消息
+          if (error.description && error.description.includes('message is not modified')) {
+            await ctx.reply(message, { 
+              parse_mode: 'Markdown',
+              ...Markup.inlineKeyboard(buttons)
+            });
+          } else {
+            throw error;
+          }
+        }
       } else {
         await ctx.reply(message, { 
           parse_mode: 'Markdown',
@@ -2045,13 +2093,25 @@ class TelegramBotService {
 
       // 如果是刷新请求，编辑现有消息；否则发送新消息
       if (ctx.callbackQuery) {
-        await ctx.editMessageText(message, {
-          parse_mode: 'Markdown',
-          ...Markup.inlineKeyboard([
-            [Markup.button.callback('🔄 刷新监控', 'refresh_monitoring')],
-            [Markup.button.callback('🏠 返回主菜单', 'main_menu')]
-          ])
-        });
+        try {
+          await ctx.editMessageText(message, {
+            parse_mode: 'Markdown',
+            ...Markup.inlineKeyboard([
+              [Markup.button.callback('🔄 刷新监控', 'refresh_monitoring')],
+              [Markup.button.callback('🏠 返回主菜单', 'main_menu')]
+            ])
+          });
+        } catch (error) {
+          // 如果消息内容相同导致编辑失败，发送新消息
+          if (error.description && error.description.includes('message is not modified')) {
+            await ctx.reply(message, Markup.inlineKeyboard([
+              [Markup.button.callback('🔄 刷新监控', 'refresh_monitoring')],
+              [Markup.button.callback('🏠 返回主菜单', 'main_menu')]
+            ]));
+          } else {
+            throw error;
+          }
+        }
       } else {
         await ctx.reply(message, Markup.inlineKeyboard([
           [Markup.button.callback('🔄 刷新监控', 'refresh_monitoring')],
