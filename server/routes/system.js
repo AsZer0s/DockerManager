@@ -1,5 +1,8 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import logger from '../utils/logger.js';
 
 const router = express.Router();
@@ -36,15 +39,20 @@ const authenticateToken = (req, res, next) => {
  */
 router.get('/version', authenticateToken, async (req, res) => {
   try {
+    // 获取当前文件的目录路径
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    
     // 读取package.json获取版本信息
-    const packageJson = await import('../../package.json', { assert: { type: 'json' } });
-    const version = packageJson.default.version;
+    const packageJsonPath = path.join(__dirname, '../../package.json');
+    const packageJsonContent = fs.readFileSync(packageJsonPath, 'utf8');
+    const packageJson = JSON.parse(packageJsonContent);
     
     res.json({
       success: true,
-      version: version,
-      name: packageJson.default.name,
-      description: packageJson.default.description
+      version: packageJson.version,
+      name: packageJson.name,
+      description: packageJson.description
     });
   } catch (error) {
     logger.error('获取版本信息失败:', error);
