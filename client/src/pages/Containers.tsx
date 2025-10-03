@@ -743,7 +743,7 @@ const Containers: React.FC = () => {
     ...servers
       .filter(server => server.is_active)
       .map(server => ({
-        label: `${server.name} ${server.status === '在线' ? '🟢' : '🔴'}`,
+        label: `${server.name}`,
         value: server.id as number
       }))
   ]

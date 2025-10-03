@@ -414,12 +414,7 @@ class TelegramBotService {
               // 如果还是失败，发送新消息
               await ctx.reply(message, { 
                 parse_mode: 'Markdown',
-                reply_markup: {
-                  inline_keyboard: buttons,
-                  keyboard: this.getStandardKeyboard().reply_markup.keyboard,
-                  resize_keyboard: true,
-                  persistent: true
-                }
+                reply_markup: Markup.inlineKeyboard(buttons).reply_markup
               });
             }
           } else {
@@ -429,12 +424,7 @@ class TelegramBotService {
       } else {
         await ctx.reply(message, { 
           parse_mode: 'Markdown',
-          reply_markup: {
-            inline_keyboard: buttons,
-            keyboard: this.getStandardKeyboard().reply_markup.keyboard,
-            resize_keyboard: true,
-            persistent: true
-          }
+          reply_markup: Markup.inlineKeyboard(buttons).reply_markup
         });
       }
     } catch (error) {
@@ -481,9 +471,16 @@ class TelegramBotService {
       message += `🟢 在线: ${onlineCount}\n`;
       message += `🔴 离线: ${offlineCount}\n\n`;
 
-      // 显示服务器列表
-      message += `📋 **服务器列表**\n`;
-      for (const server of servers.slice(0, 5)) { // 限制显示前5个
+      // 显示服务器列表（分页）
+      const itemsPerPage = 5;
+      const totalPages = Math.ceil(servers.length / itemsPerPage);
+      const currentPage = 1; // 刷新时总是显示第一页
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      const currentServers = servers.slice(startIndex, endIndex);
+      
+      message += `📋 **服务器列表** (第 ${currentPage}/${totalPages} 页)\n`;
+      for (const server of currentServers) {
         const status = await this.checkServerStatus(server.id);
         const statusIcon = status ? '🟢' : '🔴';
         const statusText = status ? '在线' : '离线';
@@ -498,15 +495,18 @@ class TelegramBotService {
         )]);
       }
 
-      // 分页逻辑：如果服务器超过5个，显示分页按钮
-      const totalPages = Math.ceil(servers.length / 5);
-      const currentPage = 1; // 默认第一页
-      
+      // 分页按钮
       if (totalPages > 1) {
-        buttons.push([
-          Markup.button.callback('⬅️ 上一页', `servers_page_${currentPage - 1}`),
-          Markup.button.callback('➡️ 下一页', `servers_page_${currentPage + 1}`)
-        ]);
+        const paginationButtons = [];
+        if (currentPage > 1) {
+          paginationButtons.push(Markup.button.callback('⬅️ 上一页', `servers_page_${currentPage - 1}`));
+        }
+        if (currentPage < totalPages) {
+          paginationButtons.push(Markup.button.callback('➡️ 下一页', `servers_page_${currentPage + 1}`));
+        }
+        if (paginationButtons.length > 0) {
+          buttons.push(paginationButtons);
+        }
       }
 
       // 添加控制按钮
