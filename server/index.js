@@ -37,6 +37,7 @@ import userManagementRoutes from './routes/userManagement.js';
 import pollingRoutes from './routes/polling.js';
 import sshSessionRoutes from './routes/sshSession.js';
 import systemRoutes from './routes/system.js';
+import networkRoutes from './routes/network.js';
 
 dotenv.config();
 
@@ -140,6 +141,7 @@ app.use('/api/user-management', userManagementRoutes);
 app.use('/api/polling', pollingRoutes);
 app.use('/api/ssh-session', sshSessionRoutes);
 app.use('/api/system', systemRoutes);
+app.use('/api/network', networkRoutes);
 
 // 健康检查端点
 app.get('/health', async (req, res) => {
@@ -652,6 +654,11 @@ async function initializeServices() {
         console.log('📊 启动监控服务...');
         monitoringService.start();
         console.log('✅ 监控服务启动成功');
+
+        console.log('🌐 启动网络监控服务...');
+        const networkMonitoringService = (await import('./services/networkMonitoringService.js')).default;
+        await networkMonitoringService.start();
+        console.log('✅ 网络监控服务启动成功');
 
         console.log('🔍 启动连接监控服务...');
         connectionMonitor.start();

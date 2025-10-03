@@ -403,6 +403,27 @@ export const serverAPI = {
     api.get('/system/version'),
 }
 
+// 网络监控相关 API
+export const networkAPI = {
+  getNetworkSpeed: (): Promise<AxiosResponse<{ success: boolean; data: any }>> =>
+    api.get('/network/speed'),
+    
+  getNetworkStatus: (): Promise<AxiosResponse<{ success: boolean; data: any }>> =>
+    api.get('/network/status'),
+    
+  startNetworkMonitoring: (): Promise<AxiosResponse<{ success: boolean; message: string }>> =>
+    api.post('/network/start'),
+    
+  stopNetworkMonitoring: (): Promise<AxiosResponse<{ success: boolean; message: string }>> =>
+    api.post('/network/stop'),
+    
+  resetNetworkStats: (): Promise<AxiosResponse<{ success: boolean; message: string }>> =>
+    api.post('/network/reset'),
+    
+  getNetworkHistory: (limit = 60): Promise<AxiosResponse<{ success: boolean; data: any[] }>> =>
+    api.get('/network/history', { params: { limit } }),
+}
+
 // 容器相关 API
 export const containerAPI = {
   getAllContainers: (all = true): Promise<AxiosResponse<{ success: boolean; data: any }>> =>
