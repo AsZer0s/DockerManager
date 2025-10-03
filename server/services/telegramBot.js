@@ -250,10 +250,32 @@ class TelegramBotService {
       const welcomeMessage = 
         `欢迎回来，${user.username}！\n\n` +
         'Docker Manager 机器人已就绪\n\n' +
-        '随时为您提供服务';
+        '使用 /help 随时为您提供服务';
 
-      // 使用标准回复键盘
-      await ctx.reply(welcomeMessage, this.getStandardKeyboard());
+      // 如果是回调查询（从其他页面返回），编辑现有消息；否则发送新消息
+      if (ctx.callbackQuery) {
+        // 添加时间戳来确保消息内容有变化
+        const messageWithTimestamp = welcomeMessage + `\n\n_🕐 更新时间: ${new Date().toLocaleString('zh-CN')}_`;
+        
+        try {
+          await ctx.editMessageText(messageWithTimestamp, this.getStandardKeyboard());
+        } catch (error) {
+          // 如果仍然失败，尝试不添加时间戳
+          if (error.description && error.description.includes('message is not modified')) {
+            try {
+              await ctx.editMessageText(welcomeMessage, this.getStandardKeyboard());
+            } catch (retryError) {
+              // 如果还是失败，发送新消息
+              await ctx.reply(welcomeMessage, this.getStandardKeyboard());
+            }
+          } else {
+            throw error;
+          }
+        }
+      } else {
+        // 使用标准回复键盘
+        await ctx.reply(welcomeMessage, this.getStandardKeyboard());
+      }
 
     } catch (error) {
       logger.error('处理 /start 命令失败:', error);
