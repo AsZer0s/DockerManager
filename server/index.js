@@ -36,6 +36,7 @@ import settingsRoutes from './routes/settings.js';
 import userManagementRoutes from './routes/userManagement.js';
 import pollingRoutes from './routes/polling.js';
 import sshSessionRoutes from './routes/sshSession.js';
+import systemRoutes from './routes/system.js';
 
 dotenv.config();
 
@@ -138,6 +139,7 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/user-management', userManagementRoutes);
 app.use('/api/polling', pollingRoutes);
 app.use('/api/ssh-session', sshSessionRoutes);
+app.use('/api/system', systemRoutes);
 
 // 健康检查端点
 app.get('/health', async (req, res) => {

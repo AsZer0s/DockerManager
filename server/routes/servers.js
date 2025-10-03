@@ -1576,30 +1576,4 @@ async function getImagesViaSSH(server) {
   });
 }
 
-/**
- * @route GET /api/servers/version
- * @desc 获取系统版本信息
- * @access Private
- */
-router.get('/version', authenticateToken, async (req, res) => {
-  try {
-    // 读取package.json获取版本信息
-    const packageJson = await import('../../package.json', { assert: { type: 'json' } });
-    const version = packageJson.default.version;
-    
-    res.json({
-      success: true,
-      version: version,
-      name: packageJson.default.name,
-      description: packageJson.default.description
-    });
-  } catch (error) {
-    logger.error('获取版本信息失败:', error);
-    res.status(500).json({
-      success: false,
-      message: '获取版本信息失败'
-    });
-  }
-});
-
 export default router;

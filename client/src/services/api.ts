@@ -400,7 +400,7 @@ export const serverAPI = {
     api.get(`/servers/${id}/containers`),
     
   getVersion: (): Promise<AxiosResponse<{ success: boolean; version: string; name: string; description: string }>> =>
-    api.get('/servers/version'),
+    api.get('/system/version'),
 }
 
 // 容器相关 API
