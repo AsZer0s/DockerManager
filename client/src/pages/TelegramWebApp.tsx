@@ -77,6 +77,7 @@ const TelegramWebApp: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('servers');
+  const [loadingContainerDetails, setLoadingContainerDetails] = useState(false);
 
   useEffect(() => {
     const initializeData = async () => {
@@ -200,8 +201,11 @@ const TelegramWebApp: React.FC = () => {
     }
   };
 
-  const loadContainerDetails = async (serverId: number, containerId: string) => {
+  const loadContainerDetails = async (serverId: number, containerId: string, retryCount = 0) => {
     if (!user) return;
+    
+    setLoadingContainerDetails(true);
+    setError(null); // 清除之前的错误
     
     try {
       const response = await fetch(`/api/telegram-webapp/containers/${serverId}/${containerId}`, {
@@ -218,14 +222,26 @@ const TelegramWebApp: React.FC = () => {
       
       if (data.success) {
         setSelectedContainer(data.container);
+        setLoadingContainerDetails(false);
         // 加载容器详情成功
       } else {
         // 加载容器详情失败
         setError(data.message || '加载容器详情失败');
+        setLoadingContainerDetails(false);
       }
     } catch (err) {
-      // 加载容器详情失败
-      setError('加载容器详情失败');
+      // 检查是否是连接错误，如果是则重试
+      if (retryCount < 2 && (err as any)?.code === 'ECONNREFUSED') {
+        console.log(`连接被拒绝，${1000 * (retryCount + 1)}ms后重试... (${retryCount + 1}/2)`);
+        setTimeout(() => {
+          loadContainerDetails(serverId, containerId, retryCount + 1);
+        }, 1000 * (retryCount + 1)); // 递增延迟：1秒、2秒
+        return; // 不设置loading为false，继续显示加载状态
+      }
+      
+      // 最终失败或非连接错误
+      setError('加载容器详情失败，请检查服务器连接');
+      setLoadingContainerDetails(false);
     }
   };
 
@@ -621,9 +637,11 @@ const TelegramWebApp: React.FC = () => {
                     <List.Item
                       style={{ cursor: 'pointer' }}
                       onClick={() => {
-                        loadContainerDetails(selectedServer.id, container.id);
-                        // 直接切换到详情标签页
-                        setActiveTab('details');
+                        if (!loadingContainerDetails) {
+                          loadContainerDetails(selectedServer.id, container.id);
+                          // 直接切换到详情标签页
+                          setActiveTab('details');
+                        }
                       }}
                     >
                       <List.Item.Meta
@@ -652,13 +670,25 @@ const TelegramWebApp: React.FC = () => {
 
           {selectedContainer && (
             <TabPane tab={<span><DashboardOutlined />详情</span>} key="details">
-              <Space direction="vertical" style={{ width: '100%' }}>
-                <div>
-                  <Title level={4}>
-                    <ContainerOutlined /> {selectedContainer.name}
-                  </Title>
-                  <Text type="secondary">{selectedContainer.image}</Text>
+              {loadingContainerDetails ? (
+                <div style={{ textAlign: 'center', padding: '50px' }}>
+                  <Spin size="large" />
+                  <div style={{ marginTop: 16, color: '#666' }}>
+                    正在加载容器详情...
+                    <br />
+                    <Text type="secondary" style={{ fontSize: '12px' }}>
+                      如果服务器连接较慢，请稍等片刻
+                    </Text>
+                  </div>
                 </div>
+              ) : (
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  <div>
+                    <Title level={4}>
+                      <ContainerOutlined /> {selectedContainer.name}
+                    </Title>
+                    <Text type="secondary">{selectedContainer.image}</Text>
+                  </div>
 
                 {/* 容器状态统计 */}
                 <Row gutter={[16, 16]}>
@@ -720,7 +750,12 @@ const TelegramWebApp: React.FC = () => {
                     </Button>
                     <Button
                       icon={<ReloadOutlined />}
-                      onClick={() => loadContainerDetails(selectedServer!.id, selectedContainer.id)}
+                      loading={loadingContainerDetails}
+                      onClick={() => {
+                        if (!loadingContainerDetails) {
+                          loadContainerDetails(selectedServer!.id, selectedContainer.id);
+                        }
+                      }}
                     >
                       刷新
                     </Button>
@@ -773,7 +808,8 @@ const TelegramWebApp: React.FC = () => {
                     </Space>
                   </Card>
                 </div>
-              </Space>
+                </Space>
+              )}
             </TabPane>
           )}
         </Tabs>
