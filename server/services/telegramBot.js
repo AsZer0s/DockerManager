@@ -434,18 +434,29 @@ class TelegramBotService {
       ]);
       buttons.push([Markup.button.callback('🏠 主菜单', 'main_menu')]);
 
+      // 添加时间戳来确保消息内容有变化
+      const messageWithTimestamp = message + `\n\n_🕐 更新时间: ${new Date().toLocaleString('zh-CN')}_`;
+      
       try {
-        await ctx.editMessageText(message, {
+        await ctx.editMessageText(messageWithTimestamp, {
           parse_mode: 'Markdown',
           reply_markup: Markup.inlineKeyboard(buttons).reply_markup
         });
       } catch (error) {
-        // 如果消息内容相同导致编辑失败，发送新消息
+        // 如果仍然失败，尝试不添加时间戳
         if (error.description && error.description.includes('message is not modified')) {
-          await ctx.reply(message, {
-            parse_mode: 'Markdown',
-            reply_markup: Markup.inlineKeyboard(buttons).reply_markup
-          });
+          try {
+            await ctx.editMessageText(message, {
+              parse_mode: 'Markdown',
+              reply_markup: Markup.inlineKeyboard(buttons).reply_markup
+            });
+          } catch (retryError) {
+            // 如果还是失败，发送新消息
+            await ctx.reply(message, {
+              parse_mode: 'Markdown',
+              reply_markup: Markup.inlineKeyboard(buttons).reply_markup
+            });
+          }
         } else {
           throw error;
         }
@@ -689,18 +700,29 @@ class TelegramBotService {
 
       // 如果是刷新请求，编辑现有消息；否则发送新消息
       if (ctx.callbackQuery) {
+        // 添加时间戳来确保消息内容有变化
+        const messageWithTimestamp = message + `\n\n_🕐 更新时间: ${new Date().toLocaleString('zh-CN')}_`;
+        
         try {
-          await ctx.editMessageText(message, {
+          await ctx.editMessageText(messageWithTimestamp, {
             parse_mode: 'Markdown',
             ...Markup.inlineKeyboard(buttons)
           });
         } catch (error) {
-          // 如果消息内容相同导致编辑失败，发送新消息
+          // 如果仍然失败，尝试不添加时间戳
           if (error.description && error.description.includes('message is not modified')) {
-            await ctx.reply(message, {
-              parse_mode: 'Markdown',
-              ...Markup.inlineKeyboard(buttons)
-            });
+            try {
+              await ctx.editMessageText(message, {
+                parse_mode: 'Markdown',
+                ...Markup.inlineKeyboard(buttons)
+              });
+            } catch (retryError) {
+              // 如果还是失败，发送新消息
+              await ctx.reply(message, {
+                parse_mode: 'Markdown',
+                ...Markup.inlineKeyboard(buttons)
+              });
+            }
           } else {
             throw error;
           }
@@ -842,18 +864,29 @@ class TelegramBotService {
 
       // 如果是分页请求或刷新请求，编辑现有消息；否则发送新消息
       if (currentPage > 1 || ctx.callbackQuery) {
+        // 添加时间戳来确保消息内容有变化
+        const messageWithTimestamp = message + `\n\n_🕐 更新时间: ${new Date().toLocaleString('zh-CN')}_`;
+        
         try {
-          await ctx.editMessageText(message, { 
+          await ctx.editMessageText(messageWithTimestamp, { 
             parse_mode: 'Markdown',
             ...Markup.inlineKeyboard(buttons)
           });
         } catch (error) {
-          // 如果消息内容相同导致编辑失败，发送新消息
+          // 如果仍然失败，尝试不添加时间戳
           if (error.description && error.description.includes('message is not modified')) {
-            await ctx.reply(message, { 
-              parse_mode: 'Markdown',
-              ...Markup.inlineKeyboard(buttons)
-            });
+            try {
+              await ctx.editMessageText(message, { 
+                parse_mode: 'Markdown',
+                ...Markup.inlineKeyboard(buttons)
+              });
+            } catch (retryError) {
+              // 如果还是失败，发送新消息
+              await ctx.reply(message, { 
+                parse_mode: 'Markdown',
+                ...Markup.inlineKeyboard(buttons)
+              });
+            }
           } else {
             throw error;
           }
@@ -1004,18 +1037,29 @@ class TelegramBotService {
 
       // 如果是刷新请求，编辑现有消息；否则发送新消息
       if (ctx.callbackQuery) {
+        // 添加时间戳来确保消息内容有变化
+        const messageWithTimestamp = message + `\n\n_🕐 更新时间: ${new Date().toLocaleString('zh-CN')}_`;
+        
         try {
-          await ctx.editMessageText(message, { 
+          await ctx.editMessageText(messageWithTimestamp, { 
             parse_mode: 'Markdown',
             ...Markup.inlineKeyboard(buttons)
           });
         } catch (error) {
-          // 如果消息内容相同导致编辑失败，发送新消息
+          // 如果仍然失败，尝试不添加时间戳
           if (error.description && error.description.includes('message is not modified')) {
-            await ctx.reply(message, { 
-              parse_mode: 'Markdown',
-              ...Markup.inlineKeyboard(buttons)
-            });
+            try {
+              await ctx.editMessageText(message, { 
+                parse_mode: 'Markdown',
+                ...Markup.inlineKeyboard(buttons)
+              });
+            } catch (retryError) {
+              // 如果还是失败，发送新消息
+              await ctx.reply(message, { 
+                parse_mode: 'Markdown',
+                ...Markup.inlineKeyboard(buttons)
+              });
+            }
           } else {
             throw error;
           }
@@ -2093,8 +2137,11 @@ class TelegramBotService {
 
       // 如果是刷新请求，编辑现有消息；否则发送新消息
       if (ctx.callbackQuery) {
+        // 添加时间戳来确保消息内容有变化
+        const messageWithTimestamp = message + `\n\n_🕐 更新时间: ${new Date().toLocaleString('zh-CN')}_`;
+        
         try {
-          await ctx.editMessageText(message, {
+          await ctx.editMessageText(messageWithTimestamp, {
             parse_mode: 'Markdown',
             ...Markup.inlineKeyboard([
               [Markup.button.callback('🔄 刷新监控', 'refresh_monitoring')],
@@ -2102,12 +2149,23 @@ class TelegramBotService {
             ])
           });
         } catch (error) {
-          // 如果消息内容相同导致编辑失败，发送新消息
+          // 如果仍然失败，尝试不添加时间戳
           if (error.description && error.description.includes('message is not modified')) {
-            await ctx.reply(message, Markup.inlineKeyboard([
-              [Markup.button.callback('🔄 刷新监控', 'refresh_monitoring')],
-              [Markup.button.callback('🏠 返回主菜单', 'main_menu')]
-            ]));
+            try {
+              await ctx.editMessageText(message, {
+                parse_mode: 'Markdown',
+                ...Markup.inlineKeyboard([
+                  [Markup.button.callback('🔄 刷新监控', 'refresh_monitoring')],
+                  [Markup.button.callback('🏠 返回主菜单', 'main_menu')]
+                ])
+              });
+            } catch (retryError) {
+              // 如果还是失败，发送新消息
+              await ctx.reply(message, Markup.inlineKeyboard([
+                [Markup.button.callback('🔄 刷新监控', 'refresh_monitoring')],
+                [Markup.button.callback('🏠 返回主菜单', 'main_menu')]
+              ]));
+            }
           } else {
             throw error;
           }
