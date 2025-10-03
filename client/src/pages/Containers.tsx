@@ -15,6 +15,7 @@ import {
   Card,
   Typography
 } from 'antd'
+import type { Breakpoint } from 'antd'
 import { 
   PlayCircleOutlined, 
   StopOutlined, 
@@ -511,6 +512,7 @@ const Containers: React.FC = () => {
       width: columnWidths.serverName,
       fixed: 'left' as const,
       align: 'center' as const,
+      responsive: ['xs', 'sm', 'md', 'lg', 'xl'] as Breakpoint[],
       render: (text: string) => (
         <Tag color="blue" style={{ margin: 0, textAlign: 'center' }}>
           {text}
@@ -523,6 +525,7 @@ const Containers: React.FC = () => {
       key: 'name',
       width: columnWidths.name,
       align: 'center' as const,
+      responsive: ['xs', 'sm', 'md', 'lg', 'xl'] as Breakpoint[],
       render: (text: string) => (
         <div style={{ fontWeight: 600, color: '#1890ff', textAlign: 'center' }}>
           {text}
@@ -536,6 +539,7 @@ const Containers: React.FC = () => {
       width: columnWidths.image,
       ellipsis: true,
       align: 'center' as const,
+      responsive: ['md', 'lg', 'xl'] as Breakpoint[],
       render: (text: string) => (
         <div style={{ 
           fontFamily: 'monospace', 
@@ -557,6 +561,7 @@ const Containers: React.FC = () => {
       key: 'status',
       width: columnWidths.status,
       align: 'center' as const,
+      responsive: ['xs', 'sm', 'md', 'lg', 'xl'] as Breakpoint[],
       render: (status: string) => (
         <Tag 
           color={getStatusColor(status)}
@@ -576,6 +581,7 @@ const Containers: React.FC = () => {
       key: 'ports',
       width: columnWidths.ports,
       align: 'center' as const,
+      responsive: ['lg', 'xl'] as Breakpoint[],
       render: (ports: any) => {
         // 处理端口数据，可能是数组或字符串
         if (Array.isArray(ports) && ports.length > 0) {
@@ -644,6 +650,7 @@ const Containers: React.FC = () => {
       key: 'created',
       width: columnWidths.created,
       align: 'center' as const,
+      responsive: ['md', 'lg', 'xl'] as Breakpoint[],
       render: (date: string) => (
         <div style={{ fontSize: '12px', color: 'var(--ant-color-text-secondary)', textAlign: 'center' }}>
           {new Date(date).toLocaleString('zh-CN')}
@@ -656,8 +663,13 @@ const Containers: React.FC = () => {
       width: columnWidths.action,
       fixed: 'right' as const,
       align: 'center' as const,
+      responsive: ['xs', 'sm', 'md', 'lg', 'xl'] as Breakpoint[],
       render: (record: Container & { serverId: number }) => (
-        <Space size="small" style={{ justifyContent: 'center', display: 'flex' }}>
+        <Space 
+          direction={window.innerWidth < 768 ? 'vertical' : 'horizontal'} 
+          size="small" 
+          style={{ justifyContent: 'center', display: 'flex' }}
+        >
           {record.status && record.status.includes('Up') ? (
             <>
               <Button
@@ -665,6 +677,7 @@ const Containers: React.FC = () => {
                 icon={<StopOutlined />}
                 onClick={() => handleContainerAction('stop', record)}
                 loading={stopMutation.isLoading}
+                style={{ width: window.innerWidth < 768 ? '100%' : 'auto' }}
               >
                 关闭
               </Button>
@@ -673,6 +686,7 @@ const Containers: React.FC = () => {
                 icon={<ReloadOutlined />}
                 onClick={() => handleContainerAction('restart', record)}
                 loading={restartMutation.isLoading}
+                style={{ width: window.innerWidth < 768 ? '100%' : 'auto' }}
               >
                 重启
               </Button>
@@ -683,6 +697,7 @@ const Containers: React.FC = () => {
               icon={<PlayCircleOutlined />}
               onClick={() => handleContainerAction('start', record)}
               loading={startMutation.isLoading}
+              style={{ width: window.innerWidth < 768 ? '100%' : 'auto' }}
             >
               启动
             </Button>
@@ -691,6 +706,7 @@ const Containers: React.FC = () => {
             size="small"
             icon={<FileTextOutlined />}
             onClick={() => handleViewLogs(record)}
+            style={{ width: window.innerWidth < 768 ? '100%' : 'auto' }}
           >
             日志
           </Button>
@@ -853,7 +869,7 @@ const Containers: React.FC = () => {
 
       {/* 统计信息 */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={8}>
+        <Col xs={24} sm={12} md={8}>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -876,7 +892,7 @@ const Containers: React.FC = () => {
             </Card>
           </motion.div>
         </Col>
-        <Col xs={24} sm={8}>
+        <Col xs={24} sm={12} md={8}>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -899,7 +915,7 @@ const Containers: React.FC = () => {
             </Card>
           </motion.div>
         </Col>
-        <Col xs={24} sm={8}>
+        <Col xs={24} sm={12} md={8}>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -937,9 +953,11 @@ const Containers: React.FC = () => {
             current: currentPage,
             pageSize: pageSize,
             total: containers.length,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total, range) => `第 ${range[0]}-${range[1]} 个，共 ${total} 个容器`,
+            showSizeChanger: window.innerWidth >= 768,
+            showQuickJumper: window.innerWidth >= 768,
+            showTotal: (total, range) => window.innerWidth >= 768 
+              ? `第 ${range[0]}-${range[1]} 个，共 ${total} 个容器`
+              : `${total} 个容器`,
             pageSizeOptions: ['10', '20', '50'],
             onChange: (page, size) => {
               setCurrentPage(page)
@@ -948,10 +966,11 @@ const Containers: React.FC = () => {
                 setCurrentPage(1) // 重置到第一页
               }
             },
-            style: { padding: '16px 24px' }
+            style: { padding: '16px 24px' },
+            simple: window.innerWidth < 768,
           }}
-          scroll={{ x: 1200 }}
-          size="middle"
+          scroll={{ x: 'max-content' }}
+          size="small"
           className={isRefreshing ? 'table-refreshing' : ''}
           style={{
             borderRadius: '8px'

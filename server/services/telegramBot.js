@@ -309,7 +309,7 @@ class TelegramBotService {
     }
   }
 
-  async handleServersCommand(ctx) {
+  async handleServersCommand(ctx, page = 1) {
     try {
       const userId = ctx.from.id;
       const user = await this.getUserByTelegramId(userId);
@@ -347,9 +347,16 @@ class TelegramBotService {
       message += `🟢 在线: ${onlineCount}\n`;
       message += `🔴 离线: ${offlineCount}\n\n`;
 
-      // 显示服务器列表
-      message += `📋 **服务器列表**\n`;
-      for (const server of servers.slice(0, 5)) { // 限制显示前5个
+      // 显示服务器列表（分页）
+      const itemsPerPage = 5;
+      const totalPages = Math.ceil(servers.length / itemsPerPage);
+      const currentPage = Math.max(1, Math.min(page, totalPages)); // 确保页码在有效范围内
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      const currentServers = servers.slice(startIndex, endIndex);
+      
+      message += `📋 **服务器列表** (第 ${currentPage}/${totalPages} 页)\n`;
+      for (const server of currentServers) {
         const status = await this.checkServerStatus(server.id);
         const statusIcon = status ? '🟢' : '🔴';
         const statusText = status ? '在线' : '离线';
@@ -364,8 +371,18 @@ class TelegramBotService {
         )]);
       }
 
-      if (servers.length > 5) {
-        message += `... 还有 ${servers.length - 5} 个服务器`;
+      // 分页按钮
+      if (totalPages > 1) {
+        const paginationButtons = [];
+        if (currentPage > 1) {
+          paginationButtons.push(Markup.button.callback('⬅️ 上一页', `servers_page_${currentPage - 1}`));
+        }
+        if (currentPage < totalPages) {
+          paginationButtons.push(Markup.button.callback('➡️ 下一页', `servers_page_${currentPage + 1}`));
+        }
+        if (paginationButtons.length > 0) {
+          buttons.push(paginationButtons);
+        }
       }
 
       // 添加控制按钮
@@ -481,8 +498,15 @@ class TelegramBotService {
         )]);
       }
 
-      if (servers.length > 5) {
-        message += `... 还有 ${servers.length - 5} 个服务器`;
+      // 分页逻辑：如果服务器超过5个，显示分页按钮
+      const totalPages = Math.ceil(servers.length / 5);
+      const currentPage = 1; // 默认第一页
+      
+      if (totalPages > 1) {
+        buttons.push([
+          Markup.button.callback('⬅️ 上一页', `servers_page_${currentPage - 1}`),
+          Markup.button.callback('➡️ 下一页', `servers_page_${currentPage + 1}`)
+        ]);
       }
 
       // 添加控制按钮
@@ -653,6 +677,23 @@ class TelegramBotService {
         await this.handleContainerAction(ctx, parseInt(serverId), containerId, action);
       } else if (data === 'refresh_monitoring') {
         await this.handleMonitoringCommand(ctx);
+      } else if (data.startsWith('servers_page_')) {
+        // 处理服务器列表分页
+        const page = parseInt(data.split('_')[2]);
+        await this.handleServersCommand(ctx, page);
+      } else if (data.startsWith('search_servers_page_')) {
+        // 处理搜索服务器结果分页
+        const parts = data.split('_');
+        const keyword = parts[3];
+        const page = parseInt(parts[4]);
+        await this.handleSearchServers(ctx, keyword, page);
+      } else if (data.startsWith('search_containers_page_')) {
+        // 处理搜索容器结果分页
+        const parts = data.split('_');
+        const serverId = parseInt(parts[3]);
+        const keyword = parts[4];
+        const page = parseInt(parts[5]);
+        await this.handleSearchContainers(ctx, serverId, keyword, page);
       }
     } catch (error) {
       logger.error('处理回调查询失败:', error);
@@ -746,8 +787,15 @@ class TelegramBotService {
           )]);
         }
 
-        if (containers.length > 10) {
-          message += `... 还有 ${containers.length - 10} 个容器`;
+        // 分页逻辑：如果容器超过10个，显示分页按钮
+        const totalPages = Math.ceil(containers.length / 10);
+        const currentPage = 1; // 默认第一页
+        
+        if (totalPages > 1) {
+          buttons.push([
+            Markup.button.callback('⬅️ 上一页', `containers_page_${serverId}_${currentPage - 1}`),
+            Markup.button.callback('➡️ 下一页', `containers_page_${serverId}_${currentPage + 1}`)
+          ]);
         }
 
         // 添加控制按钮
@@ -1224,7 +1272,7 @@ class TelegramBotService {
   }
 
   // 新增：搜索服务器功能
-  async handleSearchServers(ctx) {
+  async handleSearchServers(ctx, keyword = null, page = 1) {
     try {
       await ctx.reply(
         '🔍 **搜索服务器**\n\n请输入要搜索的服务器名称关键词：',
@@ -1246,7 +1294,7 @@ class TelegramBotService {
   }
 
   // 新增：搜索容器功能
-  async handleSearchContainers(ctx, serverId) {
+  async handleSearchContainers(ctx, serverId, keyword = null, page = 1) {
     try {
       await ctx.reply(
         '🔍 **搜索容器**\n\n请输入要搜索的容器名称关键词：',
@@ -1384,7 +1432,7 @@ class TelegramBotService {
   }
 
   // 新增：执行服务器搜索
-  async performServerSearch(ctx, keyword) {
+  async performServerSearch(ctx, keyword, page = 1) {
     try {
       const userId = ctx.from.id;
       const user = await this.getUserByTelegramId(userId);
@@ -1413,10 +1461,18 @@ class TelegramBotService {
         return;
       }
 
-      let message = `🔍 **搜索结果** (关键词: "${keyword}")\n\n`;
+      // 分页逻辑
+      const itemsPerPage = 5;
+      const totalPages = Math.ceil(filteredServers.length / itemsPerPage);
+      const currentPage = Math.max(1, Math.min(page, totalPages)); // 确保页码在有效范围内
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      const currentServers = filteredServers.slice(startIndex, endIndex);
+      
+      let message = `🔍 **搜索结果** (关键词: "${keyword}") (第 ${currentPage}/${totalPages} 页)\n\n`;
       const buttons = [];
 
-      for (const server of filteredServers.slice(0, 5)) {
+      for (const server of currentServers) {
         const status = await this.checkServerStatus(server.id);
         const statusIcon = status ? '🟢' : '🔴';
         const statusText = status ? '运行中' : '已停止';
@@ -1431,8 +1487,18 @@ class TelegramBotService {
         )]);
       }
 
-      if (filteredServers.length > 5) {
-        message += `... 还有 ${filteredServers.length - 5} 个结果`;
+      // 分页按钮
+      if (totalPages > 1) {
+        const paginationButtons = [];
+        if (currentPage > 1) {
+          paginationButtons.push(Markup.button.callback('⬅️ 上一页', `search_servers_page_${keyword}_${currentPage - 1}`));
+        }
+        if (currentPage < totalPages) {
+          paginationButtons.push(Markup.button.callback('➡️ 下一页', `search_servers_page_${keyword}_${currentPage + 1}`));
+        }
+        if (paginationButtons.length > 0) {
+          buttons.push(paginationButtons);
+        }
       }
 
       buttons.push([Markup.button.callback('🔙 返回服务器列表', 'servers')]);
@@ -1448,7 +1514,7 @@ class TelegramBotService {
   }
 
   // 新增：执行容器搜索
-  async performContainerSearch(ctx, keyword, serverId) {
+  async performContainerSearch(ctx, keyword, serverId, page = 1) {
     try {
       const containers = await dockerService.getContainers(serverId);
       const filteredContainers = containers.filter(container => 
@@ -1469,10 +1535,18 @@ class TelegramBotService {
         return;
       }
 
-      let message = `🔍 **搜索结果** (关键词: "${keyword}")\n\n`;
+      // 分页逻辑
+      const itemsPerPage = 5;
+      const totalPages = Math.ceil(filteredContainers.length / itemsPerPage);
+      const currentPage = Math.max(1, Math.min(page, totalPages)); // 确保页码在有效范围内
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      const currentContainers = filteredContainers.slice(startIndex, endIndex);
+      
+      let message = `🔍 **搜索结果** (关键词: "${keyword}") (第 ${currentPage}/${totalPages} 页)\n\n`;
       const buttons = [];
 
-      for (const container of filteredContainers.slice(0, 5)) {
+      for (const container of currentContainers) {
         const statusIcon = this.isContainerRunning(container) ? '🟢' : '🔴';
         const statusText = this.isContainerRunning(container) ? '在线' : '离线';
         
@@ -1486,8 +1560,18 @@ class TelegramBotService {
         )]);
       }
 
-      if (filteredContainers.length > 5) {
-        message += `... 还有 ${filteredContainers.length - 5} 个结果`;
+      // 分页按钮
+      if (totalPages > 1) {
+        const paginationButtons = [];
+        if (currentPage > 1) {
+          paginationButtons.push(Markup.button.callback('⬅️ 上一页', `search_containers_page_${serverId}_${keyword}_${currentPage - 1}`));
+        }
+        if (currentPage < totalPages) {
+          paginationButtons.push(Markup.button.callback('➡️ 下一页', `search_containers_page_${serverId}_${keyword}_${currentPage + 1}`));
+        }
+        if (paginationButtons.length > 0) {
+          buttons.push(paginationButtons);
+        }
       }
 
       buttons.push([Markup.button.callback('🔙 返回容器列表', `containers_${serverId}`)]);

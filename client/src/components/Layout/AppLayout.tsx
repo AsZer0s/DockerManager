@@ -134,6 +134,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         trigger={null}
         collapsible
         collapsed={collapsed}
+        breakpoint="lg"
+        collapsedWidth={window.innerWidth < 768 ? 0 : 80}
         style={{
           background: colorBgContainer,
           boxShadow: '2px 0 8px rgba(0,0,0,0.1)',
@@ -166,10 +168,13 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           style={{ border: 'none' }}
         />
       </Sider>
-      <Layout style={{ marginLeft: collapsed ? 80 : 200, transition: 'margin-left 0.2s' }}>
+      <Layout style={{ 
+        marginLeft: window.innerWidth < 768 ? 0 : (collapsed ? 80 : 200), 
+        transition: 'margin-left 0.2s' 
+      }}>
         <Header
           style={{
-            padding: '0 24px',
+            padding: window.innerWidth < 768 ? '0 16px' : '0 24px',
             background: colorBgContainer,
             display: 'flex',
             alignItems: 'center',
@@ -178,7 +183,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
             position: 'fixed',
             top: 0,
             right: 0,
-            left: collapsed ? 80 : 200,
+            left: window.innerWidth < 768 ? 0 : (collapsed ? 80 : 200),
             zIndex: 999,
             transition: 'left 0.2s',
           }}
@@ -228,8 +233,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         </Header>
         <Content
           style={{
-            margin: '88px 16px 24px 16px',
-            padding: 24,
+            margin: window.innerWidth < 768 ? '88px 8px 16px 8px' : '88px 16px 24px 16px',
+            padding: window.innerWidth < 768 ? 16 : 24,
             minHeight: 280,
             background: colorBgContainer,
             borderRadius: borderRadiusLG,

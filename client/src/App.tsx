@@ -7,6 +7,9 @@ import { useThemeStore } from '@/stores/themeStore'
 import { usePolling } from '@/hooks/usePolling'
 import { lightTheme, darkTheme } from '@/utils/theme'
 
+// 导入移动端样式
+import '@/styles/mobile.css'
+
 // 页面组件
 import Login from '@/pages/Login'
 import Dashboard from '@/pages/Dashboard'

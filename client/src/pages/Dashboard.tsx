@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react'
 import { Row, Col, Statistic, Table, Tag, Space, Typography, notification, Card, Button } from 'antd'
+import type { Breakpoint } from 'antd'
 import { 
   DatabaseOutlined, 
   ContainerOutlined, 
@@ -125,6 +126,7 @@ const Dashboard: React.FC = () => {
       dataIndex: 'name',
       key: 'name',
       align: 'center' as const,
+      responsive: ['xs', 'sm', 'md', 'lg', 'xl'] as Breakpoint[],
       render: (text: string) => (
         <div style={{ textAlign: 'center', fontWeight: 600, color: '#1890ff' }}>
           {text}
@@ -136,6 +138,7 @@ const Dashboard: React.FC = () => {
       dataIndex: 'host',
       key: 'host',
       align: 'center' as const,
+      responsive: ['sm', 'md', 'lg', 'xl'] as Breakpoint[],
       render: (text: string, record: any) => (
         <div style={{ textAlign: 'center' }}>
           {record.hide_sensitive_info ? '***.***.***.***' : text}
@@ -147,6 +150,7 @@ const Dashboard: React.FC = () => {
       dataIndex: 'ssh_port',
       key: 'ssh_port',
       align: 'center' as const,
+      responsive: ['md', 'lg', 'xl'] as Breakpoint[],
       render: (_: number, record: any) => (
         <div style={{ textAlign: 'center' }}>
           {record.hide_sensitive_info ? '***' : (record.ssh_port || record.port || 22)}
@@ -158,6 +162,7 @@ const Dashboard: React.FC = () => {
       dataIndex: 'status',
       key: 'status',
       align: 'center' as const,
+      responsive: ['xs', 'sm', 'md', 'lg', 'xl'] as Breakpoint[],
       render: (status: string, record: any) => {
         if (!record.is_active) {
           return <Tag color="red" style={{ margin: 0 }}>禁用</Tag>
@@ -173,17 +178,20 @@ const Dashboard: React.FC = () => {
       title: '操作',
       key: 'action',
       align: 'center' as const,
+      responsive: ['xs', 'sm', 'md', 'lg', 'xl'] as Breakpoint[],
       render: (record: any) => (
-        <Space style={{ justifyContent: 'center', display: 'flex' }}>
+        <Space direction="vertical" size="small" style={{ justifyContent: 'center', display: 'flex' }}>
           <Button 
             size="small" 
             onClick={() => navigate(`/containers?server=${record.id}`)}
+            style={{ width: '100%' }}
           >
             查看容器
           </Button>
           <Button 
             size="small" 
             onClick={() => navigate(`/monitoring?server=${record.id}`)}
+            style={{ width: '100%' }}
           >
             监控
           </Button>
@@ -268,7 +276,7 @@ const Dashboard: React.FC = () => {
 
       {/* 统计卡片 */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={24} sm={12} md={8} lg={6}>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -291,7 +299,7 @@ const Dashboard: React.FC = () => {
             </Card>
           </motion.div>
         </Col>
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={24} sm={12} md={8} lg={6}>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -314,7 +322,7 @@ const Dashboard: React.FC = () => {
             </Card>
           </motion.div>
         </Col>
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={24} sm={12} md={8} lg={6}>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -337,7 +345,7 @@ const Dashboard: React.FC = () => {
             </Card>
           </motion.div>
         </Col>
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={24} sm={12} md={8} lg={6}>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -387,6 +395,11 @@ const Dashboard: React.FC = () => {
               className={isRefreshing ? 'table-refreshing' : ''}
               pagination={false}
               size="small"
+              scroll={{ x: 'max-content' }}
+              style={{ 
+                minWidth: 300,
+                fontSize: window.innerWidth < 768 ? '12px' : '14px'
+              }}
             />
           </Card>
         </Col>
