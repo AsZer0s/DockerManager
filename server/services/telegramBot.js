@@ -659,8 +659,16 @@ class TelegramBotService {
         const serverId = parseInt(data.split('_')[2]);
         await this.handleSearchContainers(ctx, serverId);
       } else if (data.startsWith('server_')) {
-        const serverId = parseInt(data.split('_')[1]);
-        await this.handleServerDetails(ctx, serverId);
+        const parts = data.split('_');
+        const serverId = parseInt(parts[1]);
+        
+        // 检查是否是服务器详情分页请求
+        if (parts.length === 4 && parts[2] === 'page') {
+          const page = parseInt(parts[3]);
+          await this.handleServerDetails(ctx, serverId, page);
+        } else {
+          await this.handleServerDetails(ctx, serverId);
+        }
       } else if (data.startsWith('containers_')) {
         const parts = data.split('_');
         const serverId = parseInt(parts[1]);
@@ -701,7 +709,7 @@ class TelegramBotService {
     }
   }
 
-  async handleServerDetails(ctx, serverId) {
+  async handleServerDetails(ctx, serverId, page = 1) {
     try {
       const server = await this.getServerById(serverId);
       if (!server) {
@@ -775,11 +783,35 @@ class TelegramBotService {
           }
         });
 
-        message += `🐳 **容器列表** (${containers.length}个)\n`;
+        // 显示容器列表（分页）
+        const itemsPerPage = 5;
+        const totalPages = Math.ceil(containers.length / itemsPerPage);
+        const currentPage = Math.max(1, Math.min(page, totalPages)); // 确保页码在有效范围内
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const currentContainers = containers.slice(startIndex, endIndex);
+        
+        message += `🐳 **容器列表** (第 ${currentPage}/${totalPages} 页)\n`;
         message += `🟢 在线: ${runningCount}  🔴 离线: ${stoppedCount}\n\n`;
+        
+        // 显示当前页的容器
+        for (const container of currentContainers) {
+          const containerStatusIcon = this.isContainerRunning(container) ? '🟢' : '🔴';
+          const containerStatusText = this.isContainerRunning(container) ? '运行中' : '已停止';
+          
+          // 转义Markdown特殊字符
+          const safeName = this.escapeMarkdown(container.name);
+          const safeId = this.escapeMarkdown(container.id);
+          const safeImage = this.escapeMarkdown(container.image);
+          
+          message += `${containerStatusIcon} **${safeName}**\n`;
+          message += `   容器ID: \`${safeId}\`\n`;
+          message += `   状态: ${containerStatusText}\n`;
+          message += `   镜像: \`${safeImage}\`\n\n`;
+        }
 
         // 为每个容器创建按钮
-        for (const container of containers.slice(0, 10)) { // 限制显示前10个容器
+        for (const container of currentContainers) {
           const containerStatusIcon = this.isContainerRunning(container) ? '🟢' : '🔴';
           buttons.push([Markup.button.callback(
             `${containerStatusIcon} ${container.name}`,
@@ -787,15 +819,18 @@ class TelegramBotService {
           )]);
         }
 
-        // 分页逻辑：如果容器超过10个，显示分页按钮
-        const totalPages = Math.ceil(containers.length / 10);
-        const currentPage = 1; // 默认第一页
-        
+        // 分页按钮
         if (totalPages > 1) {
-          buttons.push([
-            Markup.button.callback('⬅️ 上一页', `containers_page_${serverId}_${currentPage - 1}`),
-            Markup.button.callback('➡️ 下一页', `containers_page_${serverId}_${currentPage + 1}`)
-          ]);
+          const paginationButtons = [];
+          if (currentPage > 1) {
+            paginationButtons.push(Markup.button.callback('⬅️ 上一页', `server_${serverId}_page_${currentPage - 1}`));
+          }
+          if (currentPage < totalPages) {
+            paginationButtons.push(Markup.button.callback('➡️ 下一页', `server_${serverId}_page_${currentPage + 1}`));
+          }
+          if (paginationButtons.length > 0) {
+            buttons.push(paginationButtons);
+          }
         }
 
         // 添加控制按钮
