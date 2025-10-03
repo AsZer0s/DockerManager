@@ -859,7 +859,7 @@ class TelegramBotService {
           const safeImage = this.escapeMarkdown(container.image);
           
           message += `${containerStatusIcon} **${safeName}**\n`;
-          message += `   容器ID: \`${safeId}\`\n`;
+          message += `   容器ID: \`${safeId.substring(0, 12)}\`\n`;
           message += `   状态: ${containerStatusText}\n`;
           message += `   镜像: \`${safeImage}\`\n\n`;
         }
@@ -1028,7 +1028,7 @@ class TelegramBotService {
         const safeImage = this.escapeMarkdown(container.image);
         
         message += `${statusIcon} **${safeName}**\n`;
-        message += `   容器ID: \`${safeId}\`\n`;
+        message += `   容器ID: \`${safeId.substring(0, 12)}\`\n`;
         message += `   状态: ${statusText}\n`;
         message += `   镜像: \`${safeImage}\`\n\n`;
 
@@ -1187,7 +1187,7 @@ class TelegramBotService {
       message += `服务器: ${safeServerName}\n\n`;
       
       message += `📊 **状态信息**\n`;
-      message += `容器ID: \`${safeContainerId}\`\n`;
+      message += `容器ID: \`${safeContainerId.substring(0, 12)}\`\n`;
       message += `状态: ${statusIcon} ${statusText}\n`;
       message += `镜像: \`${safeContainerImage}\`\n`;
       message += `创建时间: ${new Date(container.created).toLocaleString('zh-CN')}\n\n`;
@@ -1296,7 +1296,7 @@ class TelegramBotService {
         
         let message = `⚠️ 当前服务器状态异常，请稍后重试\n\n`;
         message += `服务器: ${serverName}\n`;
-        message += `容器ID: \`${containerId}\`\n`;
+        message += `容器ID: \`${containerId.substring(0, 12)}\`\n`;
         message += `无法执行容器操作，请检查服务器连接状态。`;
 
         const buttons = [
@@ -1431,7 +1431,7 @@ class TelegramBotService {
         let message = `📋 **容器日志**\n\n`;
         message += `服务器: ${serverName}\n\n`;
         message += `⚠️ 当前服务器状态异常，请稍后重试\n\n`;
-        message += `容器ID: \`${containerId}\`\n`;
+        message += `容器ID: \`${containerId.substring(0, 12)}\`\n`;
         message += `无法获取容器日志，请检查服务器连接状态。`;
 
         const buttons = [
@@ -2430,7 +2430,7 @@ class TelegramBotService {
   escapeMarkdown(text) {
     if (!text) return '';
     
-    // 转义Markdown特殊字符
+    // 只转义真正需要的Markdown特殊字符，避免过度转义
     return text.toString()
       .replace(/\\/g, '\\\\')  // 反斜杠
       .replace(/\*/g, '\\*')   // 星号
@@ -2444,13 +2444,13 @@ class TelegramBotService {
       .replace(/>/g, '\\>')    // 大于号
       .replace(/#/g, '\\#')    // 井号
       .replace(/\+/g, '\\+')   // 加号
-      .replace(/-/g, '\\-')    // 减号
       .replace(/=/g, '\\=')    // 等号
       .replace(/\|/g, '\\|')   // 竖线
       .replace(/\{/g, '\\{')   // 左花括号
       .replace(/\}/g, '\\}')   // 右花括号
       .replace(/\./g, '\\.')   // 点号
       .replace(/!/g, '\\!');   // 感叹号
+    // 注意：移除了对连字符 - 的转义，因为它不是Markdown特殊字符
   }
 
 }
