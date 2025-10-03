@@ -14,6 +14,49 @@ class TelegramBotService {
     this.verificationCodes = new Map(); // 存储验证码
     this.startTime = Date.now(); // 记录机器人启动时间
     this.registeredButtons = new Map(); // 存储注册的按钮
+    
+    // 配置参数
+    this.config = {
+      ignoreOldMessages: process.env.TELEGRAM_IGNORE_OLD_MESSAGES === 'true' || false, // 是否忽略旧消息
+      maxMessageAge: parseInt(process.env.TELEGRAM_MAX_MESSAGE_AGE) || 300000, // 最大消息年龄（毫秒），默认5分钟
+      ignoreOldCallbackQueries: process.env.TELEGRAM_IGNORE_OLD_CALLBACKS === 'true' || true // 是否忽略旧回调查询，默认true
+    };
+  }
+
+  /**
+   * 检查消息是否过期
+   * @param {Object} ctx - Telegraf上下文
+   * @returns {boolean} 是否过期
+   */
+  isMessageExpired(ctx) {
+    if (!this.config.ignoreOldMessages && !this.config.ignoreOldCallbackQueries) {
+      return false; // 如果配置为不忽略旧消息，则不过期
+    }
+
+    const now = Date.now();
+    let messageTime = null;
+
+    // 检查回调查询
+    if (ctx.callbackQuery) {
+      messageTime = ctx.callbackQuery.message?.date * 1000; // Telegram时间戳是秒，转换为毫秒
+    }
+    // 检查普通消息
+    else if (ctx.message) {
+      messageTime = ctx.message.date * 1000;
+    }
+
+    if (!messageTime) {
+      return false; // 无法确定消息时间，不过期
+    }
+
+    const age = now - messageTime;
+    const isExpired = age > this.config.maxMessageAge;
+
+    if (isExpired) {
+      logger.warn(`消息已过期: 年龄 ${Math.round(age / 1000)}秒, 最大允许 ${Math.round(this.config.maxMessageAge / 1000)}秒`);
+    }
+
+    return isExpired;
   }
 
   async initialize() {
@@ -626,9 +669,20 @@ class TelegramBotService {
       const data = ctx.callbackQuery.data;
       const userId = ctx.from.id;
 
+      // 检查消息是否过期
+      if (this.isMessageExpired(ctx)) {
+        logger.info(`忽略过期的回调查询: 用户 ${userId}, 数据 ${data}`);
+        try {
+          await ctx.answerCbQuery('消息已过期，请重新操作', { show_alert: false });
+        } catch (error) {
+          // 忽略确认失败的错误
+        }
+        return;
+      }
+
       // 立即确认回调查询，避免超时
       try {
-      await ctx.answerCbQuery();
+        await ctx.answerCbQuery();
       } catch (error) {
         // 忽略回调查询超时错误，继续处理
         if (error.description && error.description.includes('query is too old')) {
@@ -1428,6 +1482,12 @@ class TelegramBotService {
       const userId = ctx.from.id;
       const text = ctx.message.text;
       const userSession = this.userSessions.get(userId);
+
+      // 检查消息是否过期
+      if (this.isMessageExpired(ctx)) {
+        logger.info(`忽略过期的文本消息: 用户 ${userId}, 文本 ${text}`);
+        return;
+      }
 
       // 处理按钮文本
       if (text === '📊 服务器管理') {

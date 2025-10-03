@@ -238,7 +238,7 @@ router.post('/containers/:serverId/:containerId', async (req, res) => {
 
     // 获取容器详情
     const dockerService = (await import('../services/dockerService.js')).default;
-    const container = await dockerService.getContainer(parseInt(serverId), containerId);
+    const container = await dockerService.getContainerInfo(parseInt(serverId), containerId);
     
     if (!container) {
       return res.status(404).json({
