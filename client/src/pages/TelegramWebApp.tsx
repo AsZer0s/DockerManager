@@ -76,6 +76,7 @@ const TelegramWebApp: React.FC = () => {
   const [selectedContainer, setSelectedContainer] = useState<Container | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState('servers');
 
   useEffect(() => {
     const initializeData = async () => {
@@ -475,7 +476,7 @@ const TelegramWebApp: React.FC = () => {
           )}
         </div>
 
-        <Tabs defaultActiveKey="servers">
+        <Tabs activeKey={activeTab} onChange={setActiveTab}>
           <TabPane tab={<span><DatabaseOutlined />服务器</span>} key="servers">
             <Space direction="vertical" style={{ width: '100%' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
@@ -573,6 +574,8 @@ const TelegramWebApp: React.FC = () => {
                       onClick={() => {
                         setSelectedServer(server);
                         loadContainers(server.id);
+                        // 直接切换到容器标签页
+                        setActiveTab('containers');
                       }}
                     >
                       <Card.Meta
@@ -616,14 +619,12 @@ const TelegramWebApp: React.FC = () => {
                   dataSource={filteredContainers}
                   renderItem={container => (
                     <List.Item
-                      actions={[
-                        <Button
-                          type="link"
-                          onClick={() => loadContainerDetails(selectedServer.id, container.id)}
-                        >
-                          详情
-                        </Button>
-                      ]}
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => {
+                        loadContainerDetails(selectedServer.id, container.id);
+                        // 直接切换到详情标签页
+                        setActiveTab('details');
+                      }}
                     >
                       <List.Item.Meta
                         avatar={<ContainerOutlined />}

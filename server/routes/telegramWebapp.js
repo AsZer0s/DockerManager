@@ -198,6 +198,178 @@ router.post('/servers/:serverId/containers', async (req, res) => {
 });
 
 /**
+ * @route POST /api/telegram-webapp/containers/:serverId/:containerId
+ * @desc 获取容器详情（Telegram WebApp专用）
+ * @access Public
+ */
+router.post('/containers/:serverId/:containerId', async (req, res) => {
+  try {
+    const { serverId, containerId } = req.params;
+    const { user_id } = req.body;
+
+    if (!user_id) {
+      return res.status(400).json({
+        success: false,
+        message: '用户ID不能为空'
+      });
+    }
+
+    // 验证用户权限
+    const user = await database.db.get(
+      'SELECT * FROM users WHERE telegram_id = ? AND (is_active = 1 OR is_active = true)',
+      [user_id.toString()]
+    );
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: '用户未找到或未激活'
+      });
+    }
+
+    // 检查用户是否有权限访问此服务器
+    const hasPermission = await checkUserServerPermission(user.id, parseInt(serverId));
+    if (!hasPermission) {
+      return res.status(403).json({
+        success: false,
+        message: '没有权限访问此服务器'
+      });
+    }
+
+    // 获取容器详情
+    const dockerService = (await import('../services/dockerService.js')).default;
+    const container = await dockerService.getContainer(parseInt(serverId), containerId);
+    
+    if (!container) {
+      return res.status(404).json({
+        success: false,
+        message: '容器不存在'
+      });
+    }
+
+    // 格式化容器数据
+    const formattedContainer = {
+      id: container.id,
+      name: container.name,
+      image: container.image,
+      status: container.status,
+      created: container.created,
+      ports: container.ports || [],
+      isRunning: isContainerRunning(container),
+      command: container.command,
+      labels: container.labels || {},
+      mounts: container.mounts || [],
+      networks: container.networks || [],
+      env: container.env || []
+    };
+
+    res.json({
+      success: true,
+      container: formattedContainer
+    });
+
+  } catch (error) {
+    logger.error('获取容器详情失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '获取容器详情失败'
+    });
+  }
+});
+
+/**
+ * @route POST /api/telegram-webapp/containers/:serverId/:containerId/:action
+ * @desc 执行容器操作（Telegram WebApp专用）
+ * @access Public
+ */
+router.post('/containers/:serverId/:containerId/:action', async (req, res) => {
+  try {
+    const { serverId, containerId, action } = req.params;
+    const { user_id } = req.body;
+
+    if (!user_id) {
+      return res.status(400).json({
+        success: false,
+        message: '用户ID不能为空'
+      });
+    }
+
+    // 验证用户权限
+    const user = await database.db.get(
+      'SELECT * FROM users WHERE telegram_id = ? AND (is_active = 1 OR is_active = true)',
+      [user_id.toString()]
+    );
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: '用户未找到或未激活'
+      });
+    }
+
+    // 检查用户是否有权限控制此服务器
+    const hasControlPermission = await checkUserServerControlPermission(user.id, parseInt(serverId));
+    if (!hasControlPermission) {
+      return res.status(403).json({
+        success: false,
+        message: '没有权限控制此服务器'
+      });
+    }
+
+    // 执行容器操作
+    let result;
+    let actionText;
+
+    switch (action) {
+      case 'start':
+        result = await dockerService.startContainer(parseInt(serverId), containerId);
+        actionText = '启动';
+        break;
+      case 'stop':
+        result = await dockerService.stopContainer(parseInt(serverId), containerId);
+        actionText = '停止';
+        break;
+      case 'restart':
+        result = await dockerService.restartContainer(parseInt(serverId), containerId);
+        actionText = '重启';
+        break;
+      case 'pause':
+        result = await dockerService.pauseContainer(parseInt(serverId), containerId);
+        actionText = '暂停';
+        break;
+      case 'unpause':
+        result = await dockerService.unpauseContainer(parseInt(serverId), containerId);
+        actionText = '恢复';
+        break;
+      default:
+        return res.status(400).json({
+          success: false,
+          message: '不支持的操作类型'
+        });
+    }
+
+    if (result.success) {
+      res.json({
+        success: true,
+        message: `容器${actionText}成功`
+      });
+    } else {
+      res.json({
+        success: false,
+        message: `容器${actionText}失败：${result.message}`
+      });
+    }
+
+  } catch (error) {
+    logger.error('执行容器操作失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '执行容器操作失败'
+    });
+  }
+});
+
+/**
  * @route POST /api/telegram-webapp/servers/:serverId/containers/:containerId/action
  * @desc 执行容器操作（Telegram WebApp专用）
  * @access Public
