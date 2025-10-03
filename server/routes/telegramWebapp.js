@@ -174,7 +174,7 @@ router.post('/servers/:serverId/containers', async (req, res) => {
     
     // 格式化容器数据
     const formattedContainers = containers.map(container => ({
-      id: container.id,
+      id: container.id.substring(0, 12),
       name: container.name,
       image: container.image,
       status: container.status,
@@ -249,7 +249,7 @@ router.post('/containers/:serverId/:containerId', async (req, res) => {
 
     // 格式化容器数据
     const formattedContainer = {
-      id: container.id,
+      id: container.id.substring(0, 12),
       name: container.name,
       image: container.image,
       status: container.status,

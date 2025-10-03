@@ -78,6 +78,7 @@ const TelegramWebApp: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('servers');
   const [loadingContainerDetails, setLoadingContainerDetails] = useState(false);
+  const [loadingContainers, setLoadingContainers] = useState(false);
 
   useEffect(() => {
     const initializeData = async () => {
@@ -142,6 +143,9 @@ const TelegramWebApp: React.FC = () => {
   const loadContainers = async (serverId: number) => {
     if (!user) return;
     
+    setLoadingContainers(true);
+    setError(null);
+    
     try {
       const response = await fetch(`/api/telegram-webapp/servers/${serverId}/containers`, {
         method: 'POST',
@@ -157,14 +161,17 @@ const TelegramWebApp: React.FC = () => {
       
       if (data.success) {
         setContainers(data.containers);
+        setLoadingContainers(false);
         // 加载容器列表成功
       } else {
         // 加载容器列表失败
         setError(data.message || '加载容器列表失败');
+        setLoadingContainers(false);
       }
     } catch (err) {
       // 加载容器失败
       setError('加载容器失败');
+      setLoadingContainers(false);
     }
   };
 
@@ -461,6 +468,50 @@ const TelegramWebApp: React.FC = () => {
         .mb-8 {
           margin-bottom: 0.5rem;
         }
+        
+        /* 搜索组件优化样式 */
+        .telegram-search-input .ant-input {
+          border-radius: 8px !important;
+          border: 1px solid #d9d9d9 !important;
+          transition: all 0.3s ease !important;
+        }
+        .telegram-search-input .ant-input:focus {
+          border-color: #1890ff !important;
+          box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1) !important;
+        }
+        .telegram-search-input .ant-input-search-button {
+          border-radius: 0 8px 8px 0 !important;
+          border-left: none !important;
+        }
+        .telegram-search-input .ant-input-search-button:hover {
+          border-color: #1890ff !important;
+        }
+        
+        /* 刷新按钮优化样式 */
+        .telegram-refresh-btn {
+          border-radius: 8px !important;
+          transition: all 0.3s ease !important;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+        }
+        .telegram-refresh-btn:hover {
+          transform: translateY(-1px) !important;
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15) !important;
+        }
+        .telegram-refresh-btn:active {
+          transform: translateY(0) !important;
+        }
+        
+        /* 移动端优化 */
+        @media (max-width: 768px) {
+          .telegram-search-input {
+            width: 100% !important;
+            max-width: none !important;
+          }
+          .telegram-refresh-btn {
+            width: 100% !important;
+            margin-top: 8px !important;
+          }
+        }
       `}</style>
       <Card>
         <div style={{ marginBottom: '16px' }}>
@@ -495,19 +546,35 @@ const TelegramWebApp: React.FC = () => {
         <Tabs activeKey={activeTab} onChange={setActiveTab}>
           <TabPane tab={<span><DatabaseOutlined />服务器</span>} key="servers">
             <Space direction="vertical" style={{ width: '100%' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center', 
+                flexWrap: 'wrap', 
+                gap: '12px',
+                marginBottom: '16px'
+              }}>
                 <Search
+                  className="telegram-search-input"
                   placeholder="搜索服务器..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  style={{ width: 300 }}
+                  style={{ 
+                    width: '100%',
+                    maxWidth: '280px'
+                  }}
+                  size="middle"
                 />
                 <Button
+                  className="telegram-refresh-btn"
                   type="primary"
                   icon={<ReloadOutlined spin={refreshing} />}
                   onClick={refreshServers}
                   loading={refreshing}
-                  size="small"
+                  size="middle"
+                  style={{
+                    minWidth: '80px'
+                  }}
                 >
                   刷新
                 </Button>
@@ -588,10 +655,16 @@ const TelegramWebApp: React.FC = () => {
                     <Card
                       hoverable
                       onClick={() => {
-                        setSelectedServer(server);
-                        loadContainers(server.id);
-                        // 直接切换到容器标签页
-                        setActiveTab('containers');
+                        if (!loadingContainers) {
+                          setSelectedServer(server);
+                          loadContainers(server.id);
+                          // 直接切换到容器标签页
+                          setActiveTab('containers');
+                        }
+                      }}
+                      style={{ 
+                        opacity: loadingContainers ? 0.6 : 1,
+                        cursor: loadingContainers ? 'not-allowed' : 'pointer'
                       }}
                     >
                       <Card.Meta
@@ -625,45 +698,67 @@ const TelegramWebApp: React.FC = () => {
                 </div>
 
                 <Search
+                  className="telegram-search-input"
                   placeholder="搜索容器..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  style={{ width: 300 }}
+                  style={{ 
+                    width: '100%',
+                    maxWidth: '280px',
+                    marginBottom: '16px'
+                  }}
+                  size="middle"
                 />
 
-                <List
-                  dataSource={filteredContainers}
-                  renderItem={container => (
-                    <List.Item
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => {
-                        if (!loadingContainerDetails) {
-                          loadContainerDetails(selectedServer.id, container.id);
-                          // 直接切换到详情标签页
-                          setActiveTab('details');
-                        }
-                      }}
-                    >
-                      <List.Item.Meta
-                        avatar={<ContainerOutlined />}
-                        title={
-                          <Space>
-                            {getStatusIcon(container.status)}
-                            {container.name}
-                          </Space>
-                        }
-                        description={
-                          <Space direction="vertical" size="small">
-                            <Text type="secondary">{container.image}</Text>
-                            <Tag color={getStatusColor(container.status)}>
-                              {getStatusText(container.status)}
-                            </Tag>
-                          </Space>
-                        }
-                      />
-                    </List.Item>
-                  )}
-                />
+                {loadingContainers ? (
+                  <div style={{ textAlign: 'center', padding: '50px' }}>
+                    <Spin size="large" />
+                    <div style={{ marginTop: 16, color: '#666' }}>
+                      正在加载容器列表...
+                      <br />
+                      <Text type="secondary" style={{ fontSize: '12px' }}>
+                        正在连接服务器，请稍等片刻
+                      </Text>
+                    </div>
+                  </div>
+                ) : (
+                  <List
+                    dataSource={filteredContainers}
+                    renderItem={container => (
+                      <List.Item
+                        style={{ 
+                          cursor: loadingContainerDetails ? 'not-allowed' : 'pointer',
+                          opacity: loadingContainerDetails ? 0.6 : 1
+                        }}
+                        onClick={() => {
+                          if (!loadingContainerDetails) {
+                            loadContainerDetails(selectedServer.id, container.id);
+                            // 直接切换到详情标签页
+                            setActiveTab('details');
+                          }
+                        }}
+                      >
+                        <List.Item.Meta
+                          avatar={<ContainerOutlined />}
+                          title={
+                            <Space>
+                              {getStatusIcon(container.status)}
+                              {container.name}
+                            </Space>
+                          }
+                          description={
+                            <Space direction="vertical" size="small">
+                              <Text type="secondary">{container.image}</Text>
+                              <Tag color={getStatusColor(container.status)}>
+                                {getStatusText(container.status)}
+                              </Tag>
+                            </Space>
+                          }
+                        />
+                      </List.Item>
+                    )}
+                  />
+                )}
               </Space>
             </TabPane>
           )}

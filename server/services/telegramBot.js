@@ -298,7 +298,7 @@ class TelegramBotService {
       // 如果是回调查询（从其他页面返回），编辑现有消息；否则发送新消息
       if (ctx.callbackQuery) {
         // 添加时间戳来确保消息内容有变化
-        const messageWithTimestamp = welcomeMessage + `\n\n_🕐 更新时间: ${new Date().toLocaleString('zh-CN')}_`;
+        const messageWithTimestamp = welcomeMessage + `\n_🕐 更新时间: ${new Date().toLocaleString('zh-CN')}_`;
         
         try {
           await ctx.editMessageText(messageWithTimestamp, this.getStandardKeyboard());
@@ -438,7 +438,7 @@ class TelegramBotService {
       // 如果是回调查询（从其他页面返回），编辑现有消息；否则发送新消息
       if (ctx.callbackQuery) {
         // 添加时间戳来确保消息内容有变化
-        const messageWithTimestamp = message + `\n\n_🕐 更新时间: ${new Date().toLocaleString('zh-CN')}_`;
+        const messageWithTimestamp = message + `\n_🕐 更新时间: ${new Date().toLocaleString('zh-CN')}_`;
         
         try {
           await ctx.editMessageText(messageWithTimestamp, { 
@@ -560,7 +560,7 @@ class TelegramBotService {
       buttons.push([Markup.button.callback('🏠 主菜单', 'main_menu')]);
 
       // 添加时间戳来确保消息内容有变化
-      const messageWithTimestamp = message + `\n\n_🕐 更新时间: ${new Date().toLocaleString('zh-CN')}_`;
+      const messageWithTimestamp = message + `\n_🕐 更新时间: ${new Date().toLocaleString('zh-CN')}_`;
       
       try {
         await ctx.editMessageText(messageWithTimestamp, {
@@ -898,7 +898,7 @@ class TelegramBotService {
       // 如果是刷新请求，编辑现有消息；否则发送新消息
       if (ctx.callbackQuery) {
         // 添加时间戳来确保消息内容有变化
-        const messageWithTimestamp = message + `\n\n_🕐 更新时间: ${new Date().toLocaleString('zh-CN')}_`;
+        const messageWithTimestamp = message + `\n_🕐 更新时间: ${new Date().toLocaleString('zh-CN')}_`;
         
         try {
           await ctx.editMessageText(messageWithTimestamp, {
@@ -1062,7 +1062,7 @@ class TelegramBotService {
       // 如果是分页请求或刷新请求，编辑现有消息；否则发送新消息
       if (currentPage > 1 || ctx.callbackQuery) {
         // 添加时间戳来确保消息内容有变化
-        const messageWithTimestamp = message + `\n\n_🕐 更新时间: ${new Date().toLocaleString('zh-CN')}_`;
+        const messageWithTimestamp = message + `\n_🕐 更新时间: ${new Date().toLocaleString('zh-CN')}_`;
         
         try {
           await ctx.editMessageText(messageWithTimestamp, { 
@@ -1235,7 +1235,7 @@ class TelegramBotService {
       // 如果是刷新请求，编辑现有消息；否则发送新消息
       if (ctx.callbackQuery) {
         // 添加时间戳来确保消息内容有变化
-        const messageWithTimestamp = message + `\n\n_🕐 更新时间: ${new Date().toLocaleString('zh-CN')}_`;
+        const messageWithTimestamp = message + `\n_🕐 更新时间: ${new Date().toLocaleString('zh-CN')}_`;
         
         try {
           await ctx.editMessageText(messageWithTimestamp, { 
@@ -2382,7 +2382,7 @@ class TelegramBotService {
       // 如果是刷新请求，编辑现有消息；否则发送新消息
       if (ctx.callbackQuery) {
         // 添加时间戳来确保消息内容有变化
-        const messageWithTimestamp = message + `\n\n_🕐 更新时间: ${new Date().toLocaleString('zh-CN')}_`;
+        const messageWithTimestamp = message + `\n_🕐 更新时间: ${new Date().toLocaleString('zh-CN')}_`;
         
         try {
           await ctx.editMessageText(messageWithTimestamp, {
@@ -2430,7 +2430,6 @@ class TelegramBotService {
   escapeMarkdown(text) {
     if (!text) return '';
     
-    // 只转义真正需要的Markdown特殊字符，避免过度转义
     return text.toString()
       .replace(/\\/g, '\\\\')  // 反斜杠
       .replace(/\*/g, '\\*')   // 星号
@@ -2448,9 +2447,7 @@ class TelegramBotService {
       .replace(/\|/g, '\\|')   // 竖线
       .replace(/\{/g, '\\{')   // 左花括号
       .replace(/\}/g, '\\}')   // 右花括号
-      .replace(/\./g, '\\.')   // 点号
       .replace(/!/g, '\\!');   // 感叹号
-    // 注意：移除了对连字符 - 的转义，因为它不是Markdown特殊字符
   }
 
 }
