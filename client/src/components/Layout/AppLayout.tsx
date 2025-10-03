@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Layout, Menu, Avatar, Dropdown, Button, theme } from 'antd'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
@@ -29,6 +29,7 @@ interface AppLayoutProps {
 
 const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const [collapsed, setCollapsed] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout } = useAuthStore()
@@ -36,6 +37,26 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken()
+
+  // 检测屏幕尺寸变化
+  useEffect(() => {
+    const checkIsMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    
+    checkIsMobile()
+    window.addEventListener('resize', checkIsMobile)
+    
+    return () => window.removeEventListener('resize', checkIsMobile)
+  }, [])
+
+  // 在移动端点击菜单项后自动收起侧边栏
+  const handleMenuClick = ({ key }: { key: string }) => {
+    navigate(key)
+    if (isMobile) {
+      setCollapsed(true)
+    }
+  }
 
   // 菜单项配置
   const menuItems: MenuProps['items'] = [
@@ -107,10 +128,6 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     },
   ]
 
-  // 处理菜单点击
-  const handleMenuClick = ({ key }: { key: string }) => {
-    navigate(key)
-  }
 
   // 处理用户菜单点击
   const handleUserMenuClick = ({ key }: { key: string }) => {
@@ -130,12 +147,28 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
+      {/* 移动端遮罩层 */}
+      {isMobile && !collapsed && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            zIndex: 999,
+          }}
+          onClick={() => setCollapsed(true)}
+        />
+      )}
       <Sider
         trigger={null}
         collapsible
         collapsed={collapsed}
         breakpoint="lg"
-        collapsedWidth={window.innerWidth < 768 ? 0 : 80}
+        collapsedWidth={isMobile ? 0 : 80}
+        width={isMobile ? 280 : 200}
         style={{
           background: colorBgContainer,
           boxShadow: '2px 0 8px rgba(0,0,0,0.1)',
@@ -144,6 +177,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           top: 0,
           bottom: 0,
           zIndex: 1000,
+          transform: isMobile && collapsed ? 'translateX(-100%)' : 'translateX(0)',
+          transition: 'transform 0.2s ease-in-out',
         }}
       >
         <div
@@ -169,12 +204,12 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         />
       </Sider>
       <Layout style={{ 
-        marginLeft: window.innerWidth < 768 ? 0 : (collapsed ? 80 : 200), 
+        marginLeft: isMobile ? 0 : (collapsed ? 80 : 200), 
         transition: 'margin-left 0.2s' 
       }}>
         <Header
           style={{
-            padding: window.innerWidth < 768 ? '0 16px' : '0 24px',
+            padding: isMobile ? '0 16px' : '0 24px',
             background: colorBgContainer,
             display: 'flex',
             alignItems: 'center',
@@ -183,7 +218,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
             position: 'fixed',
             top: 0,
             right: 0,
-            left: window.innerWidth < 768 ? 0 : (collapsed ? 80 : 200),
+            left: isMobile ? 0 : (collapsed ? 80 : 200),
             zIndex: 999,
             transition: 'left 0.2s',
           }}
@@ -233,8 +268,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         </Header>
         <Content
           style={{
-            margin: window.innerWidth < 768 ? '88px 8px 16px 8px' : '88px 16px 24px 16px',
-            padding: window.innerWidth < 768 ? 16 : 24,
+            margin: isMobile ? '88px 8px 16px 8px' : '88px 16px 24px 16px',
+            padding: isMobile ? 16 : 24,
             minHeight: 280,
             background: colorBgContainer,
             borderRadius: borderRadiusLG,
