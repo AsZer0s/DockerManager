@@ -32,7 +32,6 @@ import SplitText from '@/components/SplitText';
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
-const { Search } = Input;
 
 interface TelegramUser {
   id: number;
@@ -59,7 +58,7 @@ interface Container {
   status: string;
   created: string;
   ports?: Array<{
-    publicPort: number;
+    publicPort: number | string | null;
     privatePort: number;
     type: string;
   }>;
@@ -75,10 +74,10 @@ const TelegramWebApp: React.FC = () => {
   const [selectedServer, setSelectedServer] = useState<Server | null>(null);
   const [selectedContainer, setSelectedContainer] = useState<Container | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('servers');
   const [loadingContainerDetails, setLoadingContainerDetails] = useState(false);
   const [loadingContainers, setLoadingContainers] = useState(false);
+  const [manualRefreshing, setManualRefreshing] = useState(false);
 
   useEffect(() => {
     const initializeData = async () => {
@@ -214,8 +213,9 @@ const TelegramWebApp: React.FC = () => {
     setLoadingContainerDetails(true);
     setError(null); // 清除之前的错误
     
+    let response;
     try {
-      const response = await fetch(`/api/telegram-webapp/containers/${serverId}/${containerId}`, {
+      response = await fetch(`/api/telegram-webapp/containers/${serverId}/${containerId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -237,16 +237,24 @@ const TelegramWebApp: React.FC = () => {
         setLoadingContainerDetails(false);
       }
     } catch (err) {
-      // 检查是否是连接错误，如果是则重试
-      if (retryCount < 2 && (err as any)?.code === 'ECONNREFUSED') {
-        console.log(`连接被拒绝，${1000 * (retryCount + 1)}ms后重试... (${retryCount + 1}/2)`);
+      console.log('容器详情加载错误:', err);
+      
+      // 检查是否是网络错误或连接错误，如果是则重试
+      const isNetworkError = !response || (response && response.status >= 500) || 
+                            (err as any)?.message?.includes('ECONNREFUSED') ||
+                            (err as any)?.message?.includes('网络错误') ||
+                            (err as any)?.message?.includes('连接失败') ||
+                            (err as any)?.message?.includes('Failed to fetch');
+      
+      if (retryCount < 2 && isNetworkError) {
+        console.log(`网络连接问题，${1000 * (retryCount + 1)}ms后重试... (${retryCount + 1}/2)`);
         setTimeout(() => {
           loadContainerDetails(serverId, containerId, retryCount + 1);
         }, 1000 * (retryCount + 1)); // 递增延迟：1秒、2秒
         return; // 不设置loading为false，继续显示加载状态
       }
       
-      // 最终失败或非连接错误
+      // 最终失败或非网络错误
       setError('加载容器详情失败，请检查服务器连接');
       setLoadingContainerDetails(false);
     }
@@ -305,10 +313,13 @@ const TelegramWebApp: React.FC = () => {
   );
 
   // 刷新服务器列表
-  const refreshServers = async () => {
+  const refreshServers = async (isManual = false) => {
     if (!token || !user) return;
     
-    setRefreshing(true);
+    if (isManual) {
+      setManualRefreshing(true);
+    }
+    
     try {
       const response = await fetch('/api/telegram-webapp/servers', {
         method: 'POST',
@@ -330,7 +341,9 @@ const TelegramWebApp: React.FC = () => {
     } catch (error) {
       // 刷新服务器列表异常
     } finally {
-      setRefreshing(false);
+      if (isManual) {
+        setManualRefreshing(false);
+      }
     }
   };
 
@@ -469,21 +482,17 @@ const TelegramWebApp: React.FC = () => {
           margin-bottom: 0.5rem;
         }
         
-        /* 搜索组件优化样式 */
-        .telegram-search-input .ant-input {
+        /* 搜索输入框优化样式 */
+        .telegram-search-input {
           border-radius: 8px !important;
           border: 1px solid #d9d9d9 !important;
           transition: all 0.3s ease !important;
         }
-        .telegram-search-input .ant-input:focus {
+        .telegram-search-input:focus {
           border-color: #1890ff !important;
           box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1) !important;
         }
-        .telegram-search-input .ant-input-search-button {
-          border-radius: 0 8px 8px 0 !important;
-          border-left: none !important;
-        }
-        .telegram-search-input .ant-input-search-button:hover {
+        .telegram-search-input:hover {
           border-color: #1890ff !important;
         }
         
@@ -554,7 +563,7 @@ const TelegramWebApp: React.FC = () => {
                 gap: '12px',
                 marginBottom: '16px'
               }}>
-                <Search
+                <Input
                   className="telegram-search-input"
                   placeholder="搜索服务器..."
                   value={searchTerm}
@@ -568,9 +577,9 @@ const TelegramWebApp: React.FC = () => {
                 <Button
                   className="telegram-refresh-btn"
                   type="primary"
-                  icon={<ReloadOutlined spin={refreshing} />}
-                  onClick={refreshServers}
-                  loading={refreshing}
+                  icon={<ReloadOutlined spin={manualRefreshing} />}
+                  onClick={() => refreshServers(true)}
+                  loading={manualRefreshing}
                   size="middle"
                   style={{
                     minWidth: '80px'
@@ -697,7 +706,7 @@ const TelegramWebApp: React.FC = () => {
                   <Text type="secondary">{selectedServer.host}:{selectedServer.port}</Text>
                 </div>
 
-                <Search
+                <Input
                   className="telegram-search-input"
                   placeholder="搜索容器..."
                   value={searchTerm}
@@ -732,9 +741,12 @@ const TelegramWebApp: React.FC = () => {
                         }}
                         onClick={() => {
                           if (!loadingContainerDetails) {
-                            loadContainerDetails(selectedServer.id, container.id);
-                            // 直接切换到详情标签页
+                            // 先清空当前选中的容器，确保显示加载状态
+                            setSelectedContainer(null);
+                            // 切换到详情标签页
                             setActiveTab('details');
+                            // 然后加载容器详情
+                            loadContainerDetails(selectedServer.id, container.id);
                           }
                         }}
                       >
@@ -763,7 +775,7 @@ const TelegramWebApp: React.FC = () => {
             </TabPane>
           )}
 
-          {selectedContainer && (
+          {(selectedContainer || loadingContainerDetails) && (
             <TabPane tab={<span><DashboardOutlined />详情</span>} key="details">
               {loadingContainerDetails ? (
                 <div style={{ textAlign: 'center', padding: '50px' }}>
@@ -776,7 +788,7 @@ const TelegramWebApp: React.FC = () => {
                     </Text>
                   </div>
                 </div>
-              ) : (
+              ) : selectedContainer ? (
                 <Space direction="vertical" style={{ width: '100%' }}>
                   <div>
                     <Title level={4}>
@@ -888,15 +900,26 @@ const TelegramWebApp: React.FC = () => {
                         <div>
                           <Text strong>端口映射：</Text>
                           <div style={{ marginTop: 4 }}>
-                            {selectedContainer.ports.map((port, index) => (
-                              <Tag 
-                                key={index}
-                                color="blue"
-                                style={{ margin: '2px', fontSize: '12px' }}
-                              >
-                                {port.publicPort}:{port.privatePort}/{port.type}
-                              </Tag>
-                            ))}
+                            {selectedContainer.ports.map((port, index) => {
+                              // 格式化端口显示
+                              const formatPort = () => {
+                                if (port.publicPort && port.publicPort !== '' && port.publicPort !== null) {
+                                  return `${port.publicPort}:${port.privatePort}/${port.type}`;
+                                } else {
+                                  return `${port.privatePort}/${port.type}`;
+                                }
+                              };
+                              
+                              return (
+                                <Tag 
+                                  key={index}
+                                  color="blue"
+                                  style={{ margin: '2px', fontSize: '12px' }}
+                                >
+                                  {formatPort()}
+                                </Tag>
+                              );
+                            })}
                           </div>
                         </div>
                       )}
@@ -904,6 +927,10 @@ const TelegramWebApp: React.FC = () => {
                   </Card>
                 </div>
                 </Space>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '50px' }}>
+                  <Text type="secondary">请选择一个容器查看详情</Text>
+                </div>
               )}
             </TabPane>
           )}

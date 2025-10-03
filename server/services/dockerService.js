@@ -1172,7 +1172,7 @@ class DockerService {
           const [privatePort, type] = containerPort.split('/');
           ports.push({
             privatePort: parseInt(privatePort),
-            publicPort: binding.HostPort ? parseInt(binding.HostPort) : null,
+            publicPort: binding.HostPort ? parseInt(binding.HostPort) : '',
             type: type || 'tcp',
             ip: binding.HostIp || '0.0.0.0'
           });
@@ -1181,7 +1181,7 @@ class DockerService {
         const [privatePort, type] = containerPort.split('/');
         ports.push({
           privatePort: parseInt(privatePort),
-          publicPort: null,
+          publicPort: '',
           type: type || 'tcp',
           ip: '0.0.0.0'
         });
