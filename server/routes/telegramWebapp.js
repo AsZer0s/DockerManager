@@ -324,7 +324,8 @@ router.get('/servers', async (req, res) => {
           description: server.description,
           host: server.host,
           port: server.ssh_port || server.port || 22, // 显示实际使用的SSH端口
-          isOnline,
+          status: isOnline ? 'online' : 'offline', // 转换为前端期望的格式
+          isOnline, // 保持向后兼容
           canView: server.can_view,
           canControl: server.can_control
         };
@@ -383,7 +384,8 @@ router.post('/servers', async (req, res) => {
           description: server.description,
           host: server.host,
           port: server.ssh_port || server.port || 22, // 显示实际使用的SSH端口
-          isOnline,
+          status: isOnline ? 'online' : 'offline', // 转换为前端期望的格式
+          isOnline, // 保持向后兼容
           canView: server.can_view,
           canControl: server.can_control
         };
