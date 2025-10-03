@@ -353,15 +353,51 @@ class TelegramBotService {
       ]);
       buttons.push([Markup.button.callback('🏠 返回主菜单', 'main_menu')]);
 
-      await ctx.reply(message, { 
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: buttons,
-          keyboard: this.getStandardKeyboard().reply_markup.keyboard,
-          resize_keyboard: true,
-          persistent: true
+      // 如果是回调查询（从其他页面返回），编辑现有消息；否则发送新消息
+      if (ctx.callbackQuery) {
+        // 添加时间戳来确保消息内容有变化
+        const messageWithTimestamp = message + `\n\n_🕐 更新时间: ${new Date().toLocaleString('zh-CN')}_`;
+        
+        try {
+          await ctx.editMessageText(messageWithTimestamp, { 
+            parse_mode: 'Markdown',
+            reply_markup: Markup.inlineKeyboard(buttons).reply_markup
+          });
+        } catch (error) {
+          // 如果仍然失败，尝试不添加时间戳
+          if (error.description && error.description.includes('message is not modified')) {
+            try {
+              await ctx.editMessageText(message, { 
+                parse_mode: 'Markdown',
+                reply_markup: Markup.inlineKeyboard(buttons).reply_markup
+              });
+            } catch (retryError) {
+              // 如果还是失败，发送新消息
+              await ctx.reply(message, { 
+                parse_mode: 'Markdown',
+                reply_markup: {
+                  inline_keyboard: buttons,
+                  keyboard: this.getStandardKeyboard().reply_markup.keyboard,
+                  resize_keyboard: true,
+                  persistent: true
+                }
+              });
+            }
+          } else {
+            throw error;
+          }
         }
-      });
+      } else {
+        await ctx.reply(message, { 
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: buttons,
+            keyboard: this.getStandardKeyboard().reply_markup.keyboard,
+            resize_keyboard: true,
+            persistent: true
+          }
+        });
+      }
     } catch (error) {
       logger.error('处理 /servers 命令失败:', error);
       await this.safeReply(ctx, '抱歉，发生了错误，请稍后重试');
@@ -564,6 +600,8 @@ class TelegramBotService {
         }
       } else if (data === 'main_menu') {
         await this.handleStartCommand(ctx);
+      } else if (data === 'servers') {
+        await this.handleServersCommand(ctx);
       } else if (data === 'refresh_servers') {
         await this.handleRefreshServers(ctx);
       } else if (data === 'search_servers') {
