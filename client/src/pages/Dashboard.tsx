@@ -135,13 +135,13 @@ const Dashboard: React.FC = () => {
       ),
     },
     {
-      title: '端口',
-      dataIndex: 'port',
-      key: 'port',
+      title: 'SSH端口',
+      dataIndex: 'ssh_port',
+      key: 'ssh_port',
       align: 'center' as const,
-      render: (text: number, record: any) => (
+      render: (_: number, record: any) => (
         <div style={{ textAlign: 'center' }}>
-          {record.hide_sensitive_info ? '***' : text}
+          {record.hide_sensitive_info ? '***' : (record.ssh_port || record.port || 22)}
         </div>
       ),
     },

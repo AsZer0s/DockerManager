@@ -3,6 +3,7 @@ import logger from '../utils/logger.js';
 import database from '../config/database.js';
 import dockerService from '../services/dockerService.js';
 import monitoringService from '../services/monitoringService.js';
+import telegramBotService from '../services/telegramBot.js';
 
 const router = express.Router();
 
@@ -55,6 +56,29 @@ router.post('/auth', async (req, res) => {
     res.status(500).json({
       success: false,
       message: '用户认证失败'
+    });
+  }
+});
+
+/**
+ * @route GET /api/telegram-webapp/bot-info
+ * @desc 获取机器人信息（Telegram WebApp专用）
+ * @access Public
+ */
+router.get('/bot-info', async (req, res) => {
+  try {
+    const botInfo = await telegramBotService.getBotInfo();
+    
+    res.json({
+      success: true,
+      botInfo: botInfo
+    });
+
+  } catch (error) {
+    logger.error('获取机器人信息失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '获取机器人信息失败'
     });
   }
 });
@@ -299,7 +323,7 @@ router.get('/servers', async (req, res) => {
           name: server.name,
           description: server.description,
           host: server.host,
-          port: server.port,
+          port: server.ssh_port || server.port || 22, // 显示实际使用的SSH端口
           isOnline,
           canView: server.can_view,
           canControl: server.can_control
@@ -358,7 +382,7 @@ router.post('/servers', async (req, res) => {
           name: server.name,
           description: server.description,
           host: server.host,
-          port: server.port,
+          port: server.ssh_port || server.port || 22, // 显示实际使用的SSH端口
           isOnline,
           canView: server.can_view,
           canControl: server.can_control

@@ -508,7 +508,6 @@ class TelegramBotService {
         `⏰ 运行时间: ${uptimeHours}小时 ${uptimeMinutes}分钟 ${uptimeSeconds}秒\n` +
         `💾 内存使用: ${memUsedMB}MB / ${memTotalMB}MB\n` +
         `🟢 Node.js版本: ${nodeVersion}\n` +
-        `🔄 监控服务: ${monitoringStatus.isRunning ? '运行中' : '已停止'}\n` +
         `🖥️ 总服务器: ${totalServers.count}个`
       await ctx.reply(message, { parse_mode: 'Markdown' });
     } catch (error) {
@@ -1204,7 +1203,7 @@ class TelegramBotService {
         return;
       } else if (text === '🌐 在线监控') {
         const webAppUrl = process.env.TELEGRAM_WEBAPP_URL || 'https://ztms.top/telegram-webapp';
-        await ctx.reply('正在打开Web App...', Markup.inlineKeyboard([
+        await ctx.reply('点此打开', Markup.inlineKeyboard([
           [Markup.button.webApp('🌐 在线监控', webAppUrl)]
         ]));
         return;
@@ -1822,6 +1821,39 @@ class TelegramBotService {
         firstName: null,
         lastName: null,
         displayName: `ID: ${telegramId}`
+      };
+    }
+  }
+
+  /**
+   * 获取机器人信息
+   * @returns {Promise<Object>} 机器人信息
+   */
+  async getBotInfo() {
+    try {
+      if (!this.bot || !this.isInitialized) {
+        throw new Error('Telegram 机器人未初始化');
+      }
+
+      const botInfo = await this.bot.telegram.getMe();
+      
+      return {
+        id: botInfo.id,
+        username: botInfo.username,
+        firstName: botInfo.first_name,
+        canJoinGroups: botInfo.can_join_groups,
+        canReadAllGroupMessages: botInfo.can_read_all_group_messages,
+        supportsInlineQueries: botInfo.supports_inline_queries
+      };
+    } catch (error) {
+      logger.error('获取机器人信息失败:', error);
+      return {
+        id: null,
+        username: null,
+        firstName: null,
+        canJoinGroups: false,
+        canReadAllGroupMessages: false,
+        supportsInlineQueries: false
       };
     }
   }

@@ -65,39 +65,38 @@ const Containers: React.FC = () => {
   const { data: containersData, isLoading, refetch } = useQuery({
     queryKey: ['containers', selectedServer],
     queryFn: async () => {
-      if (selectedServer === 'all') {
-        // 使用新的API获取所有容器信息
-        const response = await containerAPI.getAllContainers(true)
-        const containersData = response.data.data
-        
-        const allContainers = []
-        for (const [serverId, serverData] of Object.entries(containersData)) {
-          const serverDataTyped = serverData as { containers: any[]; serverName: string }
-          const containers = serverDataTyped.containers.map((container: any) => ({
+      try {
+        if (selectedServer === 'all') {
+          // 使用新的API获取所有容器信息
+          const response = await containerAPI.getAllContainers(true)
+          const containersData = response.data.data
+          
+          const allContainers = []
+          for (const [serverId, serverData] of Object.entries(containersData)) {
+            const serverDataTyped = serverData as { containers: any[]; serverName: string }
+            const containers = serverDataTyped.containers.map((container: any) => ({
+              ...container,
+              serverName: serverDataTyped.serverName,
+              serverId: parseInt(serverId)
+            }))
+            allContainers.push(...containers)
+          }
+          
+          return { data: { containers: allContainers, total: allContainers.length } }
+        } else {
+          // 直接获取指定服务器的容器
+          const response = await containerAPI.getContainers(selectedServer)
+          const containers = response.data.containers.map((container: any) => ({
             ...container,
-            serverName: serverDataTyped.serverName,
-            serverId: parseInt(serverId)
+            serverName: servers.find(s => s.id === selectedServer)?.name || 'Unknown',
+            serverId: selectedServer
           }))
-          allContainers.push(...containers)
+          return { data: { containers, total: containers.length } }
         }
-        
-        return { data: { containers: allContainers, total: allContainers.length } }
-      } else {
-        // 使用新的API获取指定服务器的容器
-        const response = await containerAPI.getAllContainers(true)
-        const containersData = response.data.data
-        const serverData = containersData[selectedServer]
-        
-        if (!serverData) {
-          return { data: { containers: [], total: 0 } }
-        }
-        
-        const containers = serverData.containers.map((container: any) => ({
-          ...container,
-          serverName: serverData.serverName,
-          serverId: selectedServer
-        }))
-        return { data: { containers, total: containers.length } }
+      } catch (error) {
+        console.error('获取容器数据失败:', error)
+        // 返回空数据而不是抛出错误
+        return { data: { containers: [], total: 0 } }
       }
     },
     enabled: true,
@@ -722,13 +721,13 @@ const Containers: React.FC = () => {
     stopped: containers.filter((c: any) => c.status && !c.status.includes('Up')).length,
   }
 
-  // 准备服务器选项（只显示在线服务器）
+  // 准备服务器选项（显示所有活跃服务器，包括离线服务器）
   const serverOptions: Array<{ label: string; value: number | 'all' }> = [
     { label: '全部服务器', value: 'all' },
     ...servers
-      .filter(server => server.is_active && server.status === '在线')
+      .filter(server => server.is_active)
       .map(server => ({
-        label: server.name,
+        label: `${server.name} ${server.status === '在线' ? '🟢' : '🔴'}`,
         value: server.id as number
       }))
   ]

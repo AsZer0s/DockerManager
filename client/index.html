@@ -49,8 +49,23 @@
               return info;
             }
 
+            // 获取机器人信息
+            async function getBotInfo() {
+              try {
+                const response = await fetch('/api/telegram-webapp/bot-info');
+                const data = await response.json();
+                if (data.success && data.botInfo && data.botInfo.username) {
+                  return data.botInfo.username;
+                }
+              } catch (error) {
+                console.error('获取机器人信息失败:', error);
+              }
+              return 'DockerManger_Bot'; // 默认值
+            }
+
             // 显示错误信息
-            function showError(message) {
+            async function showError(message) {
+              const botUsername = await getBotInfo();
               document.body.innerHTML = `
                 <div style="
                   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -72,7 +87,7 @@
                     <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
                     <h1 style="color: #333; margin-bottom: 16px;">错误</h1>
                     <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">${message}</p>
-                    <a href="https://t.me/DockerManger_Bot" style="
+                    <a href="https://t.me/${botUsername}" style="
                       display: inline-block; 
                       background: #0088cc; 
                       color: white; 
@@ -240,6 +255,7 @@
                   await sendLogToServer('warn', '桌面浏览器访问 Telegram Web App');
                   
                   // 桌面浏览器访问，显示友好提示
+                  const botUsername = await getBotInfo();
                   document.body.innerHTML = `
                     <div style="
                       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -262,7 +278,7 @@
                         <h1 style="color: #333; margin-bottom: 16px;">Telegram Web App</h1>
                         <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">此应用只能在 Telegram 中打开</p>
                         <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">请通过 Telegram 机器人访问此应用</p>
-                        <a href="https://t.me/DockerManger_Bot" style="
+                        <a href="https://t.me/${botUsername}" style="
                           display: inline-block; 
                           background: #0088cc; 
                           color: white; 

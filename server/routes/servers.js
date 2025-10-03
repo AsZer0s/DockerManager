@@ -264,7 +264,10 @@ router.get('/', authenticateToken, async (req, res) => {
     // 根据权限隐藏敏感信息并检查状态（强制实时检查）
     const serversWithStatus = await Promise.all(servers.map(async (server) => {
       const serverData = { ...server };
-      serverData.status = await checkServerStatus(server, true); // 强制实时检查
+      // 使用monitoringService统一状态检查逻辑
+      const monitoringService = (await import('../services/monitoringService.js')).default;
+      const isOnline = await monitoringService.checkServerConnection(server.id, true);
+      serverData.status = isOnline ? '在线' : '离线';
       return serverData;
     }));
 
