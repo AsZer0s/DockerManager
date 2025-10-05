@@ -157,11 +157,25 @@
     line-height: 56px !important;
   }
   
-  /* 侧边栏优化 */
+  /* 侧边栏优化 - 移除强制宽度限制，让JavaScript控制 */
   .ant-layout-sider {
-    width: 0 !important;
-    min-width: 0 !important;
-    max-width: 0 !important;
+    /* 移除强制宽度限制，让AppLayout组件控制 */
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    z-index: 1000 !important;
+    height: 100vh !important;
+    overflow: hidden !important;
+  }
+  
+  /* 确保侧边栏在移动端正确显示 */
+  .ant-layout-sider.ant-layout-sider-collapsed {
+    transform: translateX(-100%) !important;
+  }
+  
+  .ant-layout-sider:not(.ant-layout-sider-collapsed) {
+    transform: translateX(0) !important;
   }
   
   /* 内容区域优化 */

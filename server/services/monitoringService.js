@@ -209,102 +209,39 @@ class MonitoringService {
    */
   async collectRemoteSystemData(server) {
     try {
-      // 通过 SSH 连接到远程服务器收集数据
-      const { Client } = await import('ssh2');
-      const client = new Client();
+      // 使用SSH连接池执行命令
+      const sshConnectionPool = (await import('./sshConnectionPool.js')).default;
       
-      return new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          client.destroy();
-          resolve(null); // 超时时返回null，而不是reject
-        }, 10000);
-        
-        client.on('ready', () => {
-          clearTimeout(timeout);
-          
-          // 执行多个系统命令获取监控数据
-          const commands = [
-            'uptime -p', // 获取运行时间
-            'cat /proc/loadavg | cut -d" " -f1-3', // 获取负载平均值
-            'free | grep -E "(Mem|内存)" | awk \'{print $3/$2 * 100.0}\'', // 获取内存使用率
-            'free | grep -E "(Mem|内存)" | awk \'{print $2}\'', // 获取内存总量（KB）
-            'free | grep -E "(Mem|内存)" | awk \'{print $3}\'', // 获取内存使用量（KB）
-            'df / | tail -1 | awk \'{print $5}\' | sed \'s/%//\'', // 获取磁盘使用率
-            'df / | tail -1 | awk \'{print $2}\'', // 获取磁盘总量（KB）
-            'df / | tail -1 | awk \'{print $3}\'', // 获取磁盘使用量（KB）
-            'cat /proc/stat | head -1 | awk \'{print ($2+$4)*100/($2+$3+$4+$5)}\'', // 获取CPU使用率
-            'IF=$(ip -o -4 route show to default | awk \'{print $5}\'); RX1=$(awk -v i=$IF \'$1 ~ i":" {gsub(":","",$1); print $2}\' /proc/net/dev); TX1=$(awk -v i=$IF \'$1 ~ i":" {gsub(":","",$1); print $10}\' /proc/net/dev); sleep 1; RX2=$(awk -v i=$IF \'$1 ~ i":" {gsub(":","",$1); print $2}\' /proc/net/dev); TX2=$(awk -v i=$IF \'$1 ~ i":" {gsub(":","",$1); print $10}\' /proc/net/dev); echo "$(((RX2-RX1)/1024)) $(((TX2-TX1)/1024))"', // 获取实时网络速度（KB/s）
-            'cat /proc/uptime | cut -d" " -f1' // 获取系统运行时间（秒）
-          ];
-          
-          let completedCommands = 0;
-          const results = {};
-          
-          commands.forEach((command, index) => {
-            client.exec(command, (err, stream) => {
-              if (err) {
-                logger.error(`执行命令失败 (${index}): ${command}`, err);
-                results[index] = null;
-                completedCommands++;
-                if (completedCommands === commands.length) {
-                  client.end();
-                  resolve(this.processSystemData(results));
-                }
-                return;
-              }
-              
-              let output = '';
-              stream.on('data', (data) => {
-                output += data.toString();
-              });
-              
-              stream.on('close', () => {
-                results[index] = output.trim();
-                completedCommands++;
-                if (completedCommands === commands.length) {
-                  client.end();
-                  resolve(this.processSystemData(results));
-                }
-              });
-            });
-          });
-          
-          // 添加超时处理，防止命令执行时间过长
-          setTimeout(() => {
-            if (completedCommands < commands.length) {
-              logger.warn(`命令执行超时，已完成 ${completedCommands}/${commands.length} 个命令`);
-              client.end();
-              resolve(this.processSystemData(results));
-            }
-          }, 15000); // 15秒超时
-        });
-        
-        client.on('error', (err) => {
-          clearTimeout(timeout);
-          resolve(null); // 连接失败时返回null，而不是reject
-        });
-        
-        // 连接配置
-        const connectConfig = {
-          host: server.host,
-          port: server.ssh_port || 22,
-          username: server.username || 'root',
-          readyTimeout: 5000,
-          keepaliveInterval: 1000
-        };
-        
-        // 如果有密码，使用密码认证
-        if (server.password) {
-          connectConfig.password = server.password;
+      // 执行多个系统命令获取监控数据
+      const commands = [
+        'uptime -p', // 获取运行时间
+        'cat /proc/loadavg | cut -d" " -f1-3', // 获取负载平均值
+        'free | grep -E "(Mem|内存)" | awk \'{print $3/$2 * 100.0}\'', // 获取内存使用率
+        'free | grep -E "(Mem|内存)" | awk \'{print $2}\'', // 获取内存总量（KB）
+        'free | grep -E "(Mem|内存)" | awk \'{print $3}\'', // 获取内存使用量（KB）
+        'df / | tail -1 | awk \'{print $5}\' | sed \'s/%//\'', // 获取磁盘使用率
+        'df / | tail -1 | awk \'{print $2}\'', // 获取磁盘总量（KB）
+        'df / | tail -1 | awk \'{print $3}\'', // 获取磁盘使用量（KB）
+        'cat /proc/stat | head -1 | awk \'{print ($2+$4)*100/($2+$3+$4+$5)}\'', // 获取CPU使用率
+        'IF=$(ip -o -4 route show to default | awk \'{print $5}\'); RX1=$(awk -v i=$IF \'$1 ~ i":" {gsub(":","",$1); print $2}\' /proc/net/dev); TX1=$(awk -v i=$IF \'$1 ~ i":" {gsub(":","",$1); print $10}\' /proc/net/dev); sleep 1; RX2=$(awk -v i=$IF \'$1 ~ i":" {gsub(":","",$1); print $2}\' /proc/net/dev); TX2=$(awk -v i=$IF \'$1 ~ i":" {gsub(":","",$1); print $10}\' /proc/net/dev); echo "$(((RX2-RX1)/1024)) $(((TX2-TX1)/1024))"', // 获取实时网络速度（KB/s）
+        'cat /proc/uptime | cut -d" " -f1' // 获取系统运行时间（秒）
+      ];
+      
+      const results = {};
+      
+      // 顺序执行所有命令（通过连接池的队列机制自动排队）
+      for (let index = 0; index < commands.length; index++) {
+        const command = commands[index];
+        try {
+          const output = await sshConnectionPool.executeCommand(server.id, command, 10000);
+          results[index] = output;
+        } catch (error) {
+          logger.error(`执行命令失败 (${index}): ${command}`, error);
+          results[index] = null;
         }
-        
-        // 如果有私钥，使用密钥认证
-        if (server.private_key) {
-          connectConfig.privateKey = server.private_key;
-        }
-        
-        client.connect(connectConfig);
-      });
+      }
+      
+      return this.processSystemData(results);
     } catch (error) {
       logger.error(`收集远程系统数据失败 (服务器 ${server.name}):`, error);
       return null;

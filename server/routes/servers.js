@@ -102,78 +102,18 @@ async function getFullServerInfo(serverId) {
   }
 }
 
-// 通过 SSH 检查服务器状态
+// 通过 SSH 检查服务器状态（使用连接池）
 async function checkServerViaSSH(server) {
-  return new Promise(async (resolve) => {
-    logger.debug(`SSH连接配置: ${server.host}:${server.ssh_port || server.port || 22}, 用户: ${server.username}`);
+  try {
+    logger.debug(`检查服务器状态: ${server.host}:${server.ssh_port || server.port || 22}, 用户: ${server.username}`);
     
-    const { Client } = await import('ssh2');
-    const client = new Client();
-    
-    const timeout = setTimeout(() => {
-      logger.debug(`SSH连接超时: ${server.host}`);
-      client.destroy();
-      resolve(false);
-    }, 5000); // 5秒超时
-    
-    client.on('ready', () => {
-      clearTimeout(timeout);
-      logger.debug(`SSH连接成功: ${server.host}`);
-      
-      // 执行 docker ps 命令检查 Docker 是否运行
-      client.exec('docker ps --format "table {{.Names}}\t{{.Status}}"', (err, stream) => {
-        if (err) {
-          logger.debug(`Docker命令执行失败: ${server.host} - ${err.message}`);
-          client.end();
-          resolve(false);
-          return;
-        }
-        
-        let output = '';
-        stream.on('close', (code) => {
-          logger.debug(`Docker命令执行完成: ${server.host}, 退出码: ${code}`);
-          client.end();
-          // 如果命令执行成功（退出码为0），说明服务器在线且Docker可用
-          resolve(code === 0);
-        });
-        
-        stream.on('data', (data) => {
-          output += data.toString();
-        });
-        
-        stream.stderr.on('data', (data) => {
-          logger.debug(`Docker命令错误输出: ${server.host} - ${data.toString()}`);
-        });
-      });
-    });
-    
-    client.on('error', (err) => {
-      clearTimeout(timeout);
-      logger.debug(`SSH连接错误: ${server.host} - ${err.message}`);
-      resolve(false);
-    });
-    
-    // 连接配置
-    const connectConfig = {
-      host: server.host,
-      port: server.ssh_port || server.port || 22,
-      username: server.username || 'root',
-      readyTimeout: 5000,
-      keepaliveInterval: 1000
-    };
-    
-    // 如果有密码，使用密码认证
-    if (server.password) {
-      connectConfig.password = server.password;
-    }
-    
-    // 如果有私钥，使用密钥认证
-    if (server.private_key) {
-      connectConfig.privateKey = server.private_key;
-    }
-    
-    client.connect(connectConfig);
-  });
+    // 使用SSH连接池检查服务器状态
+    const sshConnectionPool = (await import('../services/sshConnectionPool.js')).default;
+    return await sshConnectionPool.checkServerStatus(server.id);
+  } catch (error) {
+    logger.debug(`SSH连接检查失败: ${server.host} - ${error.message}`);
+    return false;
+  }
 }
 
 // 中间件：验证 JWT 令牌

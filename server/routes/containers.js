@@ -76,9 +76,43 @@ const checkServerPermission = async (req, res, next) => {
     );
 
     if (!result) {
+      // 获取服务器名称用于更友好的错误信息
+      const serverInfo = await database.db.get(
+        'SELECT name FROM servers WHERE id = ?',
+        [serverId]
+      );
+      const serverName = serverInfo ? serverInfo.name : `服务器 ${serverId}`;
+      
       return res.status(403).json({
         error: '权限不足',
-        message: '您没有权限访问此服务器'
+        message: `您没有访问 ${serverName} 的权限，请联系管理员分配权限`,
+        details: {
+          serverId,
+          serverName,
+          action: 'view_containers',
+          suggestion: '请联系管理员为您分配服务器访问权限'
+        }
+      });
+    }
+
+    // 检查用户是否有查看权限
+    if (!result.can_view) {
+      // 获取服务器名称用于更友好的错误信息
+      const serverInfo = await database.db.get(
+        'SELECT name FROM servers WHERE id = ?',
+        [serverId]
+      );
+      const serverName = serverInfo ? serverInfo.name : `服务器 ${serverId}`;
+      
+      return res.status(403).json({
+        error: '权限不足',
+        message: `您没有查看 ${serverName} 容器的权限`,
+        details: {
+          serverId,
+          serverName,
+          action: 'view_containers',
+          suggestion: '请联系管理员为您分配容器查看权限'
+        }
       });
     }
 

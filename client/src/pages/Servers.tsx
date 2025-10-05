@@ -54,6 +54,7 @@ const Servers: React.FC = () => {
     status: 100,
     created_at: 150
   })
+  const [statusFilter, setStatusFilter] = useState<'all' | 'online' | 'offline'>('all')
   const { user } = useAuthStore()
   const queryClient = useQueryClient()
 
@@ -326,7 +327,20 @@ const Servers: React.FC = () => {
     </div>
   )
 
-  const servers = serversData?.data.servers || []
+  const allServers = serversData?.data.servers || []
+  
+  // 根据状态筛选服务器
+  const servers = allServers.filter(server => {
+    if (statusFilter === 'all') return true
+    if (statusFilter === 'online') return server.is_active && server.status === '在线'
+    if (statusFilter === 'offline') return server.is_active && server.status === '离线'
+    return true
+  })
+
+  // 处理状态筛选
+  const handleStatusFilter = (filter: 'all' | 'online' | 'offline') => {
+    setStatusFilter(filter)
+  }
 
   // 处理创建/编辑服务器
   const handleSubmit = (values: any) => {
@@ -648,7 +662,15 @@ const Servers: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1 }}
           >
-            <Card hoverable>
+            <Card 
+              hoverable 
+              onClick={() => handleStatusFilter('all')}
+              style={{ 
+                cursor: 'pointer',
+                border: statusFilter === 'all' ? '2px solid #1890ff' : '1px solid #d9d9d9',
+                backgroundColor: statusFilter === 'all' ? '#f0f8ff' : 'transparent'
+              }}
+            >
               <Statistic
                 title={
                   <SlideInText 
@@ -658,7 +680,7 @@ const Servers: React.FC = () => {
                     className="stat-title"
                   />
                 }
-                value={servers.length}
+                value={allServers.length}
                 valueStyle={{ color: '#1890ff' }}
               />
             </Card>
@@ -670,7 +692,15 @@ const Servers: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
           >
-            <Card hoverable>
+            <Card 
+              hoverable 
+              onClick={() => handleStatusFilter('online')}
+              style={{ 
+                cursor: 'pointer',
+                border: statusFilter === 'online' ? '2px solid #52c41a' : '1px solid #d9d9d9',
+                backgroundColor: statusFilter === 'online' ? '#f6ffed' : 'transparent'
+              }}
+            >
               <Statistic
                 title={
                   <SlideInText 
@@ -680,7 +710,7 @@ const Servers: React.FC = () => {
                     className="stat-title"
                   />
                 }
-                value={servers.filter(s => s.is_active && s.status === '在线').length}
+                value={allServers.filter(s => s.is_active && s.status === '在线').length}
                 valueStyle={{ color: '#52c41a' }}
               />
             </Card>
@@ -692,7 +722,15 @@ const Servers: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.3 }}
           >
-            <Card hoverable>
+            <Card 
+              hoverable 
+              onClick={() => handleStatusFilter('offline')}
+              style={{ 
+                cursor: 'pointer',
+                border: statusFilter === 'offline' ? '2px solid #ff4d4f' : '1px solid #d9d9d9',
+                backgroundColor: statusFilter === 'offline' ? '#fff2f0' : 'transparent'
+              }}
+            >
               <Statistic
                 title={
                   <SlideInText 
@@ -702,7 +740,7 @@ const Servers: React.FC = () => {
                     className="stat-title"
                   />
                 }
-                value={servers.filter(s => s.is_active && s.status === '离线').length}
+                value={allServers.filter(s => s.is_active && s.status === '离线').length}
                 valueStyle={{ color: '#ff4d4f' }}
               />
             </Card>
@@ -722,7 +760,14 @@ const Servers: React.FC = () => {
             pageSize: 10,
             showSizeChanger: true,
             showQuickJumper: true,
-            showTotal: (total) => `共 ${total} 个服务器`,
+            showTotal: (total) => {
+              if (statusFilter === 'all') {
+                return `共 ${total} 个服务器`
+              } else {
+                const filterText = statusFilter === 'online' ? '在线' : '离线'
+                return `共 ${total} 个${filterText}服务器 (总计 ${allServers.length} 个)`
+              }
+            },
             style: { padding: '16px 24px' }
           }}
           scroll={{ x: 1200 }}

@@ -132,41 +132,38 @@ router.post('/:serverId/connect',
         private_key: privateKey
       };
 
-      // 使用优化的SSH配置（支持代理）
-      const sshConfig = getOptimizedSSHConfig(serverConfig);
-
-      // 测试 SSH 连接
-      const conn = new Client();
+      // 使用SSH连接池测试连接
+      const sshConnectionPool = (await import('../services/sshConnectionPool.js')).default;
       
-      conn.on('ready', () => {
-        logger.info(`SSH 连接成功: ${server.name} (${server.host})`);
+      try {
+        // 测试连接
+        const isOnline = await sshConnectionPool.checkServerStatus(server.id);
         
-        // 关闭测试连接
-        conn.end();
-        
-        res.json({
-          message: 'SSH 连接测试成功',
-          server: {
-            id: server.id,
-            name: server.name,
-            host: server.host,
-            port: server.port
-          }
-        });
-      });
-
-      conn.on('error', (err) => {
-        logger.error(`SSH 连接失败: ${server.name}`, err);
+        if (isOnline) {
+          logger.info(`SSH 连接测试成功: ${server.name} (${server.host})`);
+          
+          res.json({
+            message: 'SSH 连接测试成功',
+            server: {
+              id: server.id,
+              name: server.name,
+              host: server.host,
+              port: server.port
+            }
+          });
+        } else {
+          throw new Error('服务器连接失败');
+        }
+      } catch (connectionError) {
+        logger.error(`SSH 连接测试失败: ${server.name}`, connectionError);
         
         if (!res.headersSent) {
           res.status(400).json({
             error: 'SSH 连接失败',
-            message: err.message
+            message: connectionError.message
           });
         }
-      });
-
-      conn.connect(sshConfig);
+      }
     } catch (error) {
       logger.error('SSH 连接测试失败:', error);
       res.status(500).json({
@@ -257,90 +254,48 @@ router.post('/:serverId/execute',
         private_key: privateKey
       };
 
-      // 使用优化的SSH配置（支持代理）
-      const sshConfig = getOptimizedSSHConfig(serverConfig);
-
-      // 执行 SSH 命令
-      const conn = new Client();
-      let output = '';
-      let errorOutput = '';
-      let exitCode = 0;
-
-      conn.on('ready', () => {
-        conn.exec(command, (err, stream) => {
-          if (err) {
-            logger.error(`SSH 命令执行失败: ${server.name}`, err);
-            if (!res.headersSent) {
-              return res.status(400).json({
-                error: '命令执行失败',
-                message: err.message
-              });
-            }
-            return;
-          }
-
-          stream.on('close', (code, signal) => {
-            exitCode = code;
-            
-            // 记录操作日志
-            database.query(`
-              INSERT INTO operation_logs (user_id, server_id, action, details, timestamp)
-              VALUES ($1, $2, 'ssh_command', $3, CURRENT_TIMESTAMP)
-            `, [req.user.id, serverId, `命令: ${command}, 退出码: ${code}`]).catch(err => {
-              logger.error('记录 SSH 操作日志失败:', err);
-            });
-
-            conn.end();
-            
-            res.json({
-              message: '命令执行完成',
-              result: {
-                command,
-                exitCode,
-                output: output.trim(),
-                error: errorOutput.trim(),
-                timestamp: new Date()
-              }
-            });
-          });
-
-          stream.on('data', (data) => {
-            output += data.toString();
-          });
-
-          stream.stderr.on('data', (data) => {
-            errorOutput += data.toString();
-          });
-
-          // 设置超时
-          setTimeout(() => {
-            if (stream && !stream.destroyed) {
-              stream.destroy();
-              conn.end();
-              
-              if (!res.headersSent) {
-                res.status(408).json({
-                  error: '命令执行超时',
-                  message: '命令执行时间超过限制'
-                });
-              }
-            }
-          }, timeout);
-        });
-      });
-
-      conn.on('error', (err) => {
-        logger.error(`SSH 连接失败: ${server.name}`, err);
+      // 使用SSH连接池执行命令
+      const sshConnectionPool = (await import('../services/sshConnectionPool.js')).default;
+      
+      try {
+        const output = await sshConnectionPool.executeCommand(serverId, command, timeout);
         
+        // 记录操作日志
+        database.query(`
+          INSERT INTO operation_logs (user_id, server_id, action, details, timestamp)
+          VALUES ($1, $2, 'ssh_command', $3, CURRENT_TIMESTAMP)
+        `, [req.user.id, serverId, `命令: ${command}, 执行成功`]).catch(err => {
+          logger.error('记录 SSH 操作日志失败:', err);
+        });
+
+        res.json({
+          message: '命令执行完成',
+          result: {
+            command,
+            exitCode: 0,
+            output: output,
+            error: '',
+            timestamp: new Date()
+          }
+        });
+      } catch (commandError) {
+        logger.error(`SSH 命令执行失败: ${server.name}`, commandError);
+        
+        // 记录操作日志
+        database.query(`
+          INSERT INTO operation_logs (user_id, server_id, action, details, timestamp)
+          VALUES ($1, $2, 'ssh_command', $3, CURRENT_TIMESTAMP)
+        `, [req.user.id, serverId, `命令: ${command}, 执行失败: ${commandError.message}`]).catch(err => {
+          logger.error('记录 SSH 操作日志失败:', err);
+        });
+
         if (!res.headersSent) {
           res.status(400).json({
-            error: 'SSH 连接失败',
-            message: err.message
+            error: '命令执行失败',
+            message: commandError.message
           });
         }
-      });
-
-      conn.connect(sshConfig);
+      }
     } catch (error) {
       logger.error('SSH 命令执行失败:', error);
       if (!res.headersSent) {

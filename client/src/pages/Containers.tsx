@@ -40,6 +40,7 @@ import { useGlobalServers } from '@/hooks/useGlobalServers'
 const Containers: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams()
   const [selectedServer, setSelectedServer] = useState<number | 'all'>('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'running' | 'stopped'>('all')
   const [logsModalVisible, setLogsModalVisible] = useState(false)
   const [selectedContainer, setSelectedContainer] = useState<Container | null>(null)
   const [columnWidths, setColumnWidths] = useState({
@@ -228,7 +229,15 @@ const Containers: React.FC = () => {
   }, [containerLogs, autoScroll, logsContainerRef])
 
   const servers = serversData?.data.servers || []
-  const containers = containersData?.data.containers || []
+  const allContainers = containersData?.data.containers || []
+  
+  // 根据状态筛选容器
+  const containers = allContainers.filter(container => {
+    if (statusFilter === 'all') return true
+    if (statusFilter === 'running') return container.status && container.status.includes('Up')
+    if (statusFilter === 'stopped') return container.status && !container.status.includes('Up')
+    return true
+  })
 
   // 初始化服务器选择
   useEffect(() => {
@@ -258,6 +267,12 @@ const Containers: React.FC = () => {
     } else {
       setSearchParams({ server: value.toString() })
     }
+  }
+
+  // 处理状态筛选
+  const handleStatusFilter = (filter: 'all' | 'running' | 'stopped') => {
+    setStatusFilter(filter)
+    setCurrentPage(1) // 切换筛选时重置到第一页
   }
 
   // 处理容器操作
@@ -730,11 +745,11 @@ const Containers: React.FC = () => {
     },
   ]
 
-  // 计算统计信息
+  // 计算统计信息（基于所有容器）
   const stats = {
-    total: containers.length,
-    running: containers.filter((c: any) => c.status && c.status.includes('Up')).length,
-    stopped: containers.filter((c: any) => c.status && !c.status.includes('Up')).length,
+    total: allContainers.length,
+    running: allContainers.filter((c: any) => c.status && c.status.includes('Up')).length,
+    stopped: allContainers.filter((c: any) => c.status && !c.status.includes('Up')).length,
   }
 
   // 准备服务器选项（显示所有活跃服务器，包括离线服务器）
@@ -843,12 +858,19 @@ const Containers: React.FC = () => {
           容器管理
         </Typography.Title>
         <Space>
-          <Segmented
-            options={serverOptions}
-            value={selectedServer}
-            onChange={handleServerChange}
-            size="large"
-          />
+          <div style={{ 
+            maxWidth: '400px', 
+            overflowX: 'auto',
+            paddingBottom: '4px'
+          }}>
+            <Segmented
+              options={serverOptions}
+              value={selectedServer}
+              onChange={handleServerChange}
+              size="large"
+              style={{ minWidth: 'max-content' }}
+            />
+          </div>
           <Button 
             icon={<ReloadOutlined />} 
             onClick={handleRefresh}
@@ -875,7 +897,15 @@ const Containers: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1 }}
           >
-            <Card hoverable>
+            <Card 
+              hoverable 
+              onClick={() => handleStatusFilter('all')}
+              style={{ 
+                cursor: 'pointer',
+                border: statusFilter === 'all' ? '2px solid #1890ff' : '1px solid #d9d9d9',
+                backgroundColor: statusFilter === 'all' ? '#f0f8ff' : 'transparent'
+              }}
+            >
               <Statistic
                 title={
                   <SlideInText 
@@ -898,7 +928,15 @@ const Containers: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
           >
-            <Card hoverable>
+            <Card 
+              hoverable 
+              onClick={() => handleStatusFilter('running')}
+              style={{ 
+                cursor: 'pointer',
+                border: statusFilter === 'running' ? '2px solid #52c41a' : '1px solid #d9d9d9',
+                backgroundColor: statusFilter === 'running' ? '#f6ffed' : 'transparent'
+              }}
+            >
               <Statistic
                 title={
                   <SlideInText 
@@ -921,7 +959,15 @@ const Containers: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.3 }}
           >
-            <Card hoverable>
+            <Card 
+              hoverable 
+              onClick={() => handleStatusFilter('stopped')}
+              style={{ 
+                cursor: 'pointer',
+                border: statusFilter === 'stopped' ? '2px solid #ff4d4f' : '1px solid #d9d9d9',
+                backgroundColor: statusFilter === 'stopped' ? '#fff2f0' : 'transparent'
+              }}
+            >
               <Statistic
                 title={
                   <SlideInText 
@@ -955,9 +1001,23 @@ const Containers: React.FC = () => {
             total: containers.length,
             showSizeChanger: window.innerWidth >= 768,
             showQuickJumper: window.innerWidth >= 768,
-            showTotal: (total, range) => window.innerWidth >= 768 
-              ? `第 ${range[0]}-${range[1]} 个，共 ${total} 个容器`
-              : `${total} 个容器`,
+            showTotal: (total, range) => {
+              if (window.innerWidth >= 768) {
+                if (statusFilter === 'all') {
+                  return `第 ${range[0]}-${range[1]} 个，共 ${total} 个容器`
+                } else {
+                  const filterText = statusFilter === 'running' ? '运行中' : '已停止'
+                  return `第 ${range[0]}-${range[1]} 个，共 ${total} 个${filterText}容器 (总计 ${allContainers.length} 个)`
+                }
+              } else {
+                if (statusFilter === 'all') {
+                  return `${total} 个容器`
+                } else {
+                  const filterText = statusFilter === 'running' ? '运行中' : '已停止'
+                  return `${total} 个${filterText}容器`
+                }
+              }
+            },
             pageSizeOptions: ['10', '20', '50'],
             onChange: (page, size) => {
               setCurrentPage(page)

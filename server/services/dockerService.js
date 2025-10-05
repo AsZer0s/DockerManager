@@ -452,109 +452,49 @@ class DockerService {
   }
 
   /**
-   * 通过 SSH 获取容器详细信息
+   * 通过 SSH 获取容器详细信息（使用连接池）
    * @param {Object} server - 服务器信息
    * @param {string} containerId - 容器 ID
    * @returns {Promise<Object>} 容器详细信息
    */
   async getContainerInfoViaSSH(server, containerId) {
-    return new Promise(async (resolve, reject) => {
+    try {
+      // 使用SSH连接池执行命令
+      const sshConnectionPool = (await import('./sshConnectionPool.js')).default;
+      
+      const command = `docker inspect ${containerId}`;
+      const output = await sshConnectionPool.executeCommand(server.id, command, 30000);
+      
       try {
-        const { Client } = await import('ssh2');
-        const client = new Client();
-        
-        const timeout = setTimeout(() => {
-          client.destroy();
-          reject(new Error('SSH 连接超时'));
-        }, 30000); // 30秒超时
-        
-        client.on('ready', () => {
-          clearTimeout(timeout);
-          
-          // 执行 docker inspect 命令获取容器详细信息
-          client.exec(`docker inspect ${containerId}`, (err, stream) => {
-            if (err) {
-              client.end();
-              reject(err);
-              return;
-            }
-            
-            let output = '';
-            stream.on('close', (code) => {
-              client.end();
-              
-              if (code === 0) {
-                try {
-                  const info = JSON.parse(output)[0];
-                  const containerInfo = {
-                    id: info.Id,
-                    name: info.Name.replace('/', ''),
-                    image: info.Config.Image,
-                    status: info.State.Status,
-                    created: new Date(info.Created),
-                    startedAt: info.State.StartedAt ? new Date(info.State.StartedAt) : null,
-                    finishedAt: info.State.FinishedAt ? new Date(info.State.FinishedAt) : null,
-                    restartCount: info.RestartCount,
-                    ports: this.formatPortsFromInspect(info.NetworkSettings.Ports),
-                    volumes: this.formatVolumes(info.Mounts),
-                    environment: info.Config.Env,
-                    command: info.Config.Cmd,
-                    workingDir: info.Config.WorkingDir,
-                    labels: info.Config.Labels,
-                    networkMode: info.HostConfig.NetworkMode,
-                    memoryLimit: info.HostConfig.Memory,
-                    cpuShares: info.HostConfig.CpuShares,
-                    restartPolicy: info.HostConfig.RestartPolicy?.Name || 'no'
-                  };
-                  resolve(containerInfo);
-                } catch (parseError) {
-                  reject(new Error('解析容器信息失败'));
-                }
-              } else {
-                reject(new Error(`Docker inspect 命令执行失败，退出码: ${code}`));
-              }
-            });
-            
-            stream.on('data', (data) => {
-              output += data.toString();
-            });
-            
-            stream.stderr.on('data', (data) => {
-              // 记录错误输出但不中断
-              logger.debug('Docker inspect 错误输出:', data.toString());
-            });
-          });
-        });
-        
-        client.on('error', (err) => {
-          clearTimeout(timeout);
-          reject(err);
-        });
-        
-        // 连接配置
-        const connectConfig = {
-          host: server.host,
-          port: server.ssh_port || 22,
-          username: server.username || 'root',
-          readyTimeout: 15000,
-          keepaliveInterval: 1000
+        const info = JSON.parse(output)[0];
+        const containerInfo = {
+          id: info.Id,
+          name: info.Name.replace('/', ''),
+          image: info.Config.Image,
+          status: info.State.Status,
+          created: new Date(info.Created),
+          startedAt: info.State.StartedAt ? new Date(info.State.StartedAt) : null,
+          finishedAt: info.State.FinishedAt ? new Date(info.State.FinishedAt) : null,
+          restartCount: info.RestartCount,
+          ports: this.formatPortsFromInspect(info.NetworkSettings.Ports),
+          volumes: this.formatVolumes(info.Mounts),
+          environment: info.Config.Env,
+          command: info.Config.Cmd,
+          workingDir: info.Config.WorkingDir,
+          labels: info.Config.Labels,
+          networkMode: info.HostConfig.NetworkMode,
+          memoryLimit: info.HostConfig.Memory,
+          cpuShares: info.HostConfig.CpuShares,
+          restartPolicy: info.HostConfig.RestartPolicy?.Name || 'no'
         };
-        
-        // 如果有密码，使用密码认证
-        if (server.password) {
-          connectConfig.password = server.password;
-        }
-        
-        // 如果有私钥，使用密钥认证
-        if (server.private_key) {
-          connectConfig.privateKey = server.private_key;
-        }
-        
-        client.connect(connectConfig);
-      } catch (error) {
-        reject(error);
+        return containerInfo;
+      } catch (parseError) {
+        throw new Error('解析容器信息失败');
       }
-    });
+    } catch (error) {
+      logger.error(`通过SSH获取容器详细信息失败: ${server.host}`, error);
+      throw error;
+    }
   }
 
   /**
@@ -591,79 +531,24 @@ class DockerService {
   }
 
   /**
-   * 通过SSH启动容器
+   * 通过SSH启动容器（使用连接池）
    * @param {Object} server - 服务器信息
    * @param {string} containerId - 容器ID
    * @returns {Promise<Object>} 操作结果
    */
   async startContainerViaSSH(server, containerId) {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const { Client } = await import('ssh2');
-        const client = new Client();
+    try {
+      // 使用SSH连接池执行命令
+      const sshConnectionPool = (await import('./sshConnectionPool.js')).default;
       
-      const timeout = setTimeout(() => {
-        client.end();
-        reject(new Error('SSH连接超时'));
-      }, 10000);
+      const command = `docker start ${containerId}`;
+      const output = await sshConnectionPool.executeCommand(server.id, command, 10000);
       
-      client.on('ready', () => {
-        client.exec(`docker start ${containerId}`, (err, stream) => {
-          if (err) {
-            clearTimeout(timeout);
-            client.end();
-            reject(err);
-            return;
-          }
-          
-          let output = '';
-          let errorOutput = '';
-          
-          stream.on('close', (code) => {
-            clearTimeout(timeout);
-            client.end();
-            
-            if (code === 0) {
-              resolve({ success: true, message: '容器启动成功' });
-            } else {
-              resolve({ success: false, error: errorOutput || '容器启动失败' });
-            }
-          });
-          
-          stream.on('data', (data) => {
-            output += data.toString();
-          });
-          
-          stream.stderr.on('data', (data) => {
-            errorOutput += data.toString();
-          });
-        });
-      });
-      
-      client.on('error', (err) => {
-        clearTimeout(timeout);
-        reject(err);
-      });
-      
-      // 连接配置
-      const connectConfig = {
-        host: server.host,
-        port: server.ssh_port || 22,
-        username: server.ssh_user || 'root',
-        readyTimeout: 15000,
-      };
-      
-      if (server.password) {
-        connectConfig.password = server.password;
-      } else if (server.private_key) {
-        connectConfig.privateKey = server.private_key;
-      }
-      
-      client.connect(connectConfig);
-      } catch (error) {
-        reject(error);
-      }
-    });
+      return { success: true, message: '容器启动成功' };
+    } catch (error) {
+      logger.error(`启动容器失败: ${server.host}`, error);
+      return { success: false, error: error.message || '容器启动失败' };
+    }
   }
 
   /**
@@ -701,80 +586,25 @@ class DockerService {
   }
 
   /**
-   * 通过SSH停止容器
+   * 通过SSH停止容器（使用连接池）
    * @param {Object} server - 服务器信息
    * @param {string} containerId - 容器ID
    * @param {number} timeout - 超时时间（秒）
    * @returns {Promise<Object>} 操作结果
    */
   async stopContainerViaSSH(server, containerId, timeout = 10) {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const { Client } = await import('ssh2');
-        const client = new Client();
+    try {
+      // 使用SSH连接池执行命令
+      const sshConnectionPool = (await import('./sshConnectionPool.js')).default;
       
-      const timeoutMs = setTimeout(() => {
-        client.end();
-        reject(new Error('SSH连接超时'));
-      }, 10000);
+      const command = `docker stop -t ${timeout} ${containerId}`;
+      const output = await sshConnectionPool.executeCommand(server.id, command, 10000);
       
-      client.on('ready', () => {
-        client.exec(`docker stop -t ${timeout} ${containerId}`, (err, stream) => {
-          if (err) {
-            clearTimeout(timeoutMs);
-            client.end();
-            reject(err);
-            return;
-          }
-          
-          let output = '';
-          let errorOutput = '';
-          
-          stream.on('close', (code) => {
-            clearTimeout(timeoutMs);
-            client.end();
-            
-            if (code === 0) {
-              resolve({ success: true, message: '容器停止成功' });
-            } else {
-              resolve({ success: false, error: errorOutput || '容器停止失败' });
-            }
-          });
-          
-          stream.on('data', (data) => {
-            output += data.toString();
-          });
-          
-          stream.stderr.on('data', (data) => {
-            errorOutput += data.toString();
-          });
-        });
-      });
-      
-      client.on('error', (err) => {
-        clearTimeout(timeoutMs);
-        reject(err);
-      });
-      
-      // 连接配置
-      const connectConfig = {
-        host: server.host,
-        port: server.ssh_port || 22,
-        username: server.ssh_user || 'root',
-        readyTimeout: 15000,
-      };
-      
-      if (server.password) {
-        connectConfig.password = server.password;
-      } else if (server.private_key) {
-        connectConfig.privateKey = server.private_key;
-      }
-      
-      client.connect(connectConfig);
-      } catch (error) {
-        reject(error);
-      }
-    });
+      return { success: true, message: '容器停止成功' };
+    } catch (error) {
+      logger.error(`停止容器失败: ${server.host}`, error);
+      return { success: false, error: error.message || '容器停止失败' };
+    }
   }
 
   /**
@@ -812,80 +642,25 @@ class DockerService {
   }
 
   /**
-   * 通过SSH重启容器
+   * 通过SSH重启容器（使用连接池）
    * @param {Object} server - 服务器信息
    * @param {string} containerId - 容器ID
    * @param {number} timeout - 超时时间（秒）
    * @returns {Promise<Object>} 操作结果
    */
   async restartContainerViaSSH(server, containerId, timeout = 10) {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const { Client } = await import('ssh2');
-        const client = new Client();
+    try {
+      // 使用SSH连接池执行命令
+      const sshConnectionPool = (await import('./sshConnectionPool.js')).default;
       
-      const timeoutMs = setTimeout(() => {
-        client.end();
-        reject(new Error('SSH连接超时'));
-      }, 30000); // 增加到30秒
+      const command = `docker restart -t ${timeout} ${containerId}`;
+      const output = await sshConnectionPool.executeCommand(server.id, command, 30000);
       
-      client.on('ready', () => {
-        client.exec(`docker restart -t ${timeout} ${containerId}`, (err, stream) => {
-          if (err) {
-            clearTimeout(timeoutMs);
-            client.end();
-            reject(err);
-            return;
-          }
-          
-          let output = '';
-          let errorOutput = '';
-          
-          stream.on('close', (code) => {
-            clearTimeout(timeoutMs);
-            client.end();
-            
-            if (code === 0) {
-              resolve({ success: true, message: '容器重启成功' });
-            } else {
-              resolve({ success: false, error: errorOutput || '容器重启失败' });
-            }
-          });
-          
-          stream.on('data', (data) => {
-            output += data.toString();
-          });
-          
-          stream.stderr.on('data', (data) => {
-            errorOutput += data.toString();
-          });
-        });
-      });
-      
-      client.on('error', (err) => {
-        clearTimeout(timeoutMs);
-        reject(err);
-      });
-      
-      // 连接配置
-      const connectConfig = {
-        host: server.host,
-        port: server.ssh_port || 22,
-        username: server.ssh_user || 'root',
-        readyTimeout: 15000,
-      };
-      
-      if (server.password) {
-        connectConfig.password = server.password;
-      } else if (server.private_key) {
-        connectConfig.privateKey = server.private_key;
-      }
-      
-      client.connect(connectConfig);
-      } catch (error) {
-        reject(error);
-      }
-    });
+      return { success: true, message: '容器重启成功' };
+    } catch (error) {
+      logger.error(`重启容器失败: ${server.host}`, error);
+      return { success: false, error: error.message || '容器重启失败' };
+    }
   }
 
 
@@ -932,81 +707,25 @@ class DockerService {
   }
 
   /**
-   * 通过SSH删除容器
+   * 通过SSH删除容器（使用连接池）
    * @param {Object} server - 服务器信息
    * @param {string} containerId - 容器ID
    * @param {boolean} force - 是否强制删除
    * @returns {Promise<Object>} 操作结果
    */
   async removeContainerViaSSH(server, containerId, force = false) {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const { Client } = await import('ssh2');
-        const client = new Client();
+    try {
+      // 使用SSH连接池执行命令
+      const sshConnectionPool = (await import('./sshConnectionPool.js')).default;
       
-      const timeout = setTimeout(() => {
-        client.end();
-        reject(new Error('SSH连接超时'));
-      }, 10000);
+      const command = force ? `docker rm -f ${containerId}` : `docker rm ${containerId}`;
+      const output = await sshConnectionPool.executeCommand(server.id, command, 10000);
       
-      client.on('ready', () => {
-        const command = force ? `docker rm -f ${containerId}` : `docker rm ${containerId}`;
-        client.exec(command, (err, stream) => {
-          if (err) {
-            clearTimeout(timeout);
-            client.end();
-            reject(err);
-            return;
-          }
-          
-          let output = '';
-          let errorOutput = '';
-          
-          stream.on('close', (code) => {
-            clearTimeout(timeout);
-            client.end();
-            
-            if (code === 0) {
-              resolve({ success: true, message: '容器删除成功' });
-            } else {
-              resolve({ success: false, error: errorOutput || '容器删除失败' });
-            }
-          });
-          
-          stream.on('data', (data) => {
-            output += data.toString();
-          });
-          
-          stream.stderr.on('data', (data) => {
-            errorOutput += data.toString();
-          });
-        });
-      });
-      
-      client.on('error', (err) => {
-        clearTimeout(timeout);
-        reject(err);
-      });
-      
-      // 连接配置
-      const connectConfig = {
-        host: server.host,
-        port: server.ssh_port || 22,
-        username: server.ssh_user || 'root',
-        readyTimeout: 15000,
-      };
-      
-      if (server.password) {
-        connectConfig.password = server.password;
-      } else if (server.private_key) {
-        connectConfig.privateKey = server.private_key;
-      }
-      
-      client.connect(connectConfig);
-      } catch (error) {
-        reject(error);
-      }
-    });
+      return { success: true, message: '容器删除成功' };
+    } catch (error) {
+      logger.error(`删除容器失败: ${server.host}`, error);
+      return { success: false, error: error.message || '容器删除失败' };
+    }
   }
 
   /**
@@ -1039,99 +758,42 @@ class DockerService {
   }
 
   /**
-   * 通过SSH获取容器日志
+   * 通过SSH获取容器日志（使用连接池）
    * @param {Object} server - 服务器信息
    * @param {string} containerId - 容器ID
    * @param {Object} options - 日志选项
    * @returns {Promise<string>} 容器日志
    */
   async getContainerLogsViaSSH(server, containerId, options = {}) {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const { Client } = await import('ssh2');
-        const client = new Client();
+    try {
+      // 使用SSH连接池执行命令
+      const sshConnectionPool = (await import('./sshConnectionPool.js')).default;
       
-      const timeout = setTimeout(() => {
-        client.end();
-        reject(new Error('SSH连接超时'));
-      }, 15000); // 日志获取可能需要更长时间
+      // 构建docker logs命令
+      let command = `docker logs ${containerId}`;
       
-      client.on('ready', () => {
-        // 构建docker logs命令
-        let command = `docker logs ${containerId}`;
-        
-        if (options.tail) {
-          command += ` --tail ${options.tail}`;
-        }
-        
-        if (options.timestamps) {
-          command += ' --timestamps';
-        }
-        
-        if (options.since) {
-          command += ` --since ${options.since}`;
-        }
-        
-        if (options.until) {
-          command += ` --until ${options.until}`;
-        }
-        
-        client.exec(command, (err, stream) => {
-          if (err) {
-            clearTimeout(timeout);
-            client.end();
-            reject(err);
-            return;
-          }
-          
-          let output = '';
-          let errorOutput = '';
-          
-          stream.on('close', (code) => {
-            clearTimeout(timeout);
-            client.end();
-            
-            if (code === 0) {
-              resolve(output);
-            } else {
-              reject(new Error(errorOutput || '获取容器日志失败'));
-            }
-          });
-          
-          stream.on('data', (data) => {
-            output += data.toString();
-          });
-          
-          stream.stderr.on('data', (data) => {
-            errorOutput += data.toString();
-          });
-        });
-      });
-      
-      client.on('error', (err) => {
-        clearTimeout(timeout);
-        reject(err);
-      });
-      
-      // 连接配置
-      const connectConfig = {
-        host: server.host,
-        port: server.ssh_port || 22,
-        username: server.ssh_user || 'root',
-        readyTimeout: 15000,
-      };
-      
-      if (server.password) {
-        connectConfig.password = server.password;
-      } else if (server.private_key) {
-        connectConfig.privateKey = server.private_key;
+      if (options.tail) {
+        command += ` --tail ${options.tail}`;
       }
       
-      client.connect(connectConfig);
-      } catch (error) {
-        reject(error);
+      if (options.timestamps) {
+        command += ' --timestamps';
       }
-    });
+      
+      if (options.since) {
+        command += ` --since ${options.since}`;
+      }
+      
+      if (options.until) {
+        command += ` --until ${options.until}`;
+      }
+      
+      const output = await sshConnectionPool.executeCommand(server.id, command, 15000);
+      return output;
+    } catch (error) {
+      logger.error(`获取容器日志失败: ${server.host}`, error);
+      throw error;
+    }
   }
 
 
@@ -1270,87 +932,25 @@ class DockerService {
   }
 
   /**
-   * 通过 SSH 获取容器统计信息
+   * 通过 SSH 获取容器统计信息（使用连接池）
    * @param {Object} server - 服务器信息
    * @param {string} containerId - 容器 ID
    * @returns {Promise<Object>} 容器统计信息
    */
   async getContainerStatsViaSSH(server, containerId) {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const { Client } = await import('ssh2');
-        const client = new Client();
-        
-        const timeout = setTimeout(() => {
-          client.destroy();
-          reject(new Error('SSH 连接超时'));
-        }, 30000); // 30秒超时
-        
-        client.on('ready', () => {
-          clearTimeout(timeout);
-          
-          // 获取容器统计信息
-          const command = `docker stats --no-stream --format "table {{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}\t{{.NetIO}}\t{{.BlockIO}}\t{{.PIDs}}" ${containerId}`;
-          
-          client.exec(command, (err, stream) => {
-            if (err) {
-              client.end();
-              reject(err);
-              return;
-            }
-            
-            let output = '';
-            stream.on('close', (code) => {
-              client.end();
-              
-              if (code === 0) {
-                const stats = this.parseContainerStatsOutput(output);
-                resolve(stats);
-              } else {
-                reject(new Error(`Docker stats 命令执行失败，退出码: ${code}`));
-              }
-            });
-            
-            stream.on('data', (data) => {
-              output += data.toString();
-            });
-            
-            stream.stderr.on('data', (data) => {
-              // 记录错误输出但不中断
-              logger.debug('Docker stats 错误输出:', data.toString());
-            });
-          });
-        });
-        
-        client.on('error', (err) => {
-          clearTimeout(timeout);
-          reject(err);
-        });
-        
-        // 连接配置
-        const connectConfig = {
-          host: server.host,
-          port: server.ssh_port || 22,
-          username: server.username || 'root',
-          readyTimeout: 15000,
-          keepaliveInterval: 1000
-        };
-        
-        // 如果有密码，使用密码认证
-        if (server.password) {
-          connectConfig.password = server.password;
-        }
-        
-        // 如果有私钥，使用密钥认证
-        if (server.private_key) {
-          connectConfig.privateKey = server.private_key;
-        }
-        
-        client.connect(connectConfig);
-      } catch (error) {
-        reject(error);
-      }
-    });
+    try {
+      // 使用SSH连接池执行命令
+      const sshConnectionPool = (await import('./sshConnectionPool.js')).default;
+      
+      const command = `docker stats --no-stream --format "table {{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}\t{{.NetIO}}\t{{.BlockIO}}\t{{.PIDs}}" ${containerId}`;
+      const output = await sshConnectionPool.executeCommand(server.id, command, 30000);
+      
+      const stats = this.parseContainerStatsOutput(output);
+      return stats;
+    } catch (error) {
+      logger.error(`获取容器统计信息失败: ${server.host}`, error);
+      throw error;
+    }
   }
 
   /**

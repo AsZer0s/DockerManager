@@ -63,4 +63,27 @@ router.get('/version', authenticateToken, async (req, res) => {
   }
 });
 
+/**
+ * @route GET /api/system/ssh-pool-status
+ * @desc 获取SSH连接池状态
+ * @access Private
+ */
+router.get('/ssh-pool-status', authenticateToken, async (req, res) => {
+  try {
+    const sshConnectionPool = (await import('../services/sshConnectionPool.js')).default;
+    const stats = sshConnectionPool.getStats();
+    
+    res.json({
+      success: true,
+      data: stats
+    });
+  } catch (error) {
+    logger.error('获取SSH连接池状态失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '获取SSH连接池状态失败'
+    });
+  }
+});
+
 export default router;

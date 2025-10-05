@@ -41,7 +41,12 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   // 检测屏幕尺寸变化
   useEffect(() => {
     const checkIsMobile = () => {
-      setIsMobile(window.innerWidth < 768)
+      const mobile = window.innerWidth < 768
+      setIsMobile(mobile)
+      // 在移动端默认收起侧边栏
+      if (mobile) {
+        setCollapsed(true)
+      }
     }
     
     checkIsMobile()
@@ -179,6 +184,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           zIndex: 1000,
           transform: isMobile && collapsed ? 'translateX(-100%)' : 'translateX(0)',
           transition: 'transform 0.2s ease-in-out',
+          height: '100vh',
+          overflow: 'hidden',
         }}
       >
         <div
