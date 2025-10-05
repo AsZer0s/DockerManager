@@ -333,6 +333,20 @@
   color: var(--text-color) !important;
 }
 
+/* 容器日志显示样式 */
+.container-logs-display {
+  background: rgb(30, 30, 30) !important;
+  color: #d4d4d4 !important;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace !important;
+  font-size: 12px !important;
+  line-height: 1.4 !important;
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
+  padding: 16px !important;
+  border-radius: 6px !important;
+  overflow: auto !important;
+}
+
 /* 表单组件修复 */
 .ant-form-item-label > label {
   color: var(--text-color) !important;

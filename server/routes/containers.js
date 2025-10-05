@@ -52,7 +52,7 @@ const checkServerPermission = async (req, res, next) => {
     const serverId = parseInt(req.params.serverId || req.body.serverId);
     
     if (req.user.role === 'admin') {
-      req.serverPermission = { canView: true, canControl: true, canSsh: true, hideSensitiveInfo: false };
+      req.serverPermission = { can_view: true, can_control: true, can_ssh: true, hide_sensitive_info: false };
       return next();
     }
 
@@ -75,6 +75,9 @@ const checkServerPermission = async (req, res, next) => {
       [req.user.id, serverId]
     );
 
+    // 调试信息：记录权限查询结果
+    logger.debug(`权限检查: 用户 ${req.user.id}, 服务器 ${serverId}, 查询结果:`, result);
+
     if (!result) {
       // 获取服务器名称用于更友好的错误信息
       const serverInfo = await database.db.get(
@@ -90,7 +93,12 @@ const checkServerPermission = async (req, res, next) => {
           serverId,
           serverName,
           action: 'view_containers',
-          suggestion: '请联系管理员为您分配服务器访问权限'
+          suggestion: '请联系管理员为您分配服务器访问权限',
+          debug: {
+            userId: req.user.id,
+            userRole: req.user.role,
+            permissionQuery: `SELECT can_view, can_control, can_ssh, hide_sensitive_info FROM user_server_permissions WHERE user_id = ${req.user.id} AND server_id = ${serverId}`
+          }
         }
       });
     }
@@ -269,7 +277,7 @@ router.get('/:serverId',
       const serverId = parseInt(req.params.serverId);
       const { all = 'false' } = req.query;
 
-      if (!req.serverPermission.canView) {
+      if (!req.serverPermission.can_view) {
         return res.status(403).json({
           error: '权限不足',
           message: '您没有权限查看此服务器的容器'
@@ -357,7 +365,7 @@ router.get('/:serverId/:containerId',
       const serverId = parseInt(req.params.serverId);
       const containerId = req.params.containerId;
 
-      if (!req.serverPermission.canView) {
+      if (!req.serverPermission.can_view) {
         return res.status(403).json({
           error: '权限不足',
           message: '您没有权限查看此服务器的容器'
@@ -406,7 +414,7 @@ router.post('/:serverId/:containerId/start',
       const serverId = parseInt(req.params.serverId);
       const containerId = req.params.containerId;
 
-      if (!req.serverPermission.canControl) {
+      if (!req.serverPermission.can_control) {
         return res.status(403).json({
           error: '权限不足',
           message: '您没有权限控制此服务器的容器'
@@ -451,7 +459,7 @@ router.post('/:serverId/:containerId/stop',
       const containerId = req.params.containerId;
       const { timeout = 10 } = req.body;
 
-      if (!req.serverPermission.canControl) {
+      if (!req.serverPermission.can_control) {
         return res.status(403).json({
           error: '权限不足',
           message: '您没有权限控制此服务器的容器'
@@ -496,7 +504,7 @@ router.post('/:serverId/:containerId/restart',
       const containerId = req.params.containerId;
       const { timeout = 10 } = req.body;
 
-      if (!req.serverPermission.canControl) {
+      if (!req.serverPermission.can_control) {
         return res.status(403).json({
           error: '权限不足',
           message: '您没有权限控制此服务器的容器'
@@ -542,7 +550,7 @@ router.delete('/:serverId/:containerId',
       const containerId = req.params.containerId;
       const { force = false } = req.body;
 
-      if (!req.serverPermission.canControl) {
+      if (!req.serverPermission.can_control) {
         return res.status(403).json({
           error: '权限不足',
           message: '您没有权限控制此服务器的容器'
@@ -593,10 +601,19 @@ router.get('/:serverId/:containerId/logs',
         follow = false 
       } = req.query;
 
-      if (!req.serverPermission.canView) {
+      // 调试信息：记录权限检查结果
+      logger.debug(`容器日志权限检查: 用户 ${req.user.id}, 服务器 ${serverId}, 权限:`, req.serverPermission);
+
+      if (!req.serverPermission.can_view) {
         return res.status(403).json({
           error: '权限不足',
-          message: '您没有权限查看此服务器的容器日志'
+          message: '您没有权限查看此服务器的容器日志',
+          debug: {
+            userId: req.user.id,
+            serverId: serverId,
+            permissions: req.serverPermission,
+            userRole: req.user.role
+          }
         });
       }
 

@@ -1074,13 +1074,9 @@ const Containers: React.FC = () => {
       >
         <div 
           ref={setLogsContainerRef}
+          className="container-logs-display"
           style={{ 
             height: 500, 
-            overflow: 'auto', 
-            background: '#1e1e1e', 
-            color: '#d4d4d4', 
-            padding: 16, 
-            borderRadius: 6,
             position: 'relative'
           }}
         >

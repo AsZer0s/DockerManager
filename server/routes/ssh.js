@@ -52,7 +52,7 @@ const checkSshPermission = async (req, res, next) => {
     const serverId = parseInt(req.params.serverId);
     
     if (req.user.role === 'admin') {
-      req.serverPermission = { canSsh: true };
+      req.serverPermission = { can_ssh: true };
       return next();
     }
 
