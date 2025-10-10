@@ -95,7 +95,6 @@
 
 /* 输入框样式优化 */
 .dark .ant-input {
-  background-color: #1f1f1f !important;
   border-color: #424242 !important;
   color: #ffffffd9 !important;
 }

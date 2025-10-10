@@ -1,10 +1,13 @@
+import dotenv from 'dotenv';
+
+dotenv.config();
+
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import compression from 'compression';
 import { createServer } from 'http';
-import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -18,6 +21,7 @@ import jwtManager from './utils/jwt.js';
 import telegramBot from './services/telegramBot.js';
 import monitoringService from './services/monitoringService.js';
 import connectionMonitor from './services/connectionMonitor.js';
+import alertService from './services/alertService.js';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { open } from 'sqlite';
@@ -38,8 +42,6 @@ import pollingRoutes from './routes/polling.js';
 import sshSessionRoutes from './routes/sshSession.js';
 import systemRoutes from './routes/system.js';
 import networkRoutes from './routes/network.js';
-
-dotenv.config();
 
 // 全局错误处理
 process.on('uncaughtException', (error) => {
@@ -466,6 +468,14 @@ async function createDatabaseSchema(dbPath) {
         UNIQUE(user_id)
     );
 
+    CREATE TABLE IF NOT EXISTS system_settings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        key VARCHAR(100) NOT NULL UNIQUE,
+        settings TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE TABLE IF NOT EXISTS user_servers (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
@@ -663,6 +673,21 @@ async function initializeServices() {
         console.log('🔍 启动连接监控服务...');
         connectionMonitor.start();
         console.log('✅ 连接监控服务启动成功');
+
+        console.log('🚨 启动告警检查定时任务...');
+        const cron = (await import('node-cron')).default;
+        
+        // 每分钟检查一次告警
+        cron.schedule('* * * * *', async () => {
+          try {
+            await alertService.checkAllServers();
+            // 清理过期的告警历史
+            alertService.cleanupAlertHistory();
+          } catch (error) {
+            logger.error('告警检查失败:', error);
+          }
+        });
+        console.log('✅ 告警检查定时任务启动成功');
       } catch (error) {
         console.error('⚠️ 辅助服务启动失败:', error.message);
         // 不退出，让主服务器继续运行

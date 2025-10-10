@@ -17,7 +17,9 @@ import {
 import { 
   SaveOutlined,
   InfoCircleOutlined,
-  GlobalOutlined
+  GlobalOutlined,
+  MailOutlined,
+  ExperimentOutlined
 } from '@ant-design/icons'
 import { useMutation, useQuery } from 'react-query'
 import { settingsAPI } from '../../services/api'
@@ -36,6 +38,15 @@ interface SystemSettings {
   proxyPassword?: string
 }
 
+interface SMTPSettings {
+  host: string
+  port: number
+  user: string
+  pass: string
+  secure: boolean
+  from?: string
+}
+
 interface IpInfoResult {
   ip: string
   city: string
@@ -52,6 +63,11 @@ const SystemSettings: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [testResult, setTestResult] = useState<string>('')
   const { isDark } = useThemeStore()
+  
+  // SMTP配置相关状态
+  const [smtpForm] = Form.useForm()
+  const [smtpLoading, setSmtpLoading] = useState(false)
+  const [smtpTestLoading, setSmtpTestLoading] = useState(false)
 
   // 获取系统设置
   const { data: settings } = useQuery(
@@ -59,6 +75,20 @@ const SystemSettings: React.FC = () => {
     () => settingsAPI.getSystemSettings(),
     {
       select: (response) => response.data.settings
+    }
+  )
+
+  // 获取SMTP配置
+  useQuery(
+    'smtpSettings',
+    () => settingsAPI.getSMTPSettings(),
+    {
+      select: (response) => response.data.config,
+      onSuccess: (data) => {
+        if (data) {
+          smtpForm.setFieldsValue(data)
+        }
+      }
     }
   )
 
@@ -77,6 +107,48 @@ const SystemSettings: React.FC = () => {
         notification.error({
           message: '保存失败',
           description: error.response?.data?.message || '系统设置保存失败',
+          placement: 'topRight',
+        })
+      }
+    }
+  )
+
+  // 更新SMTP配置
+  const updateSMTPMutation = useMutation(
+    (data: SMTPSettings) => settingsAPI.updateSMTPSettings(data),
+    {
+      onSuccess: () => {
+        notification.success({
+          message: 'SMTP配置保存成功',
+          description: '邮件服务器配置已更新',
+          placement: 'topRight',
+        })
+      },
+      onError: (error: any) => {
+        notification.error({
+          message: 'SMTP配置保存失败',
+          description: error.response?.data?.message || '未知错误',
+          placement: 'topRight',
+        })
+      }
+    }
+  )
+
+  // 测试SMTP连接
+  const testSMTPMutation = useMutation(
+    (data: SMTPSettings) => settingsAPI.testSMTPConnection(data),
+    {
+      onSuccess: (response) => {
+        notification.success({
+          message: 'SMTP连接测试成功',
+          description: response.data.message,
+          placement: 'topRight',
+        })
+      },
+      onError: (error: any) => {
+        notification.error({
+          message: 'SMTP连接测试失败',
+          description: error.response?.data?.message || '连接失败',
           placement: 'topRight',
         })
       }
@@ -145,6 +217,36 @@ const SystemSettings: React.FC = () => {
       message: '设置重置',
       description: '系统设置已重置为默认值',
       placement: 'topRight',
+    })
+  }
+
+  // 处理SMTP配置提交
+  const handleSMTPSubmit = (values: SMTPSettings) => {
+    setSmtpLoading(true)
+    updateSMTPMutation.mutate(values, {
+      onSettled: () => {
+        setSmtpLoading(false)
+      }
+    })
+  }
+
+  // 测试SMTP连接
+  const handleTestSMTP = () => {
+    const values = smtpForm.getFieldsValue()
+    if (!values.host || !values.port || !values.user || !values.pass) {
+      notification.warning({
+        message: '配置不完整',
+        description: '请填写完整的SMTP配置',
+        placement: 'topRight',
+      })
+      return
+    }
+
+    setSmtpTestLoading(true)
+    testSMTPMutation.mutate(values, {
+      onSettled: () => {
+        setSmtpTestLoading(false)
+      }
     })
   }
 
@@ -374,6 +476,123 @@ const SystemSettings: React.FC = () => {
               </Col>
             </Row>
           )}
+        </Card>
+
+        {/* SMTP邮件配置 */}
+        <Card 
+          title={
+            <Space>
+              <MailOutlined />
+              <span>SMTP邮件配置</span>
+            </Space>
+          }
+          size="small"
+          style={{ marginBottom: 16 }}
+        >
+          <Form
+            form={smtpForm}
+            layout="vertical"
+            onFinish={handleSMTPSubmit}
+            initialValues={{
+              host: 'smtp.gmail.com',
+              port: 587,
+              secure: false,
+              from: 'Docker Manager <noreply@dockermanager.com>'
+            }}
+          >
+            <Row gutter={16}>
+              <Col xs={24} sm={12}>
+                <Form.Item
+                  label="SMTP服务器"
+                  name="host"
+                  rules={[{ required: true, message: '请输入SMTP服务器地址' }]}
+                >
+                  <Input placeholder="smtp.gmail.com" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} sm={12}>
+                <Form.Item
+                  label="端口"
+                  name="port"
+                  rules={[{ required: true, message: '请输入端口号' }]}
+                >
+                  <InputNumber 
+                    placeholder="587" 
+                    style={{ width: '100%' }}
+                    min={1}
+                    max={65535}
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Row gutter={16}>
+              <Col xs={24} sm={12}>
+                <Form.Item
+                  label="用户名"
+                  name="user"
+                  rules={[{ required: true, message: '请输入用户名' }]}
+                >
+                  <Input placeholder="your-email@gmail.com" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} sm={12}>
+                <Form.Item
+                  label="密码"
+                  name="pass"
+                  rules={[{ required: true, message: '请输入密码' }]}
+                >
+                  <Input.Password placeholder="应用密码" />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Row gutter={16}>
+              <Col xs={24} sm={12}>
+                <Form.Item
+                  label="发件人邮箱"
+                  name="from"
+                  rules={[{ type: 'email', message: '请输入有效的邮箱地址' }]}
+                >
+                  <Input placeholder="Docker Manager <noreply@dockermanager.com>" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} sm={12}>
+                <Form.Item
+                  label="SSL/TLS"
+                  name="secure"
+                  valuePropName="checked"
+                >
+                  <Switch />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Row gutter={16} style={{ marginTop: 16 }}>
+              <Col>
+                <Space>
+                  <Button 
+                    type="primary" 
+                    htmlType="submit"
+                    loading={smtpLoading}
+                    icon={<SaveOutlined />}
+                  >
+                    保存SMTP配置
+                  </Button>
+                  <Button 
+                    onClick={handleTestSMTP}
+                    loading={smtpTestLoading}
+                    icon={<ExperimentOutlined />}
+                  >
+                    测试连接
+                  </Button>
+                </Space>
+                <Text type="secondary" style={{ marginLeft: 16 }}>
+                  配置邮件服务器用于发送通知
+                </Text>
+              </Col>
+            </Row>
+          </Form>
         </Card>
 
         {/* 操作按钮 */}

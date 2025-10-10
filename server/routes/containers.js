@@ -6,6 +6,7 @@ import database from '../config/database.js';
 import logger from '../utils/logger.js';
 import dockerService from '../services/dockerService.js';
 import cacheService from '../services/cacheService.js';
+import alertService from '../services/alertService.js';
 import { containerValidation, validate, validateParams, commonValidation } from '../utils/validation.js';
 
 const router = express.Router();
@@ -424,6 +425,37 @@ router.post('/:serverId/:containerId/start',
       const result = await dockerService.startContainer(serverId, containerId);
 
       if (result.success) {
+        // 发送容器事件通知
+        try {
+          const server = await database.db.get('SELECT name FROM servers WHERE id = ?', [serverId]);
+          const container = await database.db.get('SELECT name FROM containers WHERE container_id = ?', [containerId]);
+          
+          if (server && container) {
+            // 获取所有启用了容器事件通知的用户
+            const users = await database.db.all(`
+              SELECT u.id, uns.settings
+              FROM users u
+              JOIN user_notification_settings uns ON u.id = uns.user_id
+              WHERE u.is_active = 1
+              AND JSON_EXTRACT(uns.settings, '$.containerEvents') = 1
+            `);
+
+            for (const user of users) {
+              const settings = JSON.parse(user.settings);
+              await alertService.triggerContainerEvent(
+                user.id,
+                'start',
+                container.name,
+                server.name,
+                { serverId, containerId }
+              );
+            }
+          }
+        } catch (notificationError) {
+          logger.error('发送容器启动通知失败:', notificationError);
+          // 不抛出错误，避免影响容器操作
+        }
+
         res.json({
           message: '容器启动成功',
           result
@@ -469,6 +501,35 @@ router.post('/:serverId/:containerId/stop',
       const result = await dockerService.stopContainer(serverId, containerId, timeout);
 
       if (result.success) {
+        // 发送容器事件通知
+        try {
+          const server = await database.db.get('SELECT name FROM servers WHERE id = ?', [serverId]);
+          const container = await database.db.get('SELECT name FROM containers WHERE container_id = ?', [containerId]);
+          
+          if (server && container) {
+            // 获取所有启用了容器事件通知的用户
+            const users = await database.db.all(`
+              SELECT u.id, uns.settings
+              FROM users u
+              JOIN user_notification_settings uns ON u.id = uns.user_id
+              WHERE u.is_active = 1
+              AND JSON_EXTRACT(uns.settings, '$.containerEvents') = 1
+            `);
+
+            for (const user of users) {
+              await alertService.triggerContainerEvent(
+                user.id,
+                'stop',
+                container.name,
+                server.name,
+                { serverId, containerId }
+              );
+            }
+          }
+        } catch (notificationError) {
+          logger.error('发送容器停止通知失败:', notificationError);
+        }
+
         res.json({
           message: '容器停止成功',
           result
@@ -514,6 +575,35 @@ router.post('/:serverId/:containerId/restart',
       const result = await dockerService.restartContainer(serverId, containerId, timeout);
 
       if (result.success) {
+        // 发送容器事件通知
+        try {
+          const server = await database.db.get('SELECT name FROM servers WHERE id = ?', [serverId]);
+          const container = await database.db.get('SELECT name FROM containers WHERE container_id = ?', [containerId]);
+          
+          if (server && container) {
+            // 获取所有启用了容器事件通知的用户
+            const users = await database.db.all(`
+              SELECT u.id, uns.settings
+              FROM users u
+              JOIN user_notification_settings uns ON u.id = uns.user_id
+              WHERE u.is_active = 1
+              AND JSON_EXTRACT(uns.settings, '$.containerEvents') = 1
+            `);
+
+            for (const user of users) {
+              await alertService.triggerContainerEvent(
+                user.id,
+                'restart',
+                container.name,
+                server.name,
+                { serverId, containerId }
+              );
+            }
+          }
+        } catch (notificationError) {
+          logger.error('发送容器重启通知失败:', notificationError);
+        }
+
         res.json({
           message: '容器重启成功',
           result
@@ -557,9 +647,49 @@ router.delete('/:serverId/:containerId',
         });
       }
 
+      // 在删除前获取容器信息用于通知
+      let containerName = null;
+      let serverName = null;
+      try {
+        const server = await database.db.get('SELECT name FROM servers WHERE id = ?', [serverId]);
+        const container = await database.db.get('SELECT name FROM containers WHERE container_id = ?', [containerId]);
+        if (server && container) {
+          serverName = server.name;
+          containerName = container.name;
+        }
+      } catch (error) {
+        logger.warn('获取容器信息失败:', error);
+      }
+
       const result = await dockerService.removeContainer(serverId, containerId, force);
 
       if (result.success) {
+        // 发送容器事件通知
+        if (serverName && containerName) {
+          try {
+            // 获取所有启用了容器事件通知的用户
+            const users = await database.db.all(`
+              SELECT u.id, uns.settings
+              FROM users u
+              JOIN user_notification_settings uns ON u.id = uns.user_id
+              WHERE u.is_active = 1
+              AND JSON_EXTRACT(uns.settings, '$.containerEvents') = 1
+            `);
+
+            for (const user of users) {
+              await alertService.triggerContainerEvent(
+                user.id,
+                'remove',
+                containerName,
+                serverName,
+                { serverId, containerId }
+              );
+            }
+          } catch (notificationError) {
+            logger.error('发送容器删除通知失败:', notificationError);
+          }
+        }
+
         res.json({
           message: '容器删除成功',
           result

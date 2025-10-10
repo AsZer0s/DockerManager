@@ -3,6 +3,7 @@ import logger from '../utils/logger.js';
 import database from '../config/database.js';
 import dockerService from './dockerService.js';
 import encryption from '../utils/encryption.js';
+import alertService from './alertService.js';
 
 class MonitoringService {
   constructor() {
@@ -701,6 +702,17 @@ class MonitoringService {
         data.disk_usage, data.disk_total, data.disk_used, data.network_in, data.network_out,
         data.load_average, data.uptime
       ]);
+
+      // 触发告警检测
+      try {
+        const server = await this.getServerInfo(serverId);
+        if (server) {
+          await alertService.checkServerAlerts(serverId, server.name);
+        }
+      } catch (alertError) {
+        logger.error('告警检测失败:', alertError);
+        // 不抛出错误，避免影响监控数据保存
+      }
     } catch (error) {
       logger.error('保存系统监控数据失败:', error);
     }

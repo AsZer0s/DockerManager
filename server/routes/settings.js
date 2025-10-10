@@ -9,6 +9,7 @@ import database from '../config/database.js';
 import logger from '../utils/logger.js';
 import jwtManager from '../utils/jwt.js';
 import { authenticateToken } from '../utils/auth.js';
+import notificationService from '../services/notificationService.js';
 
 const router = express.Router();
 
@@ -443,17 +444,245 @@ router.post('/test-notification',
 
       const { type } = req.body;
 
-      // 这里应该实现实际的通知发送逻辑
-      // 目前只是模拟
-      logger.info(`用户 ${req.user.id} 测试 ${type} 通知`);
+      // 获取用户通知设置
+      const settings = await notificationService.getNotificationSettings(req.user.id);
+      if (!settings) {
+        return res.status(400).json({
+          error: '通知设置未找到',
+          message: '请先配置通知设置'
+        });
+      }
 
-      res.json({
-        message: `${type} 测试通知发送成功`
-      });
+      let result;
+      const testMessage = '这是一条来自 Docker Manager 的测试通知，用于验证通知功能是否正常工作。';
+
+      switch (type) {
+        case 'email':
+          if (!settings.emailAddress) {
+            return res.status(400).json({
+              error: '邮箱地址未配置',
+              message: '请先配置邮箱地址'
+            });
+          }
+          result = await notificationService.sendEmail(
+            settings.emailAddress,
+            'Docker Manager 测试通知',
+            notificationService.formatEmailContent('test', testMessage, {})
+          );
+          break;
+
+        case 'telegram':
+          if (!settings.telegramId) {
+            return res.status(400).json({
+              error: 'Telegram ID 未配置',
+              message: '请先配置 Telegram ID'
+            });
+          }
+          result = await notificationService.sendTelegram(
+            settings.telegramId,
+            notificationService.formatTelegramMessage('test', testMessage, {})
+          );
+          break;
+
+        case 'browser':
+          result = await notificationService.sendBrowserNotification(
+            req.user.id,
+            {
+              type: 'test',
+              message: testMessage,
+              timestamp: new Date().toISOString()
+            }
+          );
+          break;
+
+        default:
+          return res.status(400).json({
+            error: '不支持的通知类型',
+            message: '支持的类型: email, telegram, browser'
+          });
+      }
+
+      if (result.success) {
+        res.json({
+          message: `${type} 测试通知发送成功`,
+          details: result
+        });
+      } else {
+        res.status(500).json({
+          error: `${type} 测试通知发送失败`,
+          message: result.error || '未知错误'
+        });
+      }
     } catch (error) {
       logger.error('测试通知失败:', error);
       res.status(500).json({
         error: '测试通知失败',
+        message: '服务器内部错误'
+      });
+    }
+  }
+);
+
+/**
+ * @route GET /api/settings/smtp
+ * @desc 获取SMTP配置
+ * @access Private (Admin only)
+ */
+router.get('/smtp', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({
+        error: '权限不足',
+        message: '需要管理员权限'
+      });
+    }
+
+    const config = await notificationService.getSMTPConfig();
+    
+    // 隐藏密码
+    if (config && config.auth && config.auth.pass) {
+      config.auth.pass = '***';
+    }
+
+    res.json({
+      config: config || {}
+    });
+  } catch (error) {
+    logger.error('获取SMTP配置失败:', error);
+    res.status(500).json({
+      error: '获取SMTP配置失败',
+      message: '服务器内部错误'
+    });
+  }
+});
+
+/**
+ * @route PUT /api/settings/smtp
+ * @desc 更新SMTP配置
+ * @access Private (Admin only)
+ */
+router.put('/smtp',
+  authenticateToken,
+  [
+    body('host').notEmpty().withMessage('SMTP主机不能为空'),
+    body('port').isInt({ min: 1, max: 65535 }).withMessage('SMTP端口必须是1-65535之间的整数'),
+    body('user').notEmpty().withMessage('SMTP用户名不能为空'),
+    body('pass').notEmpty().withMessage('SMTP密码不能为空'),
+    body('secure').isBoolean().withMessage('SSL/TLS设置必须是布尔值'),
+    body('from').optional().isEmail().withMessage('发件人邮箱格式不正确')
+  ],
+  async (req, res) => {
+    try {
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({
+          error: '权限不足',
+          message: '需要管理员权限'
+        });
+      }
+
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          error: '验证失败',
+          details: errors.array()
+        });
+      }
+
+      const { host, port, user, pass, secure, from } = req.body;
+
+      const config = {
+        host,
+        port: parseInt(port),
+        secure: Boolean(secure),
+        auth: {
+          user,
+          pass
+        },
+        from: from || `Docker Manager <${user}>`
+      };
+
+      const result = await notificationService.saveSMTPConfig(config);
+      
+      if (result.success) {
+        res.json({
+          message: 'SMTP配置保存成功'
+        });
+      } else {
+        res.status(500).json({
+          error: 'SMTP配置保存失败',
+          message: result.error
+        });
+      }
+    } catch (error) {
+      logger.error('更新SMTP配置失败:', error);
+      res.status(500).json({
+        error: '更新SMTP配置失败',
+        message: '服务器内部错误'
+      });
+    }
+  }
+);
+
+/**
+ * @route POST /api/settings/smtp/test
+ * @desc 测试SMTP连接
+ * @access Private (Admin only)
+ */
+router.post('/smtp/test',
+  authenticateToken,
+  [
+    body('host').notEmpty().withMessage('SMTP主机不能为空'),
+    body('port').isInt({ min: 1, max: 65535 }).withMessage('SMTP端口必须是1-65535之间的整数'),
+    body('user').notEmpty().withMessage('SMTP用户名不能为空'),
+    body('pass').notEmpty().withMessage('SMTP密码不能为空'),
+    body('secure').isBoolean().withMessage('SSL/TLS设置必须是布尔值')
+  ],
+  async (req, res) => {
+    try {
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({
+          error: '权限不足',
+          message: '需要管理员权限'
+        });
+      }
+
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          error: '验证失败',
+          details: errors.array()
+        });
+      }
+
+      const { host, port, user, pass, secure } = req.body;
+
+      const config = {
+        host,
+        port: parseInt(port),
+        secure: Boolean(secure),
+        auth: {
+          user,
+          pass
+        }
+      };
+
+      const result = await notificationService.testSMTPConnection(config);
+      
+      if (result.success) {
+        res.json({
+          message: 'SMTP连接测试成功',
+          details: result
+        });
+      } else {
+        res.status(500).json({
+          error: 'SMTP连接测试失败',
+          message: result.error
+        });
+      }
+    } catch (error) {
+      logger.error('SMTP连接测试失败:', error);
+      res.status(500).json({
+        error: 'SMTP连接测试失败',
         message: '服务器内部错误'
       });
     }

@@ -365,6 +365,16 @@ export const settingsAPI = {
   testNotification: (type: 'email' | 'telegram' | 'browser'): Promise<AxiosResponse<{ message: string }>> =>
     api.post('/settings/test-notification', { type }),
 
+  // SMTP配置（管理员）
+  getSMTPSettings: (): Promise<AxiosResponse<{ config: any }>> =>
+    api.get('/settings/smtp'),
+    
+  updateSMTPSettings: (config: any): Promise<AxiosResponse<{ message: string }>> =>
+    api.put('/settings/smtp', config),
+    
+  testSMTPConnection: (config: any): Promise<AxiosResponse<{ message: string }>> =>
+    api.post('/settings/smtp/test', config),
+
   // 数据库设置（管理员）
   getDatabaseInfo: (): Promise<AxiosResponse<{ stats: DatabaseStats; tableInfo: TableInfo[] }>> =>
     api.get('/settings/database'),

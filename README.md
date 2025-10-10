@@ -79,18 +79,41 @@ docker-compose up -d
 在 `.env` 文件中配置以下变量：
 
 ```bash
-# Telegram 机器人配置
+# 数据库
+DATABASE_PATH=./data/database.sqlite
+
+# Telegram 机器人
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
-TELEGRAM_WEBAPP_URL=https://yourdomain.com/telegram-webapp
 
 # JWT 配置
-JWT_SECRET=your_jwt_secret_key_here
+JWT_SECRET=Zer0Teams
+JWT_EXPIRES_IN=7d
 
-# 加密配置
-ENCRYPTION_KEY=your_32_character_encryption_key_here
+# 加密
+ENCRYPTION_KEY=DockerManager_PoweredByZer0Teams
 
-# Telegram 代理配置（可选）
+# 服务器
+NODE_ENV=development
+
+# 日志配置
+LOG_LEVEL=info
+
+# 监控配置
+MONITORING_INTERVAL=5000
+
+# SMTP邮件配置
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+SMTP_FROM=Docker Manager <noreply@dockermanager.com>
+
+# TGBOT代理
 TGBOT_PROXY=http://127.0.0.1:10808
+
+# TG_MINIAPP_URL
+TELEGRAM_WEBAPP_URL=http://127.0.0.1:3000/telegram-webapp
 ```
 
 ## 📖 使用指南
