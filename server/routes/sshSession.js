@@ -7,6 +7,55 @@ import logger from '../utils/logger.js';
 
 const router = express.Router();
 
+/**
+ * 检查服务器权限
+ */
+const checkServerPermission = async (req, res, next) => {
+  try {
+    const serverId = parseInt(req.params.serverId || req.body.serverId);
+    
+    if (req.user.role === 'admin') {
+      req.serverPermission = { can_view: true, can_control: true, can_ssh: true, hide_sensitive_info: false };
+      return next();
+    }
+
+    // 先检查服务器是否存在
+    const serverExists = await database.db.get(
+      'SELECT id FROM servers WHERE id = ? AND is_active = 1',
+      [serverId]
+    );
+
+    if (!serverExists) {
+      return res.status(404).json({
+        error: '服务器不存在',
+        message: '指定的服务器不存在或已被禁用'
+      });
+    }
+
+    // 检查用户权限
+    const result = await database.db.get(
+      'SELECT can_view, can_control, can_ssh, hide_sensitive_info FROM user_server_permissions WHERE user_id = ? AND server_id = ?',
+      [req.user.id, serverId]
+    );
+
+    if (!result || !result.can_ssh) {
+      return res.status(403).json({
+        error: '权限不足',
+        message: '您没有SSH访问权限'
+      });
+    }
+
+    req.serverPermission = result;
+    next();
+  } catch (error) {
+    logger.error('检查服务器权限失败:', error);
+    return res.status(500).json({
+      error: '权限检查失败',
+      message: '无法验证服务器访问权限'
+    });
+  }
+};
+
 // 中间件：验证JWT token
 const authenticateToken = async (req, res, next) => {
   try {
@@ -44,7 +93,7 @@ router.use(authenticateToken);
  * 创建SSH会话
  * POST /api/ssh-session/create
  */
-router.post('/create', async (req, res) => {
+router.post('/create', authenticateToken, checkServerPermission, async (req, res) => {
   try {
     const { serverId } = req.body;
     

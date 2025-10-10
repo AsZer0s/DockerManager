@@ -213,9 +213,10 @@ class SSHConnectionPool {
    * @returns {Promise<Client>} SSH客户端
    */
   async createConnection(serverId) {
+    let server = null;
     try {
       // 获取服务器信息
-      const server = await this.getServerInfo(serverId);
+      server = await this.getServerInfo(serverId);
       if (!server) {
         throw new Error('服务器不存在');
       }
@@ -349,12 +350,14 @@ class SSHConnectionPool {
       return client;
     } catch (error) {
       // 使用诊断方法分析连接问题
-      const diagnosis = this.diagnoseConnectionIssue(error, server);
+      const diagnosis = server ? this.diagnoseConnectionIssue(error, server) : '服务器信息获取失败';
       
       logger.error(`创建SSH连接失败 (服务器 ${serverId}):`, {
         error: error.message,
         code: error.code,
-        diagnosis: diagnosis
+        diagnosis: diagnosis,
+        serverName: server?.name || '未知',
+        serverHost: server?.host || '未知'
       });
       
       throw error;
@@ -477,6 +480,15 @@ class SSHConnectionPool {
             clearTimeout(timeoutId);
             if (code === 0) {
               resolve(output.trim());
+            } else if (code === null) {
+              // exitCode: null 是后台进程的正常现象，不是错误
+              // 对于后台命令（如nohup），这是预期的行为
+              logger.debug(`SSH命令后台执行完成 (服务器 ${serverId}):`, {
+                command,
+                exitCode: code,
+                errorOutput
+              });
+              resolve(output.trim());
             } else {
               const errorMsg = `命令执行失败 (退出码: ${code}): ${errorOutput || '未知错误'}`;
               logger.error(`SSH命令执行失败 (服务器 ${serverId}):`, {
@@ -529,10 +541,21 @@ class SSHConnectionPool {
    */
   async getServerInfo(serverId) {
     try {
+      if (!database.db) {
+        logger.error(`数据库未连接 (服务器 ${serverId})`);
+        return null;
+      }
+      
       const result = await database.db.get(
         'SELECT * FROM servers WHERE id = ? AND (is_active = 1 OR is_active = true)',
         [serverId]
       );
+      
+      if (!result) {
+        logger.warn(`服务器不存在或未激活 (服务器 ${serverId})`);
+        return null;
+      }
+      
       return result;
     } catch (error) {
       logger.error(`获取服务器信息失败 (服务器 ${serverId}):`, error);

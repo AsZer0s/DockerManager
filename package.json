@@ -10,8 +10,7 @@
     "server:dev": "cd server && npm run dev",
     "client:dev": "cd client && npm run dev",
     "build": "cd client && npm run build",
-    "start": "cd server && npm start",
-    "init": "cd server && node init-admin.js"
+    "start": "cd server && npm start"
   },
   "keywords": ["docker", "telegram", "bot", "web", "management"],
   "author": "Zer0Teams",

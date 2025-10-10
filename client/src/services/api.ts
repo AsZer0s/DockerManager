@@ -550,4 +550,145 @@ export const userManagementAPI = {
     api.put(`/user-management/users/${userId}/containers`, { containerIds })
 }
 
+// 镜像管理相关 API
+export const imageAPI = {
+  // 获取镜像列表
+  getImages: (serverId: number, search?: string): Promise<AxiosResponse<{ data: any[] }>> =>
+    api.get(`/images/${serverId}`, { params: { search } }),
+    
+  // 拉取镜像
+  pullImage: (serverId: number, imageName: string, tag: string = 'latest'): Promise<AxiosResponse<{ message: string; data: any }>> =>
+    api.post(`/images/${serverId}/pull`, { imageName, tag }),
+    
+  // 删除镜像
+  removeImage: (serverId: number, imageId: string, force: boolean = false): Promise<AxiosResponse<{ message: string; data: any }>> =>
+    api.delete(`/images/${serverId}/${imageId}`, { params: { force } }),
+    
+  // 修改镜像标签
+  tagImage: (serverId: number, imageId: string, newTag: string): Promise<AxiosResponse<{ message: string; data: any }>> =>
+    api.post(`/images/${serverId}/${imageId}/tag`, { newTag }),
+    
+  // 获取镜像详细信息
+  getImageInfo: (serverId: number, imageId: string): Promise<AxiosResponse<{ data: any }>> =>
+    api.get(`/images/${serverId}/${imageId}/info`),
+    
+  // 搜索镜像
+  searchImages: (serverId: number, term: string): Promise<AxiosResponse<{ data: any[] }>> =>
+    api.get(`/images/${serverId}/search`, { params: { term } }),
+}
+
+// 模板管理相关 API
+export const templateAPI = {
+  // 获取模板列表
+  getTemplates: (isPublic?: boolean): Promise<AxiosResponse<{ data: any[] }>> =>
+    api.get('/templates', { params: { isPublic } }),
+    
+  // 获取模板详情
+  getTemplate: (templateId: number): Promise<AxiosResponse<{ data: any }>> =>
+    api.get(`/templates/${templateId}`),
+    
+  // 创建模板
+  createTemplate: (data: any): Promise<AxiosResponse<{ message: string; data: any }>> =>
+    api.post('/templates', data),
+    
+  // 更新模板
+  updateTemplate: (templateId: number, data: any): Promise<AxiosResponse<{ message: string; data: any }>> =>
+    api.put(`/templates/${templateId}`, data),
+    
+  // 删除模板
+  deleteTemplate: (templateId: number): Promise<AxiosResponse<{ message: string }>> =>
+    api.delete(`/templates/${templateId}`),
+    
+  // 导出模板
+  exportTemplate: (templateId: number): Promise<AxiosResponse<{ data: any }>> =>
+    api.get(`/templates/${templateId}/export`),
+    
+  // 导入模板
+  importTemplate: (file: File): Promise<AxiosResponse<{ message: string; data: any }>> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/templates/import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+  
+  // 部署模板
+  deployTemplate: (templateId: number, serverId: number, params: any): Promise<AxiosResponse<{ message: string; data: any }>> =>
+    api.post(`/templates/${templateId}/deploy`, { serverId, params }),
+    
+  // 验证Compose文件
+  validateCompose: (composeContent: string): Promise<AxiosResponse<{ success: boolean; message: string; data: any }>> =>
+    api.post('/templates/validate-compose', { composeContent }),
+    
+  // 获取部署记录
+  getDeployments: (): Promise<AxiosResponse<{ data: any[] }>> =>
+    api.get('/templates/deployments'),
+    
+  // 获取部署状态
+  getDeploymentStatus: (deploymentId: number): Promise<AxiosResponse<{ data: any }>> =>
+    api.get(`/templates/deployments/${deploymentId}`),
+    
+  // 检查服务依赖
+  checkDependencies: (containers: any[]): Promise<AxiosResponse<{ data: any }>> =>
+    api.post('/templates/check-dependencies', { containers }),
+    
+  // 按依赖顺序部署服务
+  deployWithDependencies: (serverId: number, services: any[]): Promise<AxiosResponse<{ message: string; data: any }>> =>
+    api.post('/templates/deploy-with-dependencies', { serverId, services }),
+}
+
+// Docker网络管理相关 API
+export const dockerNetworkAPI = {
+  // 获取网络列表
+  getNetworks: (serverId: number): Promise<AxiosResponse<{ data: any[] }>> =>
+    api.get(`/docker-networks/${serverId}`),
+    
+  // 获取网络详情
+  getNetworkInfo: (serverId: number, networkId: string): Promise<AxiosResponse<{ data: any }>> =>
+    api.get(`/docker-networks/${serverId}/${networkId}`),
+    
+  // 创建网络
+  createNetwork: (serverId: number, options: any): Promise<AxiosResponse<{ message: string; data: any }>> =>
+    api.post(`/docker-networks/${serverId}`, options),
+    
+  // 删除网络
+  removeNetwork: (serverId: number, networkId: string): Promise<AxiosResponse<{ message: string; data: any }>> =>
+    api.delete(`/docker-networks/${serverId}/${networkId}`),
+    
+  // 连接容器到网络
+  connectContainer: (serverId: number, networkId: string, containerId: string, options?: any): Promise<AxiosResponse<{ message: string; data: any }>> =>
+    api.post(`/docker-networks/${serverId}/${networkId}/connect`, { containerId, ...options }),
+    
+  // 断开容器与网络的连接
+  disconnectContainer: (serverId: number, networkId: string, containerId: string): Promise<AxiosResponse<{ message: string; data: any }>> =>
+    api.post(`/docker-networks/${serverId}/${networkId}/disconnect`, { containerId }),
+    
+  // 清理未使用网络
+  pruneNetworks: (serverId: number): Promise<AxiosResponse<{ message: string; data: any }>> =>
+    api.post(`/docker-networks/${serverId}/prune`),
+}
+
+// Docker卷管理相关 API
+export const volumeAPI = {
+  // 获取卷列表
+  getVolumes: (serverId: number): Promise<AxiosResponse<{ data: any[] }>> =>
+    api.get(`/volumes/${serverId}`),
+    
+  // 获取卷详情
+  getVolumeInfo: (serverId: number, volumeName: string): Promise<AxiosResponse<{ data: any }>> =>
+    api.get(`/volumes/${serverId}/${volumeName}`),
+    
+  // 创建卷
+  createVolume: (serverId: number, options: any): Promise<AxiosResponse<{ message: string; data: any }>> =>
+    api.post(`/volumes/${serverId}`, options),
+    
+  // 删除卷
+  removeVolume: (serverId: number, volumeName: string, force?: boolean): Promise<AxiosResponse<{ message: string; data: any }>> =>
+    api.delete(`/volumes/${serverId}/${volumeName}`, { params: { force } }),
+    
+  // 清理未使用卷
+  pruneVolumes: (serverId: number): Promise<AxiosResponse<{ message: string; data: any }>> =>
+    api.post(`/volumes/${serverId}/prune`),
+}
+
 export default api

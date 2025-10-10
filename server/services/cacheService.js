@@ -6,14 +6,13 @@ import monitoringService from './monitoringService.js';
 class CacheService {
   constructor() {
     this.serverStatusCache = new Map(); // 服务器状态缓存
-    this.containerCache = new Map(); // 容器列表缓存
-    this.cacheDuration = 1 * 60 * 1000; // 1分钟缓存时间
+    this.cacheDuration = 30 * 1000; // 30秒缓存时间（仅用于服务器状态）
     this.pollingInterval = null;
     this.isPolling = false;
   }
 
   /**
-   * 启动缓存轮询服务
+   * 启动缓存轮询服务（仅用于服务器状态）
    */
   startPolling() {
     if (this.isPolling) {
@@ -22,17 +21,17 @@ class CacheService {
     }
 
     this.isPolling = true;
-    logger.info('启动缓存轮询服务，每1分钟更新一次');
+    logger.info('启动服务器状态缓存轮询服务，每30秒更新一次');
 
     // 立即执行一次
-    this.updateAllCaches();
+    this.updateServerStatusCaches();
 
-    // 设置定时器，每1分钟执行一次
+    // 设置定时器，每30秒执行一次
     this.pollingInterval = setInterval(() => {
-      this.updateAllCaches();
+      this.updateServerStatusCaches();
     }, this.cacheDuration);
 
-    logger.info('缓存轮询服务启动成功');
+    logger.info('服务器状态缓存轮询服务启动成功');
   }
 
   /**
@@ -48,11 +47,11 @@ class CacheService {
   }
 
   /**
-   * 更新所有缓存
+   * 更新服务器状态缓存
    */
-  async updateAllCaches() {
+  async updateServerStatusCaches() {
     try {
-      logger.info('开始更新缓存数据...');
+      logger.debug('开始更新服务器状态缓存...');
       
       // 确保数据库连接
       if (!database.isConnected) {
@@ -62,32 +61,28 @@ class CacheService {
       // 获取所有活跃的服务器
       const servers = await this.getAllActiveServers();
       
-      // 并行更新服务器状态和容器列表
+      // 并行更新服务器状态
       const updatePromises = servers.map(server => 
-        Promise.allSettled([
-          this.updateServerStatusCache(server),
-          this.updateContainerCache(server)
-        ])
+        this.updateServerStatusCache(server)
       );
 
-      await Promise.all(updatePromises);
+      await Promise.allSettled(updatePromises);
       
-      logger.info(`缓存更新完成，处理了 ${servers.length} 个服务器`);
+      logger.debug(`服务器状态缓存更新完成，处理了 ${servers.length} 个服务器`);
     } catch (error) {
-      logger.error('更新缓存失败:', error);
+      logger.error('更新服务器状态缓存失败:', error);
     }
   }
 
   /**
-   * 强制刷新所有缓存（忽略缓存时间）
+   * 强制刷新服务器状态缓存（忽略缓存时间）
    */
-  async forceRefreshAllCaches() {
+  async forceRefreshServerStatusCaches() {
     try {
-      logger.info('强制刷新所有缓存数据...');
+      logger.info('强制刷新服务器状态缓存...');
       
       // 清空现有缓存
       this.serverStatusCache.clear();
-      this.containerCache.clear();
       
       // 确保数据库连接
       if (!database.isConnected) {
@@ -97,19 +92,16 @@ class CacheService {
       // 获取所有活跃的服务器
       const servers = await this.getAllActiveServers();
       
-      // 并行更新服务器状态和容器列表
+      // 并行更新服务器状态
       const updatePromises = servers.map(server => 
-        Promise.allSettled([
-          this.updateServerStatusCache(server),
-          this.updateContainerCache(server)
-        ])
+        this.updateServerStatusCache(server)
       );
 
-      await Promise.all(updatePromises);
+      await Promise.allSettled(updatePromises);
       
-      logger.info(`强制刷新完成，处理了 ${servers.length} 个服务器`);
+      logger.info(`服务器状态缓存强制刷新完成，处理了 ${servers.length} 个服务器`);
     } catch (error) {
-      logger.error('强制刷新缓存失败:', error);
+      logger.error('强制刷新服务器状态缓存失败:', error);
     }
   }
 
@@ -169,46 +161,6 @@ class CacheService {
     }
   }
 
-  /**
-   * 更新容器列表缓存
-   */
-  async updateContainerCache(server) {
-    const cacheKey = `containers_${server.id}`;
-    const now = Date.now();
-
-    try {
-      // 获取容器列表
-      const containers = await dockerService.getContainers(server.id, true);
-      
-      const containerData = {
-        serverId: server.id,
-        serverName: server.name,
-        containers: containers,
-        total: containers.length,
-        lastUpdated: now,
-        timestamp: now
-      };
-
-      this.containerCache.set(cacheKey, containerData);
-      
-      logger.debug(`服务器 ${server.name} 容器缓存已更新: ${containers.length} 个容器`);
-    } catch (error) {
-      logger.error(`更新服务器 ${server.name} 容器缓存失败:`, error);
-      
-      // 即使失败也设置空列表
-      const containerData = {
-        serverId: server.id,
-        serverName: server.name,
-        containers: [],
-        total: 0,
-        lastUpdated: now,
-        timestamp: now,
-        error: error.message
-      };
-      
-      this.containerCache.set(cacheKey, containerData);
-    }
-  }
 
   /**
    * 获取服务器状态（优先从缓存）
@@ -249,26 +201,6 @@ class CacheService {
     logger.debug(`服务器 ${serverId} 状态已缓存: ${status}`);
   }
 
-  /**
-   * 获取容器列表（优先从缓存）
-   */
-  getContainers(serverId) {
-    const cacheKey = `containers_${serverId}`;
-    const cached = this.containerCache.get(cacheKey);
-    
-    if (cached) {
-      const age = Date.now() - cached.timestamp;
-      if (age < this.cacheDuration) {
-        return {
-          ...cached,
-          fromCache: true,
-          cacheAge: age
-        };
-      }
-    }
-    
-    return null;
-  }
 
   /**
    * 获取所有服务器的状态
@@ -290,34 +222,13 @@ class CacheService {
     return statuses;
   }
 
-  /**
-   * 获取所有服务器的容器列表
-   */
-  getAllContainers() {
-    const allContainers = [];
-    for (const [key, value] of this.containerCache) {
-      if (key.startsWith('containers_')) {
-        const age = Date.now() - value.timestamp;
-        if (age < this.cacheDuration) {
-          const containersWithServerInfo = value.containers.map(container => ({
-            ...container,
-            serverName: value.serverName,
-            serverId: value.serverId
-          }));
-          allContainers.push(...containersWithServerInfo);
-        }
-      }
-    }
-    return allContainers;
-  }
 
   /**
    * 清除指定服务器的缓存
    */
   clearServerCache(serverId) {
     this.serverStatusCache.delete(`server_status_${serverId}`);
-    this.containerCache.delete(`containers_${serverId}`);
-    logger.info(`已清除服务器 ${serverId} 的缓存`);
+    logger.info(`已清除服务器 ${serverId} 的状态缓存`);
   }
 
   /**
@@ -325,8 +236,7 @@ class CacheService {
    */
   clearAllCache() {
     this.serverStatusCache.clear();
-    this.containerCache.clear();
-    logger.info('已清除所有缓存');
+    logger.info('已清除所有服务器状态缓存');
   }
 
   /**
@@ -334,21 +244,13 @@ class CacheService {
    */
   getCacheStats() {
     const serverStatusCount = this.serverStatusCache.size;
-    const containerCacheCount = this.containerCache.size;
     const now = Date.now();
     
     let validServerStatuses = 0;
-    let validContainerCaches = 0;
     
     for (const [key, value] of this.serverStatusCache) {
       if (key.startsWith('server_status_') && (now - value.timestamp) < this.cacheDuration) {
         validServerStatuses++;
-      }
-    }
-    
-    for (const [key, value] of this.containerCache) {
-      if (key.startsWith('containers_') && (now - value.timestamp) < this.cacheDuration) {
-        validContainerCaches++;
       }
     }
     
@@ -358,18 +260,13 @@ class CacheService {
         valid: validServerStatuses,
         expired: serverStatusCount - validServerStatuses
       },
-      containerCache: {
-        total: containerCacheCount,
-        valid: validContainerCaches,
-        expired: containerCacheCount - validContainerCaches
-      },
       cacheDuration: this.cacheDuration,
       isPolling: this.isPolling
     };
   }
 
   /**
-   * 强制更新指定服务器的缓存
+   * 强制更新指定服务器的状态缓存
    */
   async forceUpdateServerCache(serverId) {
     try {
@@ -380,14 +277,11 @@ class CacheService {
         throw new Error(`服务器 ${serverId} 不存在或未激活`);
       }
       
-      await Promise.all([
-        this.updateServerStatusCache(server),
-        this.updateContainerCache(server)
-      ]);
+      await this.updateServerStatusCache(server);
       
-      logger.info(`已强制更新服务器 ${server.name} 的缓存`);
+      logger.info(`已强制更新服务器 ${server.name} 的状态缓存`);
     } catch (error) {
-      logger.error(`强制更新服务器 ${serverId} 缓存失败:`, error);
+      logger.error(`强制更新服务器 ${serverId} 状态缓存失败:`, error);
       throw error;
     }
   }

@@ -13,7 +13,8 @@ import {
   Segmented,
   Button,
   Card,
-  Typography
+  Typography,
+  Tabs
 } from 'antd'
 import type { Breakpoint } from 'antd'
 import { 
@@ -23,7 +24,10 @@ import {
   DeleteOutlined,
   FileTextOutlined,
   ContainerOutlined,
-  VerticalAlignBottomOutlined
+  VerticalAlignBottomOutlined,
+  DownloadOutlined,
+  ApiOutlined,
+  DatabaseOutlined
 } from '@ant-design/icons'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
 import { useSearchParams } from 'react-router-dom'
@@ -34,6 +38,10 @@ import {
 
 import { containerAPI, Container } from '@/services/api'
 import { useGlobalServers } from '@/hooks/useGlobalServers'
+import ImagesManagement from '@/components/Images/ImagesManagement'
+import TemplateManagement from '@/components/Templates/TemplateManagement'
+import NetworksManagement from '@/components/Networks/NetworksManagement'
+import VolumesManagement from '@/components/Volumes/VolumesManagement'
 
 // const { Title } = Typography
 
@@ -231,8 +239,14 @@ const Containers: React.FC = () => {
   const servers = serversData?.data.servers || []
   const allContainers = containersData?.data.containers || []
   
-  // 根据状态筛选容器
+  // 根据服务器和状态筛选容器
   const containers = allContainers.filter(container => {
+    // 首先根据服务器过滤
+    if (selectedServer !== 'all' && container.serverId !== Number(selectedServer)) {
+      return false
+    }
+    
+    // 然后根据状态过滤
     if (statusFilter === 'all') return true
     if (statusFilter === 'running') return container.status && container.status.includes('Up')
     if (statusFilter === 'stopped') return container.status && !container.status.includes('Up')
@@ -598,46 +612,67 @@ const Containers: React.FC = () => {
       align: 'center' as const,
       responsive: ['lg', 'xl'] as Breakpoint[],
       render: (ports: any) => {
-        // 处理端口数据，可能是数组或字符串
         if (Array.isArray(ports) && ports.length > 0) {
+          
+          // 生成完整的端口信息用于Tooltip
+          const allPortsInfo = ports.map(p => {
+            if (p.publicPort && p.privatePort) {
+              return `${p.publicPort}:${p.privatePort}/${p.type}`;
+            } else if (p.privatePort) {
+              return `${p.privatePort}/${p.type}`;
+            }
+            return '';
+          }).filter(Boolean);
+
+          // 格式化Tooltip内容，每行两个端口，每个端口用框框包围
+          const formatTooltipContent = (portList: string[]) => {
+            if (portList.length === 0) return '无端口信息';
+            const rows = [];
+            for (let i = 0; i < portList.length; i += 2) {
+              const rowPorts = portList.slice(i, i + 2);
+              const row = rowPorts.map(port => `[ ${port} ]`).join('  ');
+              rows.push(row);
+            }
+            return rows.join('\n');
+          };
+
           return (
             <div style={{ textAlign: 'center' }}>
               {ports.slice(0, 2).map((port, index) => {
-                // 处理解析后的端口对象
-                if (port.PublicPort && port.PrivatePort) {
+                if (port.publicPort && port.privatePort) {
                   return (
                     <Tag 
                       key={index}
                       color="green"
                       style={{ margin: '2px', fontSize: '11px' }}
                     >
-                      {port.PublicPort}:{port.PrivatePort}/{port.Type}
+                      {port.publicPort}:{port.privatePort}/{port.type}
                     </Tag>
                   );
-                } else if (port.PrivatePort) {
-                  // 仅内部端口
+                } else if (port.privatePort) {
                   return (
                     <Tag 
                       key={index}
                       color="blue"
                       style={{ margin: '2px', fontSize: '11px' }}
                     >
-                      {port.PrivatePort}/{port.Type}
+                      {port.privatePort}/{port.type}
                     </Tag>
                   );
                 }
                 return null;
               })}
               {ports.length > 2 && (
-                <Tooltip title={ports.slice(2).map(p => {
-                  if (p.PublicPort && p.PrivatePort) {
-                    return `${p.PublicPort}:${p.PrivatePort}/${p.Type}`;
-                  } else if (p.PrivatePort) {
-                    return `${p.PrivatePort}/${p.Type}`;
+                <Tooltip 
+                  title={
+                    <div style={{ whiteSpace: 'pre-line', textAlign: 'left', minWidth: '200px' }}>
+                      {formatTooltipContent(allPortsInfo)}
+                    </div>
                   }
-                  return '';
-                }).filter(Boolean).join(', ')}>
-                  <Tag color="default" style={{ margin: '2px', fontSize: '11px' }}>
+                  placement="topLeft"
+                  styles={{ root: { maxWidth: '400px' } }}
+                >
+                  <Tag color="default" style={{ margin: '2px', fontSize: '11px', cursor: 'pointer' }}>
                     +{ports.length - 2}
                   </Tag>
                 </Tooltip>
@@ -745,11 +780,15 @@ const Containers: React.FC = () => {
     },
   ]
 
-  // 计算统计信息（基于所有容器）
+  // 计算统计信息（基于当前选择的服务器）
+  const currentContainers = selectedServer === 'all' 
+    ? allContainers 
+    : allContainers.filter((c: any) => c.serverId === Number(selectedServer))
+  
   const stats = {
-    total: allContainers.length,
-    running: allContainers.filter((c: any) => c.status && c.status.includes('Up')).length,
-    stopped: allContainers.filter((c: any) => c.status && !c.status.includes('Up')).length,
+    total: currentContainers.length,
+    running: currentContainers.filter((c: any) => c.status && c.status.includes('Up')).length,
+    stopped: currentContainers.filter((c: any) => c.status && !c.status.includes('Up')).length,
   }
 
   // 准备服务器选项（显示所有活跃服务器，包括离线服务器）
@@ -986,60 +1025,116 @@ const Containers: React.FC = () => {
         </Col>
       </Row>
 
-      {/* 容器列表 */}
-      <Card 
-        styles={{ body: { padding: 0 } }}
-      >
-        <Table
-          columns={columns}
-          dataSource={containers}
-          loading={isLoading}
-          rowKey={(record: any) => `${record?.serverId || 'unknown'}-${record?.id || 'unknown'}`}
-          pagination={{
-            current: currentPage,
-            pageSize: pageSize,
-            total: containers.length,
-            showSizeChanger: window.innerWidth >= 768,
-            showQuickJumper: window.innerWidth >= 768,
-            showTotal: (total, range) => {
-              if (window.innerWidth >= 768) {
-                if (statusFilter === 'all') {
-                  return `第 ${range[0]}-${range[1]} 个，共 ${total} 个容器`
-                } else {
-                  const filterText = statusFilter === 'running' ? '运行中' : '已停止'
-                  return `第 ${range[0]}-${range[1]} 个，共 ${total} 个${filterText}容器 (总计 ${allContainers.length} 个)`
-                }
-              } else {
-                if (statusFilter === 'all') {
-                  return `${total} 个容器`
-                } else {
-                  const filterText = statusFilter === 'running' ? '运行中' : '已停止'
-                  return `${total} 个${filterText}容器`
-                }
-              }
-            },
-            pageSizeOptions: ['10', '20', '50'],
-            onChange: (page, size) => {
-              setCurrentPage(page)
-              if (size !== pageSize) {
-                setPageSize(size)
-                setCurrentPage(1) // 重置到第一页
-              }
-            },
-            style: { padding: '16px 24px' },
-            simple: window.innerWidth < 768,
-          }}
-          scroll={{ x: 'max-content' }}
-          size="small"
-          className={isRefreshing ? 'table-refreshing' : ''}
-          style={{
-            borderRadius: '8px'
-          }}
-          rowClassName={(_, index) => 
-            index % 2 === 0 ? 'table-row-light' : 'table-row-dark'
+      {/* 容器管理Tab */}
+      <Tabs
+        defaultActiveKey="containers"
+        items={[
+          {
+            key: 'containers',
+            label: (
+              <span>
+                <ContainerOutlined />
+                容器列表
+              </span>
+            ),
+            children: (
+              <Card 
+                styles={{ body: { padding: 0 } }}
+              >
+                <Table
+                  columns={columns}
+                  dataSource={containers}
+                  loading={isLoading}
+                  rowKey={(record: any) => `${record?.serverId || 'unknown'}-${record?.id || 'unknown'}`}
+                  pagination={{
+                    current: currentPage,
+                    pageSize: pageSize,
+                    total: containers.length,
+                    showSizeChanger: window.innerWidth >= 768,
+                    showQuickJumper: window.innerWidth >= 768,
+                    showTotal: (total, range) => {
+                      if (window.innerWidth >= 768) {
+                        if (statusFilter === 'all') {
+                          return `第 ${range[0]}-${range[1]} 个，共 ${total} 个容器`
+                        } else {
+                          const filterText = statusFilter === 'running' ? '运行中' : '已停止'
+                          return `第 ${range[0]}-${range[1]} 个，共 ${total} 个${filterText}容器 (总计 ${allContainers.length} 个)`
+                        }
+                      } else {
+                        if (statusFilter === 'all') {
+                          return `${total} 个容器`
+                        } else {
+                          const filterText = statusFilter === 'running' ? '运行中' : '已停止'
+                          return `${total} 个${filterText}容器`
+                        }
+                      }
+                    },
+                    pageSizeOptions: ['10', '20', '50'],
+                    onChange: (page, size) => {
+                      setCurrentPage(page)
+                      if (size !== pageSize) {
+                        setPageSize(size)
+                        setCurrentPage(1) // 重置到第一页
+                      }
+                    },
+                    style: { padding: '16px 24px' },
+                    simple: window.innerWidth < 768,
+                  }}
+                  scroll={{ x: 'max-content' }}
+                  size="small"
+                  className={isRefreshing ? 'table-refreshing' : ''}
+                  style={{
+                    borderRadius: '8px'
+                  }}
+                  rowClassName={(_, index) => 
+                    index % 2 === 0 ? 'table-row-light' : 'table-row-dark'
+                  }
+                />
+              </Card>
+            )
+          },
+          {
+            key: 'images',
+            label: (
+              <span>
+                <DownloadOutlined />
+                镜像管理
+              </span>
+            ),
+            children: <ImagesManagement />
+          },
+          {
+            key: 'templates',
+            label: (
+              <span>
+                <FileTextOutlined />
+                容器模板
+              </span>
+            ),
+            children: <TemplateManagement />
+          },
+          {
+            key: 'networks',
+            label: (
+              <span>
+                <ApiOutlined />
+                网络管理
+              </span>
+            ),
+            children: <NetworksManagement />
+          },
+          {
+            key: 'volumes',
+            label: (
+              <span>
+                <DatabaseOutlined />
+                卷管理
+              </span>
+            ),
+            children: <VolumesManagement />
           }
-        />
-      </Card>
+        ]}
+      />
 
       {/* 日志查看模态框 */}
       <Modal

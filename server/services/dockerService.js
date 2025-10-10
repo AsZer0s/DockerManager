@@ -1,12 +1,12 @@
 import logger from '../utils/logger.js';
 import database from '../config/database.js';
 import encryption from '../utils/encryption.js';
+import dockerodeManager from './dockerodeManager.js';
 
 class DockerService {
   constructor() {
     this.isMonitoringContext = false; // 是否为监控上下文
   }
-
 
   /**
    * 设置监控上下文
@@ -16,7 +16,6 @@ class DockerService {
     this.isMonitoringContext = isMonitoring;
   }
 
-
   /**
    * 获取容器列表
    * @param {number} serverId - 服务器 ID
@@ -25,476 +24,59 @@ class DockerService {
    */
   async getContainers(serverId, all = true) {
     try {
-      // 获取完整的服务器信息（包括解密后的密码和私钥）
-      const server = await this.getFullServerInfo(serverId);
-      if (!server) {
-        throw new Error(`服务器 ${serverId} 不存在或未激活`);
-      }
-
-      // 检查SSH认证信息
-      if (!server.password && !server.private_key) {
-        throw new Error(`服务器 ${serverId} 缺少SSH认证信息（密码或私钥）`);
-      }
-
-      // 通过 SSH 连接获取容器列表
-      const containers = await this.getContainersViaSSH(server, all);
+      const docker = await dockerodeManager.getDockerConnection(serverId);
+      const containers = await docker.listContainers({ all });
       
-      // 更新数据库中的容器信息
-      for (const container of containers) {
-        await this.updateContainerInDatabase(serverId, container);
-      }
-
-      return containers;
+      // 直接返回实时数据，不存储到数据库
+      return containers.map(container => this.parseContainerInfo(container));
     } catch (error) {
       logger.error(`获取容器列表失败 (服务器 ${serverId}):`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * 通过 SSH 获取容器列表（使用连接池）
-   * @param {Object} server - 服务器信息
-   * @param {boolean} all - 是否包含所有容器
-   * @returns {Promise<Array>} 容器列表
-   */
-  async getContainersViaSSH(server, all = true) {
-    try {
-      // 使用SSH连接池执行命令
-      const sshConnectionPool = (await import('./sshConnectionPool.js')).default;
-      
-      // 构建docker命令
-      const command = all 
-        ? 'docker ps -a --format "{{json .}}"'
-        : 'docker ps --format "{{json .}}"';
-      
-      const output = await sshConnectionPool.executeCommand(server.id, command, 30000);
-      
-      // 解析JSON输出
-      const containers = [];
-      const lines = output.trim().split('\n');
-      
-      for (const line of lines) {
-        if (line.trim()) {
-          try {
-            const container = JSON.parse(line);
-            containers.push(this.parseContainerInfo(container));
-          } catch (parseError) {
-            logger.warn(`解析容器信息失败: ${line}`, parseError);
-          }
-        }
-      }
-      
-      return containers;
-    } catch (error) {
-      logger.error(`通过SSH获取容器列表失败: ${server.host}`, error);
-      throw error;
+      throw this.handleDockerError(error);
     }
   }
 
   /**
    * 解析容器信息
-   * @param {Object} rawContainer - 原始容器数据
+   * @param {Object} container - Dockerode 容器对象
    * @returns {Object} 解析后的容器信息
    */
-  parseContainerInfo(rawContainer) {
+  parseContainerInfo(container) {
     return {
-      id: rawContainer.ID,
-      name: rawContainer.Names,
-      image: rawContainer.Image,
-      status: rawContainer.Status,
-      created: rawContainer.CreatedAt,
-      ports: this.parsePorts(rawContainer.Ports),
-      labels: this.parseLabels(rawContainer.Labels)
+      id: container.Id,
+      name: container.Names ? container.Names[0].replace('/', '') : 'unnamed',
+      image: container.Image,
+      status: container.Status,
+      state: container.State,
+      created: new Date(container.Created * 1000),
+      ports: this.parsePorts(container.Ports),
+      labels: container.Labels || {},
+      command: container.Command,
+      sizeRw: container.SizeRw || 0,
+      sizeRootFs: container.SizeRootFs || 0,
+      networks: container.NetworkSettings ? Object.keys(container.NetworkSettings.Networks || {}) : [],
+      mounts: container.Mounts ? container.Mounts.map(mount => ({
+        source: mount.Source,
+        destination: mount.Destination,
+        mode: mount.Mode,
+        type: mount.Type
+      })) : []
     };
   }
 
   /**
    * 解析端口信息
-   * @param {string} portsString - 端口字符串
+   * @param {Array} ports - Dockerode 端口数组
    * @returns {Array} 端口数组
    */
-  parsePorts(portsString) {
-    if (!portsString) return [];
+  parsePorts(ports) {
+    if (!ports || !Array.isArray(ports)) return [];
     
-    const ports = [];
-    const portPairs = portsString.split(',');
-    
-    for (const pair of portPairs) {
-      const match = pair.trim().match(/^(\d+)\/(\w+)\s*->\s*(\d+\.\d+\.\d+\.\d+):(\d+)$/);
-      if (match) {
-        ports.push({
-          privatePort: parseInt(match[1]),
-          type: match[2],
-          publicIP: match[3],
-          publicPort: parseInt(match[4])
-        });
-      }
-    }
-    
-    return ports;
-  }
-
-  /**
-   * 解析Docker标签
-   * @param {string} labelsString - 标签字符串
-   * @returns {Object} 解析后的标签对象
-   */
-  parseLabels(labelsString) {
-    if (!labelsString) return {};
-    
-    try {
-      // Docker标签格式：key1=value1,key2=value2,key3=value3
-      const labels = {};
-      const pairs = labelsString.split(',');
-      
-      for (const pair of pairs) {
-        const equalIndex = pair.indexOf('=');
-        if (equalIndex > 0) {
-          const key = pair.substring(0, equalIndex);
-          const value = pair.substring(equalIndex + 1);
-          labels[key] = value;
-        }
-      }
-      
-      return labels;
-    } catch (error) {
-      logger.warn(`解析Docker标签失败: ${labelsString}`, error);
-      return {};
-    }
-  }
-
-  /**
-   * 解析 docker ps JSON 输出
-   * @param {string} output - docker ps --format '{{json .}}' 命令输出
-   * @returns {Array} 容器列表
-   */
-  parseDockerPsJsonOutput(output) {
-    const lines = output.trim().split('\n');
-    const containers = [];
-    
-    for (const line of lines) {
-      if (!line.trim()) continue;
-      
-      try {
-        const containerData = JSON.parse(line);
-        
-        const container = {
-          id: containerData.ID || '',
-          name: containerData.Names || 'unnamed',
-          image: containerData.Image || '',
-          status: containerData.Status || 'unknown',
-          created: this.parseCreatedTime(containerData.CreatedAt || ''),
-          ports: this.parsePortsString(containerData.Ports || ''),
-          labels: this.parseLabelsString(containerData.Labels || ''),
-          command: containerData.Command || '',
-          sizeRw: this.parseSize(containerData.Size || '0B'),
-          sizeRootFs: 0,
-          // 额外信息
-          state: containerData.State || '',
-          runningFor: containerData.RunningFor || '',
-          networks: containerData.Networks || '',
-          mounts: containerData.Mounts || '',
-          localVolumes: containerData.LocalVolumes || '0'
-        };
-        
-        containers.push(container);
-      } catch (parseError) {
-        logger.warn('解析容器JSON数据失败:', parseError, '原始数据:', line);
-        // 如果JSON解析失败，跳过这一行
-        continue;
-      }
-    }
-    
-    return containers;
-  }
-
-  /**
-   * 解析大小字符串
-   * @param {string} sizeStr - 大小字符串 (例如: "0B (virtual 137MB)")
-   * @returns {number} 大小（字节）
-   */
-  parseSize(sizeStr) {
-    if (!sizeStr) return 0;
-    
-    // 提取第一个数字部分，例如 "0B (virtual 137MB)" -> "0B"
-    const match = sizeStr.match(/^(\d+(?:\.\d+)?)([KMGT]?B)/i);
-    if (match) {
-      const value = parseFloat(match[1]);
-      const unit = match[2].toUpperCase();
-      
-      switch (unit) {
-        case 'B':
-          return value;
-        case 'KB':
-          return value * 1024;
-        case 'MB':
-          return value * 1024 * 1024;
-        case 'GB':
-          return value * 1024 * 1024 * 1024;
-        case 'TB':
-          return value * 1024 * 1024 * 1024 * 1024;
-        default:
-          return value;
-      }
-    }
-    
-    return 0;
-  }
-
-  /**
-   * 解析创建时间字符串
-   * @param {string} timeStr - 时间字符串
-   * @returns {Date} 解析后的日期
-   */
-  parseCreatedTime(timeStr) {
-    if (!timeStr) return new Date();
-    
-    // 尝试解析绝对时间格式 (YYYY-MM-DD HH:MM:SS +0000 UTC)
-    const absoluteMatch = timeStr.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})\s+(\+\d{4})\s+UTC$/);
-    if (absoluteMatch) {
-      return new Date(`${absoluteMatch[1]}T${absoluteMatch[2]}${absoluteMatch[3]}`);
-    }
-    
-    // 尝试解析相对时间格式 (例如: "12 minutes ago", "5 days ago")
-    const relativeMatch = timeStr.match(/^(\d+)\s+(minutes?|hours?|days?|seconds?)\s+ago$/i);
-    if (relativeMatch) {
-      const value = parseInt(relativeMatch[1]);
-      const unit = relativeMatch[2].toLowerCase();
-      const now = new Date();
-      
-      switch (unit) {
-        case 'second':
-        case 'seconds':
-          return new Date(now.getTime() - value * 1000);
-        case 'minute':
-        case 'minutes':
-          return new Date(now.getTime() - value * 60 * 1000);
-        case 'hour':
-        case 'hours':
-          return new Date(now.getTime() - value * 60 * 60 * 1000);
-        case 'day':
-        case 'days':
-          return new Date(now.getTime() - value * 24 * 60 * 60 * 1000);
-        default:
-          return new Date();
-      }
-    }
-    
-    // 如果都不匹配，尝试直接解析
-    return new Date(timeStr);
-  }
-
-  /**
-   * 解析端口字符串
-   * @param {string} portsStr - 端口字符串
-   * @returns {Array} 端口数组
-   */
-  parsePortsString(portsStr) {
-    if (!portsStr || portsStr.trim() === '') return [];
-    
-    const ports = [];
-    const portPairs = portsStr.split(',');
-    
-    for (const pair of portPairs) {
-      const trimmedPair = pair.trim();
-      if (!trimmedPair) continue;
-      
-      // 处理多种端口格式：
-      // 1. 0.0.0.0:8080->80/tcp
-      // 2. 8080:80/tcp
-      // 3. 80/tcp (仅内部端口)
-      // 4. 0.0.0.0:8080->80/tcp, :::8080->80/tcp (IPv6)
-      
-      let match = trimmedPair.match(/^(\d+\.\d+\.\d+\.\d+):(\d+)->(\d+)\/(\w+)$/);
-      if (match) {
-        // 格式: 0.0.0.0:8080->80/tcp
-        ports.push({
-          IP: match[1],
-          PrivatePort: parseInt(match[3]),
-          PublicPort: parseInt(match[2]),
-          Type: match[4]
-        });
-        continue;
-      }
-      
-      match = trimmedPair.match(/^:::(\d+)->(\d+)\/(\w+)$/);
-      if (match) {
-        // 格式: :::8080->80/tcp (IPv6)
-        ports.push({
-          IP: '::',
-          PrivatePort: parseInt(match[2]),
-          PublicPort: parseInt(match[1]),
-          Type: match[3]
-        });
-        continue;
-      }
-      
-      match = trimmedPair.match(/^(\d+):(\d+)\/(\w+)$/);
-      if (match) {
-        // 格式: 8080:80/tcp
-        ports.push({
-          IP: '0.0.0.0',
-          PrivatePort: parseInt(match[2]),
-          PublicPort: parseInt(match[1]),
-          Type: match[3]
-        });
-        continue;
-      }
-      
-      match = trimmedPair.match(/^(\d+)\/(\w+)$/);
-      if (match) {
-        // 格式: 80/tcp (仅内部端口)
-        ports.push({
-          IP: '',
-          PrivatePort: parseInt(match[1]),
-          PublicPort: null,
-          Type: match[2]
-        });
-        continue;
-      }
-      
-      // 如果都不匹配，尝试简单的端口对格式
-      match = trimmedPair.match(/^(\d+):(\d+)$/);
-      if (match) {
-        ports.push({
-          IP: '0.0.0.0',
-          PrivatePort: parseInt(match[2]),
-          PublicPort: parseInt(match[1]),
-          Type: 'tcp'
-        });
-      }
-    }
-    
-    return ports;
-  }
-
-  /**
-   * 解析标签字符串
-   * @param {string} labelsStr - 标签字符串
-   * @returns {Object} 标签对象
-   */
-  parseLabelsString(labelsStr) {
-    if (!labelsStr) return {};
-    
-    const labels = {};
-    const labelPairs = labelsStr.split(',');
-    
-    for (const pair of labelPairs) {
-      const [key, value] = pair.split('=');
-      if (key && value) {
-        labels[key.trim()] = value.trim();
-      }
-    }
-    
-    return labels;
-  }
-
-  /**
-   * 获取完整的服务器信息（包括解密后的密码和私钥）
-   * @param {number} serverId - 服务器 ID
-   * @returns {Promise<Object|null>} 服务器信息
-   */
-  async getFullServerInfo(serverId) {
-    try {
-      const result = await database.db.get(
-        'SELECT * FROM servers WHERE id = ? AND is_active = 1',
-        [serverId]
-      );
-      
-      if (!result) {
-        logger.warn(`服务器 ${serverId} 不存在或未激活`);
-        return null;
-      }
-      
-      const server = result;
-      
-      // 解密敏感信息
-      try {
-        if (server.password_encrypted) {
-          server.password = encryption.decrypt(server.password_encrypted);
-        }
-        if (server.private_key_encrypted) {
-          server.private_key = encryption.decrypt(server.private_key_encrypted);
-        }
-      } catch (decryptError) {
-        logger.error(`解密服务器 ${serverId} 敏感信息失败:`, decryptError);
-        throw new Error('解密服务器认证信息失败');
-      }
-      
-      return server;
-    } catch (error) {
-      logger.error(`获取服务器 ${serverId} 完整信息失败:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * 获取容器详细信息
-   * @param {number} serverId - 服务器 ID
-   * @param {string} containerId - 容器 ID
-   * @returns {Promise<Object>} 容器详细信息
-   */
-  async getContainerInfo(serverId, containerId) {
-    try {
-      // 获取完整的服务器信息（包括解密后的密码和私钥）
-      const server = await this.getFullServerInfo(serverId);
-      if (!server) {
-        throw new Error('服务器不存在');
-      }
-
-      // 通过 SSH 连接获取容器详细信息
-      const info = await this.getContainerInfoViaSSH(server, containerId);
-      return info;
-    } catch (error) {
-      logger.error(`获取容器信息失败 (服务器 ${serverId}, 容器 ${containerId}):`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * 通过 SSH 获取容器详细信息（使用连接池）
-   * @param {Object} server - 服务器信息
-   * @param {string} containerId - 容器 ID
-   * @returns {Promise<Object>} 容器详细信息
-   */
-  async getContainerInfoViaSSH(server, containerId) {
-    try {
-      // 使用SSH连接池执行命令
-      const sshConnectionPool = (await import('./sshConnectionPool.js')).default;
-      
-      const command = `docker inspect ${containerId}`;
-      const output = await sshConnectionPool.executeCommand(server.id, command, 30000);
-      
-      try {
-        const info = JSON.parse(output)[0];
-        const containerInfo = {
-          id: info.Id,
-          name: info.Name.replace('/', ''),
-          image: info.Config.Image,
-          status: info.State.Status,
-          created: new Date(info.Created),
-          startedAt: info.State.StartedAt ? new Date(info.State.StartedAt) : null,
-          finishedAt: info.State.FinishedAt ? new Date(info.State.FinishedAt) : null,
-          restartCount: info.RestartCount,
-          ports: this.formatPortsFromInspect(info.NetworkSettings.Ports),
-          volumes: this.formatVolumes(info.Mounts),
-          environment: info.Config.Env,
-          command: info.Config.Cmd,
-          workingDir: info.Config.WorkingDir,
-          labels: info.Config.Labels,
-          networkMode: info.HostConfig.NetworkMode,
-          memoryLimit: info.HostConfig.Memory,
-          cpuShares: info.HostConfig.CpuShares,
-          restartPolicy: info.HostConfig.RestartPolicy?.Name || 'no'
-        };
-        return containerInfo;
-      } catch (parseError) {
-        throw new Error('解析容器信息失败');
-      }
-    } catch (error) {
-      logger.error(`通过SSH获取容器详细信息失败: ${server.host}`, error);
-      throw error;
-    }
+    return ports.map(port => ({
+      privatePort: port.PrivatePort,
+      publicPort: port.PublicPort,
+      type: port.Type,
+      ip: port.IP || '0.0.0.0'
+    }));
   }
 
   /**
@@ -505,49 +87,15 @@ class DockerService {
    */
   async startContainer(serverId, containerId) {
     try {
-      // 获取完整的服务器信息（包括解密后的密码和私钥）
-      const server = await this.getFullServerInfo(serverId);
-      if (!server) {
-        throw new Error(`服务器 ${serverId} 不存在或未激活`);
-      }
-
-      // 检查SSH认证信息
-      if (!server.password && !server.private_key) {
-        throw new Error(`服务器 ${serverId} 缺少SSH认证信息（密码或私钥）`);
-      }
-
-      // 通过 SSH 启动容器
-      const result = await this.startContainerViaSSH(server, containerId);
+      const docker = await dockerodeManager.getDockerConnection(serverId);
+      const container = docker.getContainer(containerId);
+      await container.start();
       
-      // 记录操作日志
-      await this.logOperation(serverId, containerId, 'start', result.success ? '容器启动成功' : `启动失败: ${result.error}`);
-      
-      return result;
-    } catch (error) {
-      logger.error(`启动容器失败 (服务器 ${serverId}, 容器 ${containerId}):`, error);
-      await this.logOperation(serverId, containerId, 'start', `启动失败: ${error.message}`);
-      return { success: false, error: error.message };
-    }
-  }
-
-  /**
-   * 通过SSH启动容器（使用连接池）
-   * @param {Object} server - 服务器信息
-   * @param {string} containerId - 容器ID
-   * @returns {Promise<Object>} 操作结果
-   */
-  async startContainerViaSSH(server, containerId) {
-    try {
-      // 使用SSH连接池执行命令
-      const sshConnectionPool = (await import('./sshConnectionPool.js')).default;
-      
-      const command = `docker start ${containerId}`;
-      const output = await sshConnectionPool.executeCommand(server.id, command, 10000);
-      
+      logger.info(`容器 ${containerId} 启动成功 (服务器 ${serverId})`);
       return { success: true, message: '容器启动成功' };
     } catch (error) {
-      logger.error(`启动容器失败: ${server.host}`, error);
-      return { success: false, error: error.message || '容器启动失败' };
+      logger.error(`启动容器失败 (服务器 ${serverId}, 容器 ${containerId}):`, error);
+      throw this.handleDockerError(error);
     }
   }
 
@@ -555,55 +103,19 @@ class DockerService {
    * 停止容器
    * @param {number} serverId - 服务器 ID
    * @param {string} containerId - 容器 ID
-   * @param {number} timeout - 超时时间（秒）
    * @returns {Promise<Object>} 操作结果
    */
-  async stopContainer(serverId, containerId, timeout = 10) {
+  async stopContainer(serverId, containerId) {
     try {
-      // 获取完整的服务器信息（包括解密后的密码和私钥）
-      const server = await this.getFullServerInfo(serverId);
-      if (!server) {
-        throw new Error(`服务器 ${serverId} 不存在或未激活`);
-      }
-
-      // 检查SSH认证信息
-      if (!server.password && !server.private_key) {
-        throw new Error(`服务器 ${serverId} 缺少SSH认证信息（密码或私钥）`);
-      }
-
-      // 通过 SSH 停止容器
-      const result = await this.stopContainerViaSSH(server, containerId, timeout);
+      const docker = await dockerodeManager.getDockerConnection(serverId);
+      const container = docker.getContainer(containerId);
+      await container.stop();
       
-      // 记录操作日志
-      await this.logOperation(serverId, containerId, 'stop', result.success ? '容器停止成功' : `停止失败: ${result.error}`);
-      
-      return result;
-    } catch (error) {
-      logger.error(`停止容器失败 (服务器 ${serverId}, 容器 ${containerId}):`, error);
-      await this.logOperation(serverId, containerId, 'stop', `停止失败: ${error.message}`);
-      return { success: false, error: error.message };
-    }
-  }
-
-  /**
-   * 通过SSH停止容器（使用连接池）
-   * @param {Object} server - 服务器信息
-   * @param {string} containerId - 容器ID
-   * @param {number} timeout - 超时时间（秒）
-   * @returns {Promise<Object>} 操作结果
-   */
-  async stopContainerViaSSH(server, containerId, timeout = 10) {
-    try {
-      // 使用SSH连接池执行命令
-      const sshConnectionPool = (await import('./sshConnectionPool.js')).default;
-      
-      const command = `docker stop -t ${timeout} ${containerId}`;
-      const output = await sshConnectionPool.executeCommand(server.id, command, 10000);
-      
+      logger.info(`容器 ${containerId} 停止成功 (服务器 ${serverId})`);
       return { success: true, message: '容器停止成功' };
     } catch (error) {
-      logger.error(`停止容器失败: ${server.host}`, error);
-      return { success: false, error: error.message || '容器停止失败' };
+      logger.error(`停止容器失败 (服务器 ${serverId}, 容器 ${containerId}):`, error);
+      throw this.handleDockerError(error);
     }
   }
 
@@ -611,58 +123,21 @@ class DockerService {
    * 重启容器
    * @param {number} serverId - 服务器 ID
    * @param {string} containerId - 容器 ID
-   * @param {number} timeout - 超时时间（秒）
    * @returns {Promise<Object>} 操作结果
    */
-  async restartContainer(serverId, containerId, timeout = 10) {
+  async restartContainer(serverId, containerId) {
     try {
-      // 获取完整的服务器信息（包括解密后的密码和私钥）
-      const server = await this.getFullServerInfo(serverId);
-      if (!server) {
-        throw new Error(`服务器 ${serverId} 不存在或未激活`);
-      }
-
-      // 检查SSH认证信息
-      if (!server.password && !server.private_key) {
-        throw new Error(`服务器 ${serverId} 缺少SSH认证信息（密码或私钥）`);
-      }
-
-      // 通过 SSH 重启容器
-      const result = await this.restartContainerViaSSH(server, containerId, timeout);
+      const docker = await dockerodeManager.getDockerConnection(serverId);
+      const container = docker.getContainer(containerId);
+      await container.restart();
       
-      // 记录操作日志
-      await this.logOperation(serverId, containerId, 'restart', result.success ? '容器重启成功' : `重启失败: ${result.error}`);
-      
-      return result;
-    } catch (error) {
-      logger.error(`重启容器失败 (服务器 ${serverId}, 容器 ${containerId}):`, error);
-      await this.logOperation(serverId, containerId, 'restart', `重启失败: ${error.message}`);
-      return { success: false, error: error.message };
-    }
-  }
-
-  /**
-   * 通过SSH重启容器（使用连接池）
-   * @param {Object} server - 服务器信息
-   * @param {string} containerId - 容器ID
-   * @param {number} timeout - 超时时间（秒）
-   * @returns {Promise<Object>} 操作结果
-   */
-  async restartContainerViaSSH(server, containerId, timeout = 10) {
-    try {
-      // 使用SSH连接池执行命令
-      const sshConnectionPool = (await import('./sshConnectionPool.js')).default;
-      
-      const command = `docker restart -t ${timeout} ${containerId}`;
-      const output = await sshConnectionPool.executeCommand(server.id, command, 30000);
-      
+      logger.info(`容器 ${containerId} 重启成功 (服务器 ${serverId})`);
       return { success: true, message: '容器重启成功' };
     } catch (error) {
-      logger.error(`重启容器失败: ${server.host}`, error);
-      return { success: false, error: error.message || '容器重启失败' };
+      logger.error(`重启容器失败 (服务器 ${serverId}, 容器 ${containerId}):`, error);
+      throw this.handleDockerError(error);
     }
   }
-
 
   /**
    * 删除容器
@@ -673,58 +148,15 @@ class DockerService {
    */
   async removeContainer(serverId, containerId, force = false) {
     try {
-      // 获取完整的服务器信息（包括解密后的密码和私钥）
-      const server = await this.getFullServerInfo(serverId);
-      if (!server) {
-        throw new Error(`服务器 ${serverId} 不存在或未激活`);
-      }
-
-      // 检查SSH认证信息
-      if (!server.password && !server.private_key) {
-        throw new Error(`服务器 ${serverId} 缺少SSH认证信息（密码或私钥）`);
-      }
-
-      // 通过 SSH 删除容器
-      const result = await this.removeContainerViaSSH(server, containerId, force);
+      const docker = await dockerodeManager.getDockerConnection(serverId);
+      const container = docker.getContainer(containerId);
+      await container.remove({ force, v: true });
       
-      if (result.success) {
-        // 从数据库中删除容器记录
-        await database.db.run(
-          'DELETE FROM containers WHERE server_id = ? AND container_id = ?',
-          [serverId, containerId]
-        );
-      }
-      
-      // 记录操作日志
-      await this.logOperation(serverId, containerId, 'remove', result.success ? '容器删除成功' : `删除失败: ${result.error}`);
-      
-      return result;
-    } catch (error) {
-      logger.error(`删除容器失败 (服务器 ${serverId}, 容器 ${containerId}):`, error);
-      await this.logOperation(serverId, containerId, 'remove', `删除失败: ${error.message}`);
-      return { success: false, error: error.message };
-    }
-  }
-
-  /**
-   * 通过SSH删除容器（使用连接池）
-   * @param {Object} server - 服务器信息
-   * @param {string} containerId - 容器ID
-   * @param {boolean} force - 是否强制删除
-   * @returns {Promise<Object>} 操作结果
-   */
-  async removeContainerViaSSH(server, containerId, force = false) {
-    try {
-      // 使用SSH连接池执行命令
-      const sshConnectionPool = (await import('./sshConnectionPool.js')).default;
-      
-      const command = force ? `docker rm -f ${containerId}` : `docker rm ${containerId}`;
-      const output = await sshConnectionPool.executeCommand(server.id, command, 10000);
-      
+      logger.info(`容器 ${containerId} 删除成功 (服务器 ${serverId})`);
       return { success: true, message: '容器删除成功' };
     } catch (error) {
-      logger.error(`删除容器失败: ${server.host}`, error);
-      return { success: false, error: error.message || '容器删除失败' };
+      logger.error(`删除容器失败 (服务器 ${serverId}, 容器 ${containerId}):`, error);
+      throw this.handleDockerError(error);
     }
   }
 
@@ -732,174 +164,25 @@ class DockerService {
    * 获取容器日志
    * @param {number} serverId - 服务器 ID
    * @param {string} containerId - 容器 ID
-   * @param {Object} options - 日志选项
+   * @param {number} tail - 日志行数
    * @returns {Promise<string>} 容器日志
    */
-  async getContainerLogs(serverId, containerId, options = {}) {
+  async getContainerLogs(serverId, containerId, tail = 100) {
     try {
-      // 获取完整的服务器信息（包括解密后的密码和私钥）
-      const server = await this.getFullServerInfo(serverId);
-      if (!server) {
-        throw new Error(`服务器 ${serverId} 不存在或未激活`);
-      }
-
-      // 检查SSH认证信息
-      if (!server.password && !server.private_key) {
-        throw new Error(`服务器 ${serverId} 缺少SSH认证信息（密码或私钥）`);
-      }
-
-      // 通过 SSH 获取容器日志
-      const logs = await this.getContainerLogsViaSSH(server, containerId, options);
-      return logs;
+      const docker = await dockerodeManager.getDockerConnection(serverId);
+      const container = docker.getContainer(containerId);
+      
+      const logs = await container.logs({
+        stdout: true,
+        stderr: true,
+        tail,
+        timestamps: true
+      });
+      
+      return logs.toString();
     } catch (error) {
       logger.error(`获取容器日志失败 (服务器 ${serverId}, 容器 ${containerId}):`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * 通过SSH获取容器日志（使用连接池）
-   * @param {Object} server - 服务器信息
-   * @param {string} containerId - 容器ID
-   * @param {Object} options - 日志选项
-   * @returns {Promise<string>} 容器日志
-   */
-  async getContainerLogsViaSSH(server, containerId, options = {}) {
-    try {
-      // 使用SSH连接池执行命令
-      const sshConnectionPool = (await import('./sshConnectionPool.js')).default;
-      
-      // 构建docker logs命令
-      let command = `docker logs ${containerId}`;
-      
-      if (options.tail) {
-        command += ` --tail ${options.tail}`;
-      }
-      
-      if (options.timestamps) {
-        command += ' --timestamps';
-      }
-      
-      if (options.since) {
-        command += ` --since ${options.since}`;
-      }
-      
-      if (options.until) {
-        command += ` --until ${options.until}`;
-      }
-      
-      const output = await sshConnectionPool.executeCommand(server.id, command, 15000);
-      return output;
-    } catch (error) {
-      logger.error(`获取容器日志失败: ${server.host}`, error);
-      throw error;
-    }
-  }
-
-
-  // 辅助方法
-  formatPorts(ports) {
-    if (!ports || ports.length === 0) return [];
-    
-    return ports.map(port => ({
-      privatePort: port.PrivatePort,
-      publicPort: port.PublicPort,
-      type: port.Type,
-      ip: port.IP
-    }));
-  }
-
-  formatPortBindings(portBindings) {
-    if (!portBindings) return {};
-    
-    const bindings = {};
-    for (const [containerPort, hostBindings] of Object.entries(portBindings)) {
-      if (hostBindings && hostBindings.length > 0) {
-        bindings[containerPort] = hostBindings.map(binding => ({
-          hostIp: binding.HostIp,
-          hostPort: binding.HostPort
-        }));
-      }
-    }
-    return bindings;
-  }
-
-  formatPortsFromInspect(portBindings) {
-    if (!portBindings) return [];
-    
-    const ports = [];
-    for (const [containerPort, hostBindings] of Object.entries(portBindings)) {
-      if (hostBindings && hostBindings.length > 0) {
-        hostBindings.forEach(binding => {
-          const [privatePort, type] = containerPort.split('/');
-          ports.push({
-            privatePort: parseInt(privatePort),
-            publicPort: binding.HostPort ? parseInt(binding.HostPort) : '',
-            type: type || 'tcp',
-            ip: binding.HostIp || '0.0.0.0'
-          });
-        });
-      } else {
-        const [privatePort, type] = containerPort.split('/');
-        ports.push({
-          privatePort: parseInt(privatePort),
-          publicPort: '',
-          type: type || 'tcp',
-          ip: '0.0.0.0'
-        });
-      }
-    }
-    return ports;
-  }
-
-  formatVolumes(mounts) {
-    if (!mounts) return [];
-    
-    return mounts.map(mount => ({
-      type: mount.Type,
-      source: mount.Source,
-      destination: mount.Destination,
-      mode: mount.Mode,
-      rw: mount.RW
-    }));
-  }
-
-  async updateContainerInDatabase(serverId, container) {
-    try {
-      const existing = await database.db.get(
-        'SELECT id FROM containers WHERE server_id = ? AND container_id = ?',
-        [serverId, container.id]
-      );
-
-      if (existing) {
-        // 更新现有记录
-        await database.db.run(`
-          UPDATE containers 
-          SET name = ?, image = ?, status = ?, updated_at = CURRENT_TIMESTAMP
-          WHERE server_id = ? AND container_id = ?
-        `, [
-          container.name,
-          container.image,
-          container.status,
-          serverId,
-          container.id
-        ]);
-      } else {
-        // 插入新记录
-        await database.db.run(`
-          INSERT INTO containers (server_id, container_id, name, image, status, created_at)
-          VALUES (?, ?, ?, ?, ?, ?)
-        `, [
-          serverId,
-          container.id,
-          container.name,
-          container.image,
-          container.status,
-          container.created
-        ]);
-      }
-    } catch (error) {
-      logger.error('更新容器数据库记录失败:', error);
+      throw this.handleDockerError(error);
     }
   }
 
@@ -911,115 +194,555 @@ class DockerService {
    */
   async getContainerStats(serverId, containerId) {
     try {
-      // 获取完整的服务器信息（包括解密后的密码和私钥）
-      const server = await this.getFullServerInfo(serverId);
-      if (!server) {
-        throw new Error(`服务器 ${serverId} 不存在或未激活`);
-      }
-
-      // 检查SSH认证信息
-      if (!server.password && !server.private_key) {
-        throw new Error(`服务器 ${serverId} 缺少SSH认证信息（密码或私钥）`);
-      }
-
-      // 通过 SSH 连接获取容器统计信息
-      const stats = await this.getContainerStatsViaSSH(server, containerId);
-      return stats;
+      const docker = await dockerodeManager.getDockerConnection(serverId);
+      const container = docker.getContainer(containerId);
+      const stats = await container.stats({ stream: false });
+      
+      return {
+        cpu: this.calculateCPUPercent(stats),
+        memory: {
+          usage: stats.memory_stats.usage,
+          limit: stats.memory_stats.limit,
+          percent: stats.memory_stats.limit ? 
+            (stats.memory_stats.usage / stats.memory_stats.limit) * 100 : 0
+        },
+        network: stats.networks,
+        blockIO: stats.blkio_stats,
+        pids: stats.pids_stats
+      };
     } catch (error) {
       logger.error(`获取容器统计信息失败 (服务器 ${serverId}, 容器 ${containerId}):`, error);
-      throw error;
+      throw this.handleDockerError(error);
     }
   }
 
   /**
-   * 通过 SSH 获取容器统计信息（使用连接池）
-   * @param {Object} server - 服务器信息
-   * @param {string} containerId - 容器 ID
-   * @returns {Promise<Object>} 容器统计信息
+   * 计算CPU使用率
+   * @param {Object} stats - Docker 统计信息
+   * @returns {number} CPU使用率百分比
    */
-  async getContainerStatsViaSSH(server, containerId) {
+  calculateCPUPercent(stats) {
+    const cpuDelta = stats.cpu_stats.cpu_usage.total_usage - 
+                    (stats.precpu_stats.cpu_usage.total_usage || 0);
+    const systemDelta = stats.cpu_stats.system_cpu_usage - 
+                       (stats.precpu_stats.system_cpu_usage || 0);
+    
+    if (systemDelta > 0 && cpuDelta > 0) {
+      return (cpuDelta / systemDelta) * stats.cpu_stats.online_cpus * 100.0;
+    }
+    return 0;
+  }
+
+  /**
+   * 获取镜像列表
+   * @param {number} serverId - 服务器 ID
+   * @param {string} search - 搜索关键词
+   * @returns {Promise<Array>} 镜像列表
+   */
+  async getImages(serverId, search = '') {
     try {
-      // 使用SSH连接池执行命令
-      const sshConnectionPool = (await import('./sshConnectionPool.js')).default;
+      const docker = await dockerodeManager.getDockerConnection(serverId);
+      const images = await docker.listImages();
       
-      const command = `docker stats --no-stream --format "table {{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}\t{{.NetIO}}\t{{.BlockIO}}\t{{.PIDs}}" ${containerId}`;
-      const output = await sshConnectionPool.executeCommand(server.id, command, 30000);
-      
-      const stats = this.parseContainerStatsOutput(output);
-      return stats;
+      let filteredImages = images.map(img => ({
+        id: img.Id,
+        imageId: img.Id,
+        repository: img.RepoTags && img.RepoTags[0] ? 
+          img.RepoTags[0].split(':')[0] : '<none>',
+        tag: img.RepoTags && img.RepoTags[0] ? 
+          img.RepoTags[0].split(':')[1] : '<none>',
+        size: img.Size,
+        created: new Date(img.Created * 1000),
+        labels: img.Labels || {},
+        virtualSize: img.VirtualSize
+      }));
+
+      // 应用搜索过滤
+      if (search) {
+        filteredImages = filteredImages.filter(img => 
+          img.repository.toLowerCase().includes(search.toLowerCase()) ||
+          img.tag.toLowerCase().includes(search.toLowerCase())
+        );
+      }
+
+      return filteredImages;
     } catch (error) {
-      logger.error(`获取容器统计信息失败: ${server.host}`, error);
-      throw error;
+      logger.error(`获取镜像列表失败 (服务器 ${serverId}):`, error);
+      throw this.handleDockerError(error);
     }
   }
 
   /**
-   * 解析容器统计信息输出
-   * @param {string} output - Docker stats 命令输出
-   * @returns {Object} 解析后的统计信息
+   * 拉取镜像
+   * @param {number} serverId - 服务器 ID
+   * @param {string} imageName - 镜像名称
+   * @param {string} tag - 镜像标签
+   * @returns {Promise<Object>} 拉取结果
    */
-  parseContainerStatsOutput(output) {
-    const lines = output.trim().split('\n');
-    
-    if (lines.length < 2) {
-      return null;
+  async pullImage(serverId, imageName, tag = 'latest') {
+    try {
+      const docker = await dockerodeManager.getDockerConnection(serverId);
+      const fullName = `${imageName}:${tag}`;
+      
+      return new Promise((resolve, reject) => {
+        docker.pull(fullName, (err, stream) => {
+          if (err) {
+            logger.error(`拉取镜像失败 (服务器 ${serverId}, 镜像 ${fullName}):`, err);
+            return reject(err);
+          }
+          
+          docker.modem.followProgress(stream, (err, output) => {
+            if (err) {
+              logger.error(`拉取镜像进度跟踪失败 (服务器 ${serverId}, 镜像 ${fullName}):`, err);
+              return reject(err);
+            }
+            
+            logger.info(`镜像拉取成功 (服务器 ${serverId}, 镜像 ${fullName})`);
+            resolve({ success: true, message: '镜像拉取成功', data: output });
+          });
+        });
+      });
+    } catch (error) {
+      logger.error(`拉取镜像失败 (服务器 ${serverId}, 镜像 ${imageName}:${tag}):`, error);
+      throw this.handleDockerError(error);
     }
-    
-    // 跳过标题行，获取数据行
-    const dataLine = lines[1];
-    const parts = dataLine.split('\t');
-    
-    if (parts.length < 6) {
-      return null;
+  }
+
+  /**
+   * 删除镜像
+   * @param {number} serverId - 服务器 ID
+   * @param {string} imageId - 镜像 ID
+   * @param {boolean} force - 是否强制删除
+   * @returns {Promise<Object>} 删除结果
+   */
+  async removeImage(serverId, imageId, force = false) {
+    try {
+      const docker = await dockerodeManager.getDockerConnection(serverId);
+      const image = docker.getImage(imageId);
+      await image.remove({ force });
+      
+      logger.info(`镜像 ${imageId} 删除成功 (服务器 ${serverId})`);
+      return { success: true, message: '镜像删除成功' };
+    } catch (error) {
+      logger.error(`删除镜像失败 (服务器 ${serverId}, 镜像 ${imageId}):`, error);
+      throw this.handleDockerError(error);
     }
-    
-    // 解析各个字段
-    const cpuPercent = parseFloat(parts[0].replace('%', '')) || 0;
-    const memUsage = parts[1] || '0B / 0B';
-    const memPercent = parseFloat(parts[2].replace('%', '')) || 0;
-    const netIO = parts[3] || '0B / 0B';
-    const blockIO = parts[4] || '0B / 0B';
-    const pids = parseInt(parts[5]) || 0;
-    
-    // 解析内存使用量
-    const memParts = memUsage.split(' / ');
-    const memUsed = memParts[0] || '0B';
-    const memLimit = memParts[1] || '0B';
-    
-    // 解析网络IO
-    const netParts = netIO.split(' / ');
-    const netIn = netParts[0] || '0B';
-    const netOut = netParts[1] || '0B';
-    
-    // 解析块IO
-    const blockParts = blockIO.split(' / ');
-    const blockIn = blockParts[0] || '0B';
-    const blockOut = blockParts[1] || '0B';
+  }
+
+  /**
+   * 修改镜像标签
+   * @param {number} serverId - 服务器 ID
+   * @param {string} imageId - 镜像 ID
+   * @param {string} newTag - 新标签
+   * @returns {Promise<Object>} 操作结果
+   */
+  async tagImage(serverId, imageId, newTag) {
+    try {
+      const docker = await dockerodeManager.getDockerConnection(serverId);
+      const image = docker.getImage(imageId);
+      
+      // 解析新标签
+      const [repo, tag] = newTag.includes(':') ? 
+        newTag.split(':') : [newTag, 'latest'];
+      
+      await image.tag({ repo, tag });
+      
+      logger.info(`镜像 ${imageId} 标签修改成功 (服务器 ${serverId}, 新标签: ${newTag})`);
+      return { success: true, message: '镜像标签修改成功' };
+    } catch (error) {
+      logger.error(`修改镜像标签失败 (服务器 ${serverId}, 镜像 ${imageId}):`, error);
+      throw this.handleDockerError(error);
+    }
+  }
+
+  /**
+   * 获取镜像详细信息
+   * @param {number} serverId - 服务器 ID
+   * @param {string} imageId - 镜像 ID
+   * @returns {Promise<Object>} 镜像详细信息
+   */
+  async getImageInfo(serverId, imageId) {
+    try {
+      const docker = await dockerodeManager.getDockerConnection(serverId);
+      const image = docker.getImage(imageId);
+      const info = await image.inspect();
+      
+      return {
+        id: info.Id,
+        architecture: info.Architecture,
+        os: info.Os,
+        created: new Date(info.Created),
+        size: info.Size,
+        virtualSize: info.VirtualSize,
+        labels: info.Config.Labels || {},
+        env: info.Config.Env || [],
+        cmd: info.Config.Cmd,
+        exposedPorts: info.Config.ExposedPorts || {},
+        volumes: info.Config.Volumes || {},
+        workingDir: info.Config.WorkingDir,
+        user: info.Config.User
+      };
+    } catch (error) {
+      logger.error(`获取镜像详细信息失败 (服务器 ${serverId}, 镜像 ${imageId}):`, error);
+      throw this.handleDockerError(error);
+    }
+  }
+
+  /**
+   * 搜索镜像
+   * @param {number} serverId - 服务器 ID
+   * @param {string} term - 搜索关键词
+   * @returns {Promise<Array>} 搜索结果
+   */
+  async searchImages(serverId, term) {
+    try {
+      const docker = await dockerodeManager.getDockerConnection(serverId);
+      const images = await docker.listImages();
+      
+      return images.filter(img => {
+        const repoTags = img.RepoTags || [];
+        return repoTags.some(tag => 
+          tag.toLowerCase().includes(term.toLowerCase())
+        );
+      }).map(img => ({
+        id: img.Id,
+        repository: img.RepoTags && img.RepoTags[0] ? 
+          img.RepoTags[0].split(':')[0] : '<none>',
+        tag: img.RepoTags && img.RepoTags[0] ? 
+          img.RepoTags[0].split(':')[1] : '<none>',
+        size: img.Size,
+        created: new Date(img.Created * 1000)
+      }));
+    } catch (error) {
+      logger.error(`搜索镜像失败 (服务器 ${serverId}, 关键词 ${term}):`, error);
+      throw this.handleDockerError(error);
+    }
+  }
+
+  /**
+   * 处理Docker错误
+   * @param {Error} error - 原始错误
+   * @returns {Error} 处理后的错误
+   */
+  handleDockerError(error) {
+    if (error.statusCode === 404) {
+      return new Error('容器或镜像不存在');
+    } else if (error.statusCode === 409) {
+      return new Error('操作冲突 - 容器可能已经启动或停止');
+    } else if (error.statusCode === 500) {
+      return new Error('Docker守护进程错误');
+    } else if (error.code === 'ECONNREFUSED') {
+      return new Error('无法连接到Docker守护进程');
+    } else if (error.code === 'ENOENT') {
+      return new Error('Docker套接字文件不存在');
+    }
+    return error;
+  }
+
+
+  /**
+   * 获取完整的服务器信息（包括解密后的密码和私钥）
+   * @param {number} serverId - 服务器 ID
+   * @returns {Promise<Object>} 服务器信息
+   */
+  async getFullServerInfo(serverId) {
+    try {
+      const result = await database.query(
+        'SELECT * FROM servers WHERE id = ? AND is_active = 1',
+        [serverId]
+      );
+      
+      if (!result.rows || result.rows.length === 0) {
+        return null;
+      }
+      
+      const server = result.rows[0];
+      
+      // 解密密码和私钥
+      if (server.password) {
+        server.password = encryption.decrypt(server.password);
+      }
+      if (server.private_key) {
+        server.private_key = encryption.decrypt(server.private_key);
+      }
+      
+      return server;
+    } catch (error) {
+      logger.error(`获取服务器信息失败: ${serverId}`, error);
+      throw error;
+    }
+  }
+
+  // ==================== 网络管理方法 ====================
+
+  /**
+   * 获取网络列表
+   * @param {number} serverId - 服务器 ID
+   * @returns {Promise<Array>} 网络列表
+   */
+  async getNetworks(serverId) {
+    try {
+      const docker = await dockerodeManager.getDockerConnection(serverId);
+      const networks = await docker.listNetworks();
+      return networks.map(network => this.parseNetworkInfo(network));
+    } catch (error) {
+      logger.error(`获取网络列表失败 (服务器 ${serverId}):`, error);
+      throw this.handleDockerError(error);
+    }
+  }
+
+  /**
+   * 获取网络详情
+   * @param {number} serverId - 服务器 ID
+   * @param {string} networkId - 网络 ID
+   * @returns {Promise<Object>} 网络详情
+   */
+  async getNetworkInfo(serverId, networkId) {
+    try {
+      const docker = await dockerodeManager.getDockerConnection(serverId);
+      const network = docker.getNetwork(networkId);
+      const info = await network.inspect();
+      return this.parseNetworkInfo(info);
+    } catch (error) {
+      logger.error(`获取网络详情失败 (服务器 ${serverId}, 网络 ${networkId}):`, error);
+      throw this.handleDockerError(error);
+    }
+  }
+
+  /**
+   * 创建网络
+   * @param {number} serverId - 服务器 ID
+   * @param {Object} options - 网络选项
+   * @returns {Promise<Object>} 创建结果
+   */
+  async createNetwork(serverId, options) {
+    try {
+      const docker = await dockerodeManager.getDockerConnection(serverId);
+      const network = await docker.createNetwork(options);
+      return {
+        success: true,
+        network: this.parseNetworkInfo(network)
+      };
+    } catch (error) {
+      logger.error(`创建网络失败 (服务器 ${serverId}):`, error);
+      throw this.handleDockerError(error);
+    }
+  }
+
+  /**
+   * 删除网络
+   * @param {number} serverId - 服务器 ID
+   * @param {string} networkId - 网络 ID
+   * @returns {Promise<Object>} 删除结果
+   */
+  async removeNetwork(serverId, networkId) {
+    try {
+      const docker = await dockerodeManager.getDockerConnection(serverId);
+      const network = docker.getNetwork(networkId);
+      await network.remove();
+      return { success: true };
+    } catch (error) {
+      logger.error(`删除网络失败 (服务器 ${serverId}, 网络 ${networkId}):`, error);
+      throw this.handleDockerError(error);
+    }
+  }
+
+  /**
+   * 连接容器到网络
+   * @param {number} serverId - 服务器 ID
+   * @param {string} networkId - 网络 ID
+   * @param {string} containerId - 容器 ID
+   * @param {Object} options - 连接选项
+   * @returns {Promise<Object>} 连接结果
+   */
+  async connectContainerToNetwork(serverId, networkId, containerId, options = {}) {
+    try {
+      const docker = await dockerodeManager.getDockerConnection(serverId);
+      const network = docker.getNetwork(networkId);
+      await network.connect({ Container: containerId, ...options });
+      return { success: true };
+    } catch (error) {
+      logger.error(`连接容器到网络失败 (服务器 ${serverId}, 网络 ${networkId}, 容器 ${containerId}):`, error);
+      throw this.handleDockerError(error);
+    }
+  }
+
+  /**
+   * 断开容器与网络的连接
+   * @param {number} serverId - 服务器 ID
+   * @param {string} networkId - 网络 ID
+   * @param {string} containerId - 容器 ID
+   * @returns {Promise<Object>} 断开结果
+   */
+  async disconnectContainerFromNetwork(serverId, networkId, containerId) {
+    try {
+      const docker = await dockerodeManager.getDockerConnection(serverId);
+      const network = docker.getNetwork(networkId);
+      await network.disconnect({ Container: containerId });
+      return { success: true };
+    } catch (error) {
+      logger.error(`断开容器与网络连接失败 (服务器 ${serverId}, 网络 ${networkId}, 容器 ${containerId}):`, error);
+      throw this.handleDockerError(error);
+    }
+  }
+
+  /**
+   * 清理未使用的网络
+   * @param {number} serverId - 服务器 ID
+   * @returns {Promise<Object>} 清理结果
+   */
+  async pruneNetworks(serverId) {
+    try {
+      const docker = await dockerodeManager.getDockerConnection(serverId);
+      const result = await docker.pruneNetworks();
+      return {
+        success: true,
+        networksDeleted: result.NetworksDeleted || []
+      };
+    } catch (error) {
+      logger.error(`清理未使用网络失败 (服务器 ${serverId}):`, error);
+      throw this.handleDockerError(error);
+    }
+  }
+
+  /**
+   * 解析网络信息
+   * @param {Object} network - Dockerode 网络对象
+   * @returns {Object} 解析后的网络信息
+   */
+  parseNetworkInfo(network) {
+    // 确保Containers字段正确处理
+    let containers = {};
+    if (network.Containers && typeof network.Containers === 'object') {
+      containers = network.Containers;
+    }
     
     return {
-      cpu_percent: cpuPercent,
-      memory_usage: memUsed,
-      memory_limit: memLimit,
-      memory_percent: memPercent,
-      network_in: netIn,
-      network_out: netOut,
-      block_in: blockIn,
-      block_out: blockOut,
-      pids: pids
+      Id: network.Id,
+      Name: network.Name,
+      Driver: network.Driver,
+      Scope: network.Scope,
+      IPAM: network.IPAM,
+      Containers: containers,
+      Created: network.Created,
+      Internal: network.Internal || false,
+      Attachable: network.Attachable || false,
+      Ingress: network.Ingress || false,
+      Labels: network.Labels || {}
     };
   }
 
-  async logOperation(serverId, containerId, action, details) {
+  // ==================== 卷管理方法 ====================
+
+  /**
+   * 获取卷列表
+   * @param {number} serverId - 服务器 ID
+   * @returns {Promise<Array>} 卷列表
+   */
+  async getVolumes(serverId) {
     try {
-      await database.db.run(`
-        INSERT INTO operation_logs (server_id, container_id, action, details, timestamp)
-        VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-      `, [serverId, containerId, action, details]);
+      const docker = await dockerodeManager.getDockerConnection(serverId);
+      const volumes = await docker.listVolumes();
+      return volumes.Volumes.map(volume => this.parseVolumeInfo(volume));
     } catch (error) {
-      logger.error('记录操作日志失败:', error);
+      logger.error(`获取卷列表失败 (服务器 ${serverId}):`, error);
+      throw this.handleDockerError(error);
     }
   }
 
+  /**
+   * 获取卷详情
+   * @param {number} serverId - 服务器 ID
+   * @param {string} volumeName - 卷名称
+   * @returns {Promise<Object>} 卷详情
+   */
+  async getVolumeInfo(serverId, volumeName) {
+    try {
+      const docker = await dockerodeManager.getDockerConnection(serverId);
+      const volume = docker.getVolume(volumeName);
+      const info = await volume.inspect();
+      return this.parseVolumeInfo(info);
+    } catch (error) {
+      logger.error(`获取卷详情失败 (服务器 ${serverId}, 卷 ${volumeName}):`, error);
+      throw this.handleDockerError(error);
+    }
+  }
+
+  /**
+   * 创建卷
+   * @param {number} serverId - 服务器 ID
+   * @param {Object} options - 卷选项
+   * @returns {Promise<Object>} 创建结果
+   */
+  async createVolume(serverId, options) {
+    try {
+      const docker = await dockerodeManager.getDockerConnection(serverId);
+      const volume = await docker.createVolume(options);
+      return {
+        success: true,
+        volume: this.parseVolumeInfo(volume)
+      };
+    } catch (error) {
+      logger.error(`创建卷失败 (服务器 ${serverId}):`, error);
+      throw this.handleDockerError(error);
+    }
+  }
+
+  /**
+   * 删除卷
+   * @param {number} serverId - 服务器 ID
+   * @param {string} volumeName - 卷名称
+   * @param {boolean} force - 是否强制删除
+   * @returns {Promise<Object>} 删除结果
+   */
+  async removeVolume(serverId, volumeName, force = false) {
+    try {
+      const docker = await dockerodeManager.getDockerConnection(serverId);
+      const volume = docker.getVolume(volumeName);
+      await volume.remove({ force });
+      return { success: true };
+    } catch (error) {
+      logger.error(`删除卷失败 (服务器 ${serverId}, 卷 ${volumeName}):`, error);
+      throw this.handleDockerError(error);
+    }
+  }
+
+  /**
+   * 清理未使用的卷
+   * @param {number} serverId - 服务器 ID
+   * @returns {Promise<Object>} 清理结果
+   */
+  async pruneVolumes(serverId) {
+    try {
+      const docker = await dockerodeManager.getDockerConnection(serverId);
+      const result = await docker.pruneVolumes();
+      return {
+        success: true,
+        volumesDeleted: result.VolumesDeleted || []
+      };
+    } catch (error) {
+      logger.error(`清理未使用卷失败 (服务器 ${serverId}):`, error);
+      throw this.handleDockerError(error);
+    }
+  }
+
+  /**
+   * 解析卷信息
+   * @param {Object} volume - Dockerode 卷对象
+   * @returns {Object} 解析后的卷信息
+   */
+  parseVolumeInfo(volume) {
+    return {
+      Name: volume.Name,
+      Driver: volume.Driver,
+      Mountpoint: volume.Mountpoint,
+      CreatedAt: volume.CreatedAt,
+      Labels: volume.Labels || {},
+      Scope: volume.Scope,
+      Options: volume.Options || {},
+      UsageData: volume.UsageData
+    };
+  }
 }
 
 export default new DockerService();

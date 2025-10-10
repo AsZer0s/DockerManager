@@ -169,36 +169,13 @@ router.get('/all',
       
       for (const server of servers) {
         try {
-          // 获取用户有权限的容器列表
-          let userContainerIds = [];
-          if (req.user.role !== 'admin') {
-            const userContainers = await database.db.all(
-              'SELECT container_id FROM user_containers WHERE user_id = ?',
-              [req.user.id]
-            );
-            userContainerIds = userContainers.map(uc => uc.container_id);
-          }
+          // 用户权限现在基于服务器权限，不再需要容器级别的权限检查
 
-          // 从缓存或Docker服务获取容器列表
-          let containers = cacheService.getContainers(server.id);
-          if (containers) {
-            containers = containers.containers;
-            // 使用缓存容器列表
-          } else {
-            // 如果缓存中没有，从 Docker 服务获取
-            containers = await dockerService.getContainers(server.id, all === 'true');
-            // 从 Docker 服务获取容器列表
-          }
+          // 直接从Docker服务获取实时容器列表
+          const containers = await dockerService.getContainers(server.id, all === 'true');
 
-          // 根据权限过滤容器
-          const filteredContainers = containers.filter(container => {
-            // 管理员可以看到所有容器
-            if (req.user.role === 'admin') {
-              return true;
-            }
-            // 普通用户只能看到有权限的容器
-            return userContainerIds.includes(container.id);
-          });
+          // 所有有服务器权限的用户都可以看到该服务器的所有容器
+          const filteredContainers = containers;
 
           containersData[server.id] = {
             serverName: server.name,
@@ -285,42 +262,11 @@ router.get('/:serverId',
         });
       }
 
-      // 首先尝试从缓存获取容器列表
-      const cachedContainers = cacheService.getContainers(serverId);
-      let containers;
-      let fromCache = false;
+      // 直接从Docker服务获取实时容器列表
+      const containers = await dockerService.getContainers(serverId, all === 'true');
 
-      if (cachedContainers) {
-        containers = cachedContainers.containers;
-        fromCache = true;
-        // 使用缓存容器列表
-      } else {
-        // 如果缓存中没有，从 Docker 服务获取
-        containers = await dockerService.getContainers(serverId, all === 'true');
-        // 从 Docker 服务获取容器列表
-      }
-
-      // 获取用户有权限的容器列表
-      let userContainerIds = [];
-      if (req.user.role !== 'admin') {
-        const userContainers = await database.db.all(
-          'SELECT container_id FROM user_containers WHERE user_id = ?',
-          [req.user.id]
-        );
-        userContainerIds = userContainers.map(uc => uc.container_id);
-        // 用户有权限的容器
-      }
-
-      // 根据权限过滤容器
+      // 用户权限现在基于服务器权限，不再需要容器级别的权限检查
       const filteredContainers = containers
-        .filter(container => {
-          // 管理员可以看到所有容器
-          if (req.user.role === 'admin') {
-            return true;
-          }
-          // 普通用户只能看到有权限的容器
-          return userContainerIds.includes(container.id);
-        })
         .map(container => {
           if (req.serverPermission.hide_sensitive_info) {
             return {
@@ -339,8 +285,7 @@ router.get('/:serverId',
         serverId,
         containers: filteredContainers,
         total: filteredContainers.length,
-        fromCache,
-        cacheAge: fromCache ? cachedContainers.cacheAge : 0
+        lastUpdate: Date.now()
       });
     } catch (error) {
       logger.error('获取容器列表失败:', error);

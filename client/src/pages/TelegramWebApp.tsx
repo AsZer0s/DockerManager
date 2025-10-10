@@ -814,7 +814,7 @@ const TelegramWebApp: React.FC = () => {
                   <Col span={8}>
                     <Statistic
                       title="容器ID"
-                      value={selectedContainer.id.substring(0, 12)}
+                      value={selectedContainer.id ? selectedContainer.id.substring(0, 12) : '-'}
                       valueStyle={{ fontSize: '14px' }}
                     />
                   </Col>

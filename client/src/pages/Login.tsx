@@ -1,5 +1,5 @@
 import React from 'react'
-import { Form, Typography, notification, Card, Input, Button } from 'antd'
+import { Form, Typography, Card, Input, Button, App } from 'antd'
 import { LockOutlined, MailOutlined } from '@ant-design/icons'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useMutation } from 'react-query'
@@ -9,6 +9,7 @@ import {
 } from '@/components/animations/TextAnimations'
 
 import { useAuthStore } from '@/stores/authStore'
+import { useThemeStore } from '@/stores/themeStore'
 import { authAPI, LoginRequest } from '@/services/api'
 
 const { Text } = Typography
@@ -23,6 +24,8 @@ const Login: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { login } = useAuthStore()
+  const { isDark } = useThemeStore()
+  const { notification } = App.useApp()
 
   const state = location.state as LocationState
   const from = state?.from?.pathname || '/dashboard'
@@ -82,7 +85,11 @@ const Login: React.FC = () => {
         
         .login-subtitle {
           font-size: 1rem;
-          color: #6b7280;
+          color: ${isDark ? '#ffffff73' : '#6b7280'};
+        }
+        
+        .login-copyright {
+          color: ${isDark ? '#ffffff73' : '#00000073'};
         }
       `}</style>
       <motion.div
@@ -157,8 +164,8 @@ const Login: React.FC = () => {
         </Form>
 
         <div style={{ textAlign: 'center', marginTop: 24 }}>
-          <Text type="secondary" style={{ fontSize: 12, color: 'black'}}>
-            © 2025 Docker Manager & Zer0Teams. 功能强大的容器管理系统
+          <Text type="secondary" className="login-copyright" style={{ fontSize: 12 }}>
+            © 2025 Docker Manager & Zer0Teams.<br/> 功能强大的容器管理系统
           </Text>
         </div>
       </Card>

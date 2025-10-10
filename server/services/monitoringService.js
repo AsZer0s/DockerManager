@@ -2,6 +2,7 @@ import si from 'systeminformation';
 import logger from '../utils/logger.js';
 import database from '../config/database.js';
 import dockerService from './dockerService.js';
+import dockerodeManager from './dockerodeManager.js';
 import encryption from '../utils/encryption.js';
 import alertService from './alertService.js';
 
@@ -408,8 +409,8 @@ class MonitoringService {
         return [];
       }
 
-      // 通过 SSH 连接收集容器数据
-      const containerData = await this.collectContainerDataViaSSH(server);
+      // 使用 Dockerode 收集容器数据
+      const containerData = await this.collectContainerDataViaDockerode(serverId);
       return containerData;
     } catch (error) {
       logger.error(`收集容器监控数据失败 (服务器 ${serverId}):`, error);
@@ -418,7 +419,118 @@ class MonitoringService {
   }
 
   /**
-   * 通过 SSH 收集容器监控数据
+   * 通过 Dockerode 收集容器监控数据
+   * @param {number} serverId - 服务器 ID
+   * @returns {Promise<Array>} 容器监控数据
+   */
+  async collectContainerDataViaDockerode(serverId) {
+    try {
+      const docker = await dockerodeManager.getDockerConnection(serverId);
+      const containers = await docker.listContainers({ all: false }); // 只获取运行中的容器
+      
+      const containerData = [];
+      
+      for (const containerInfo of containers) {
+        try {
+          const container = docker.getContainer(containerInfo.Id);
+          const stats = await container.stats({ stream: false });
+          
+          const metrics = {
+            containerId: containerInfo.Id,
+            name: containerInfo.Names[0].replace('/', ''),
+            cpu: this.calculateCPUPercent(stats),
+            memory: {
+              usage: stats.memory_stats.usage,
+              limit: stats.memory_stats.limit,
+              percent: stats.memory_stats.limit ? 
+                (stats.memory_stats.usage / stats.memory_stats.limit) * 100 : 0
+            },
+            network: this.parseNetworkStats(stats.networks),
+            blockIO: this.parseBlockIOStats(stats.blkio_stats),
+            pids: stats.pids_stats.current || 0
+          };
+          
+          containerData.push({
+            containerId: containerInfo.Id,
+            metrics
+          });
+        } catch (error) {
+          logger.warn(`获取容器 ${containerInfo.Id} 统计信息失败:`, error);
+        }
+      }
+      
+      return containerData;
+    } catch (error) {
+      logger.error(`通过 Dockerode 收集容器监控数据失败 (服务器 ${serverId}):`, error);
+      return [];
+    }
+  }
+
+  /**
+   * 计算CPU使用率
+   * @param {Object} stats - Docker 统计信息
+   * @returns {number} CPU使用率百分比
+   */
+  calculateCPUPercent(stats) {
+    const cpuDelta = stats.cpu_stats.cpu_usage.total_usage - 
+                    (stats.precpu_stats.cpu_usage.total_usage || 0);
+    const systemDelta = stats.cpu_stats.system_cpu_usage - 
+                       (stats.precpu_stats.system_cpu_usage || 0);
+    
+    if (systemDelta > 0 && cpuDelta > 0) {
+      return (cpuDelta / systemDelta) * stats.cpu_stats.online_cpus * 100.0;
+    }
+    return 0;
+  }
+
+  /**
+   * 解析网络统计信息
+   * @param {Object} networks - 网络统计信息
+   * @returns {Object} 解析后的网络统计
+   */
+  parseNetworkStats(networks) {
+    let totalRx = 0;
+    let totalTx = 0;
+    
+    for (const [networkName, stats] of Object.entries(networks)) {
+      totalRx += stats.rx_bytes || 0;
+      totalTx += stats.tx_bytes || 0;
+    }
+    
+    return {
+      totalRx,
+      totalTx,
+      networks: Object.keys(networks)
+    };
+  }
+
+  /**
+   * 解析块IO统计信息
+   * @param {Object} blkioStats - 块IO统计信息
+   * @returns {Object} 解析后的块IO统计
+   */
+  parseBlockIOStats(blkioStats) {
+    let totalRead = 0;
+    let totalWrite = 0;
+    
+    if (blkioStats.io_service_bytes_recursive) {
+      for (const entry of blkioStats.io_service_bytes_recursive) {
+        if (entry.op === 'Read') {
+          totalRead += entry.value;
+        } else if (entry.op === 'Write') {
+          totalWrite += entry.value;
+        }
+      }
+    }
+    
+    return {
+      totalRead,
+      totalWrite
+    };
+  }
+
+  /**
+   * 通过 SSH 收集容器监控数据（已弃用，保留作为备用）
    * @param {Object} server - 服务器信息
    * @returns {Promise<Array>} 容器监控数据
    */
@@ -685,25 +797,14 @@ class MonitoringService {
   }
 
   /**
-   * 保存系统监控数据
+   * 处理系统监控数据（实时返回，不保存到数据库）
    * @param {number} serverId - 服务器 ID
    * @param {Object} data - 监控数据
+   * @returns {Object} 处理后的监控数据
    */
-  async saveSystemMonitoringData(serverId, data) {
+  async processSystemMonitoringData(serverId, data) {
     try {
-      await database.db.run(`
-        INSERT INTO server_monitoring (
-          server_id, cpu_usage, memory_usage, memory_total, memory_used,
-          disk_usage, disk_total, disk_used, network_in, network_out,
-          load_average, uptime, timestamp
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-      `, [
-        serverId, data.cpu_usage, data.memory_usage, data.memory_total, data.memory_used,
-        data.disk_usage, data.disk_total, data.disk_used, data.network_in, data.network_out,
-        data.load_average, data.uptime
-      ]);
-
-      // 触发告警检测
+      // 触发告警检测（保留告警功能）
       try {
         const server = await this.getServerInfo(serverId);
         if (server) {
@@ -711,46 +812,21 @@ class MonitoringService {
         }
       } catch (alertError) {
         logger.error('告警检测失败:', alertError);
-        // 不抛出错误，避免影响监控数据保存
+        // 不抛出错误，避免影响监控数据处理
       }
+
+      // 返回实时监控数据，不保存到数据库
+      return {
+        serverId,
+        timestamp: new Date().toISOString(),
+        ...data
+      };
     } catch (error) {
-      logger.error('保存系统监控数据失败:', error);
+      logger.error('处理系统监控数据失败:', error);
+      throw error;
     }
   }
 
-  /**
-   * 保存容器监控数据
-   * @param {string} containerId - 容器 ID
-   * @param {Object} data - 监控数据
-   */
-  async saveContainerMonitoringData(containerId, data) {
-    try {
-      // 首先获取容器在数据库中的 ID
-      const containerResult = await database.db.get(
-        'SELECT id FROM containers WHERE container_id = ?',
-        [containerId]
-      );
-
-      if (!containerResult) {
-        logger.warn(`容器 ${containerId} 在数据库中不存在`);
-        return;
-      }
-
-      const dbContainerId = containerResult.id;
-
-      await database.db.run(`
-        INSERT INTO container_monitoring (
-          container_id, cpu_usage, memory_usage, memory_limit,
-          network_in, network_out, block_in, block_out, timestamp
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-      `, [
-        dbContainerId, data.cpu_usage, data.memory_usage, data.memory_limit,
-        data.network_in, data.network_out, data.block_in, data.block_out
-      ]);
-    } catch (error) {
-      logger.error('保存容器监控数据失败:', error);
-    }
-  }
 
   /**
    * 获取活跃的服务器列表

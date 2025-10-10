@@ -42,6 +42,10 @@ import pollingRoutes from './routes/polling.js';
 import sshSessionRoutes from './routes/sshSession.js';
 import systemRoutes from './routes/system.js';
 import networkRoutes from './routes/network.js';
+import imageRoutes from './routes/images.js';
+import templateRoutes from './routes/templates.js';
+import dockerNetworkRoutes from './routes/networks.js';
+import volumeRoutes from './routes/volumes.js';
 
 // 全局错误处理
 process.on('uncaughtException', (error) => {
@@ -144,6 +148,10 @@ app.use('/api/polling', pollingRoutes);
 app.use('/api/ssh-session', sshSessionRoutes);
 app.use('/api/system', systemRoutes);
 app.use('/api/network', networkRoutes);
+app.use('/api/images', imageRoutes);
+app.use('/api/templates', templateRoutes);
+app.use('/api/docker-networks', dockerNetworkRoutes);
+app.use('/api/volumes', volumeRoutes);
 
 // 健康检查端点
 app.get('/health', async (req, res) => {
@@ -328,19 +336,6 @@ async function createDatabaseSchema(dbPath) {
         FOREIGN KEY (created_by) REFERENCES users (id) ON DELETE SET NULL
     );
 
-    CREATE TABLE IF NOT EXISTS containers (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        server_id INTEGER NOT NULL,
-        container_id TEXT NOT NULL,
-        name TEXT NOT NULL,
-        image TEXT,
-        status TEXT,
-        ports TEXT,
-        volumes TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE
-    );
 
     CREATE TABLE IF NOT EXISTS user_server_access (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -407,21 +402,6 @@ async function createDatabaseSchema(dbPath) {
         FOREIGN KEY (server_id) REFERENCES servers (id) ON DELETE CASCADE
     );
 
-    CREATE TABLE IF NOT EXISTS container_monitoring (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        server_id INTEGER NOT NULL,
-        container_id VARCHAR(255) NOT NULL,
-        cpu_usage REAL DEFAULT 0,
-        memory_usage REAL DEFAULT 0,
-        memory_limit INTEGER DEFAULT 0,
-        network_in INTEGER DEFAULT 0,
-        network_out INTEGER DEFAULT 0,
-        block_in INTEGER DEFAULT 0,
-        block_out INTEGER DEFAULT 0,
-        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (server_id) REFERENCES servers (id) ON DELETE CASCADE,
-        UNIQUE(server_id, container_id, timestamp)
-    );
 
     CREATE TABLE IF NOT EXISTS alerts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -486,14 +466,35 @@ async function createDatabaseSchema(dbPath) {
         UNIQUE(user_id, server_id)
     );
 
-    CREATE TABLE IF NOT EXISTS user_containers (
+    CREATE TABLE IF NOT EXISTS container_templates (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        container_id VARCHAR(255) NOT NULL,
+        name VARCHAR(100) NOT NULL,
+        description TEXT,
+        template_type VARCHAR(50) NOT NULL,
+        template_content TEXT NOT NULL,
+        variables TEXT,
+        is_public BOOLEAN DEFAULT false,
+        category VARCHAR(50),
+        created_by INTEGER,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
-        UNIQUE(user_id, container_id)
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (created_by) REFERENCES users (id) ON DELETE SET NULL
     );
+
+    CREATE TABLE IF NOT EXISTS template_deployments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        template_id INTEGER NOT NULL,
+        server_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        status VARCHAR(50) DEFAULT 'pending',
+        containers TEXT,
+        error_message TEXT,
+        deployed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (template_id) REFERENCES container_templates (id) ON DELETE CASCADE,
+        FOREIGN KEY (server_id) REFERENCES servers (id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+    );
+
   `;
   await db.exec(schema);
 
@@ -503,17 +504,12 @@ async function createDatabaseSchema(dbPath) {
     'CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)',
     'CREATE INDEX IF NOT EXISTS idx_users_telegram_id ON users(telegram_id)',
     'CREATE INDEX IF NOT EXISTS idx_servers_name ON servers(name)',
-    'CREATE INDEX IF NOT EXISTS idx_containers_server_id ON containers(server_id)',
-    'CREATE INDEX IF NOT EXISTS idx_containers_container_id ON containers(container_id)',
     'CREATE INDEX IF NOT EXISTS idx_user_server_access_user_id ON user_server_access(user_id)',
     'CREATE INDEX IF NOT EXISTS idx_user_server_access_server_id ON user_server_access(server_id)',
     'CREATE INDEX IF NOT EXISTS idx_login_attempts_ip ON login_attempts(ip_address)',
     'CREATE INDEX IF NOT EXISTS idx_login_attempts_locked_until ON login_attempts(locked_until)',
     'CREATE INDEX IF NOT EXISTS idx_server_monitoring_server_id ON server_monitoring(server_id)',
     'CREATE INDEX IF NOT EXISTS idx_server_monitoring_timestamp ON server_monitoring(timestamp)',
-    'CREATE INDEX IF NOT EXISTS idx_container_monitoring_server_id ON container_monitoring(server_id)',
-    'CREATE INDEX IF NOT EXISTS idx_container_monitoring_container_id ON container_monitoring(container_id)',
-    'CREATE INDEX IF NOT EXISTS idx_container_monitoring_timestamp ON container_monitoring(timestamp)',
     'CREATE INDEX IF NOT EXISTS idx_alerts_server_id ON alerts(server_id)',
     'CREATE INDEX IF NOT EXISTS idx_alerts_severity ON alerts(severity)',
     'CREATE INDEX IF NOT EXISTS idx_alerts_resolved ON alerts(resolved)',
@@ -526,8 +522,13 @@ async function createDatabaseSchema(dbPath) {
     'CREATE INDEX IF NOT EXISTS idx_user_notification_settings_user_id ON user_notification_settings(user_id)',
     'CREATE INDEX IF NOT EXISTS idx_user_servers_user_id ON user_servers(user_id)',
     'CREATE INDEX IF NOT EXISTS idx_user_servers_server_id ON user_servers(server_id)',
-    'CREATE INDEX IF NOT EXISTS idx_user_containers_user_id ON user_containers(user_id)',
-    'CREATE INDEX IF NOT EXISTS idx_user_containers_container_id ON user_containers(container_id)'
+    'CREATE INDEX IF NOT EXISTS idx_container_templates_name ON container_templates(name)',
+    'CREATE INDEX IF NOT EXISTS idx_container_templates_category ON container_templates(category)',
+    'CREATE INDEX IF NOT EXISTS idx_container_templates_is_public ON container_templates(is_public)',
+    'CREATE INDEX IF NOT EXISTS idx_template_deployments_template_id ON template_deployments(template_id)',
+    'CREATE INDEX IF NOT EXISTS idx_template_deployments_server_id ON template_deployments(server_id)',
+    'CREATE INDEX IF NOT EXISTS idx_template_deployments_user_id ON template_deployments(user_id)',
+    'CREATE INDEX IF NOT EXISTS idx_template_deployments_status ON template_deployments(status)',
   ];
   
   for (const index of indexes) {
@@ -630,6 +631,12 @@ async function initializeServices() {
     const sshConnectionPool = (await import('./services/sshConnectionPool.js')).default;
     sshConnectionPool.initialize();
     console.log('✅ SSH 连接池初始化成功');
+
+    // 初始化 Dockerode 管理器
+    console.log('🐳 初始化 Dockerode 管理器...');
+    const dockerodeManager = (await import('./services/dockerodeManager.js')).default;
+    dockerodeManager.initialize();
+    console.log('✅ Dockerode 管理器初始化成功');
 
     // 初始化缓存服务
     console.log('💾 初始化缓存服务...');

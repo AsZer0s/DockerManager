@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { Layout, ConfigProvider } from 'antd'
+import { Layout, ConfigProvider, App as AntdApp } from 'antd'
 
 import { useAuthStore } from '@/stores/authStore'
 import { useThemeStore } from '@/stores/themeStore'
@@ -40,8 +40,9 @@ const App: React.FC = () => {
 
   return (
     <ConfigProvider theme={isDark ? darkTheme : lightTheme}>
-      <Layout style={{ minHeight: '100vh' }}>
-        <Routes>
+      <AntdApp>
+        <Layout style={{ minHeight: '100vh' }}>
+          <Routes>
         {/* 公开路由 */}
         <Route 
           path="/login" 
@@ -76,7 +77,8 @@ const App: React.FC = () => {
           }
         />
       </Routes>
-    </Layout>
+        </Layout>
+      </AntdApp>
     </ConfigProvider>
   )
 }
