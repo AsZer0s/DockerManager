@@ -66,6 +66,7 @@ const Containers: React.FC = () => {
   const [pageSize, setPageSize] = useState(10)
   const [autoScroll, setAutoScroll] = useState(true)
   const [logsContainerRef, setLogsContainerRef] = useState<HTMLDivElement | null>(null)
+  const [loadingActions, setLoadingActions] = useState<Record<string, string | null>>({})
   const queryClient = useQueryClient()
 
   // 获取服务器列表
@@ -291,6 +292,14 @@ const Containers: React.FC = () => {
 
   // 处理容器操作
   const handleContainerAction = (action: string, container: Container & { serverId: number }) => {
+    const containerKey = `${container.serverId}-${container.id}`
+    
+    // 设置当前容器的loading状态
+    setLoadingActions(prev => ({
+      ...prev,
+      [containerKey]: action
+    }))
+
     const mutations = {
       start: startMutation,
       stop: stopMutation,
@@ -300,7 +309,18 @@ const Containers: React.FC = () => {
 
     const mutation = mutations[action as keyof typeof mutations]
     if (mutation) {
-      mutation.mutate({ serverId: container.serverId, containerId: container.id })
+      mutation.mutate(
+        { serverId: container.serverId, containerId: container.id },
+        {
+          onSettled: () => {
+            // 操作完成后清除loading状态
+            setLoadingActions(prev => ({
+              ...prev,
+              [containerKey]: null
+            }))
+          }
+        }
+      )
     }
   }
 
@@ -714,69 +734,74 @@ const Containers: React.FC = () => {
       fixed: 'right' as const,
       align: 'center' as const,
       responsive: ['xs', 'sm', 'md', 'lg', 'xl'] as Breakpoint[],
-      render: (record: Container & { serverId: number }) => (
-        <Space 
-          direction={window.innerWidth < 768 ? 'vertical' : 'horizontal'} 
-          size="small" 
-          style={{ justifyContent: 'center', display: 'flex' }}
-        >
-          {record.status && record.status.includes('Up') ? (
-            <>
+      render: (record: Container & { serverId: number }) => {
+        const containerKey = `${record.serverId}-${record.id}`
+        const currentAction = loadingActions[containerKey]
+        
+        return (
+          <Space 
+            direction={window.innerWidth < 768 ? 'vertical' : 'horizontal'} 
+            size="small" 
+            style={{ justifyContent: 'center', display: 'flex' }}
+          >
+            {record.status && record.status.includes('Up') ? (
+              <>
+                <Button
+                  size="small"
+                  icon={<StopOutlined />}
+                  onClick={() => handleContainerAction('stop', record)}
+                  loading={currentAction === 'stop'}
+                  style={{ width: window.innerWidth < 768 ? '100%' : 'auto' }}
+                >
+                  关闭
+                </Button>
+                <Button
+                  size="small"
+                  icon={<ReloadOutlined />}
+                  onClick={() => handleContainerAction('restart', record)}
+                  loading={currentAction === 'restart'}
+                  style={{ width: window.innerWidth < 768 ? '100%' : 'auto' }}
+                >
+                  重启
+                </Button>
+              </>
+            ) : (
               <Button
                 size="small"
-                icon={<StopOutlined />}
-                onClick={() => handleContainerAction('stop', record)}
-                loading={stopMutation.isLoading}
+                icon={<PlayCircleOutlined />}
+                onClick={() => handleContainerAction('start', record)}
+                loading={currentAction === 'start'}
                 style={{ width: window.innerWidth < 768 ? '100%' : 'auto' }}
               >
-                关闭
+                启动
               </Button>
-              <Button
-                size="small"
-                icon={<ReloadOutlined />}
-                onClick={() => handleContainerAction('restart', record)}
-                loading={restartMutation.isLoading}
-                style={{ width: window.innerWidth < 768 ? '100%' : 'auto' }}
-              >
-                重启
-              </Button>
-            </>
-          ) : (
+            )}
             <Button
               size="small"
-              icon={<PlayCircleOutlined />}
-              onClick={() => handleContainerAction('start', record)}
-              loading={startMutation.isLoading}
+              icon={<FileTextOutlined />}
+              onClick={() => handleViewLogs(record)}
               style={{ width: window.innerWidth < 768 ? '100%' : 'auto' }}
             >
-              启动
+              日志
             </Button>
-          )}
-          <Button
-            size="small"
-            icon={<FileTextOutlined />}
-            onClick={() => handleViewLogs(record)}
-            style={{ width: window.innerWidth < 768 ? '100%' : 'auto' }}
-          >
-            日志
-          </Button>
-          <Popconfirm
-            title="确定要删除这个容器吗？"
-            description="删除后无法恢复"
-            onConfirm={() => handleContainerAction('remove', record)}
-            okText="确定"
-            cancelText="取消"
-          >
-            <Button
-              size="small"
-              icon={<DeleteOutlined />}
-              loading={removeMutation.isLoading}
+            <Popconfirm
+              title="确定要删除这个容器吗？"
+              description="删除后无法恢复"
+              onConfirm={() => handleContainerAction('remove', record)}
+              okText="确定"
+              cancelText="取消"
             >
-              删除
-            </Button>
-          </Popconfirm>
-        </Space>
-      ),
+              <Button
+                size="small"
+                icon={<DeleteOutlined />}
+                loading={currentAction === 'remove'}
+              >
+                删除
+              </Button>
+            </Popconfirm>
+          </Space>
+        )
+      },
     },
   ]
 

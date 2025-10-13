@@ -78,6 +78,7 @@ const TelegramWebApp: React.FC = () => {
   const [loadingContainerDetails, setLoadingContainerDetails] = useState(false);
   const [loadingContainers, setLoadingContainers] = useState(false);
   const [manualRefreshing, setManualRefreshing] = useState(false);
+  const [loadingContainerAction, setLoadingContainerAction] = useState<string | null>(null);
 
   useEffect(() => {
     const initializeData = async () => {
@@ -177,6 +178,9 @@ const TelegramWebApp: React.FC = () => {
   const executeContainerAction = async (serverId: number, containerId: string, action: string) => {
     if (!user) return;
     
+    setLoadingContainerAction(action);
+    setError(null);
+    
     try {
       const response = await fetch(`/api/telegram-webapp/containers/${serverId}/${containerId}/${action}`, {
         method: 'POST',
@@ -204,6 +208,8 @@ const TelegramWebApp: React.FC = () => {
     } catch (err) {
       // 执行容器操作失败
       setError(`容器${action}失败`);
+    } finally {
+      setLoadingContainerAction(null);
     }
   };
 
@@ -415,9 +421,9 @@ const TelegramWebApp: React.FC = () => {
                   <Button 
                     size="small" 
                     type="link" 
-                    onClick={() => window.location.href = '/telegram-debug'}
+                    onClick={() => window.location.reload()}
                   >
-                    打开调试页面
+                    刷新页面
                   </Button>
                 </div>
               </div>
@@ -838,6 +844,7 @@ const TelegramWebApp: React.FC = () => {
                       icon={<PlayCircleOutlined />}
                       onClick={() => executeContainerAction(selectedServer!.id, selectedContainer.id, 'start')}
                       disabled={selectedContainer.status.toLowerCase().includes('running')}
+                      loading={loadingContainerAction === 'start'}
                     >
                       启动
                     </Button>
@@ -846,12 +853,14 @@ const TelegramWebApp: React.FC = () => {
                       icon={<StopOutlined />}
                       onClick={() => executeContainerAction(selectedServer!.id, selectedContainer.id, 'stop')}
                       disabled={!selectedContainer.status.toLowerCase().includes('running')}
+                      loading={loadingContainerAction === 'stop'}
                     >
                       停止
                     </Button>
                     <Button
                       icon={<ReloadOutlined />}
                       onClick={() => executeContainerAction(selectedServer!.id, selectedContainer.id, 'restart')}
+                      loading={loadingContainerAction === 'restart'}
                     >
                       重启
                     </Button>
