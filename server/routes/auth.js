@@ -5,9 +5,12 @@ import rateLimit from 'express-rate-limit';
 import { body, validationResult } from 'express-validator';
 
 import database from '../config/database.js';
-import logger from '../utils/logger.js';
+import logger, { createModuleLogger, logError } from '../utils/logger.js';
 import jwtManager from '../utils/jwt.js';
 import { userValidation, validate } from '../utils/validation.js';
+
+// 创建系统模块日志器
+const moduleLogger = createModuleLogger('system');
 
 const router = express.Router();
 
@@ -39,6 +42,13 @@ router.post('/login',
       const { email, password } = req.body;
       const clientIP = req.ip || req.connection.remoteAddress;
 
+      // 记录登录操作开始
+      moduleLogger.info('User login attempt', {
+        email,
+        ip: clientIP,
+        userAgent: req.get('User-Agent')
+      });
+
       // 查找用户
       const result = await database.query(
         'SELECT * FROM users WHERE email = ? AND is_active = 1',
@@ -46,6 +56,10 @@ router.post('/login',
       );
 
       if (result.rows.length === 0) {
+        moduleLogger.warn('Login failed - user not found', {
+          email,
+          ip: clientIP
+        });
         return res.status(401).json({
           error: '认证失败',
           message: '邮箱或密码错误'
@@ -57,6 +71,11 @@ router.post('/login',
       // 验证密码
       const isPasswordValid = await bcrypt.compare(password, user.password_hash);
       if (!isPasswordValid) {
+        moduleLogger.warn('Login failed - invalid password', {
+          email,
+          userId: user.id,
+          ip: clientIP
+        });
         return res.status(401).json({
           error: '认证失败',
           message: '邮箱或密码错误'
@@ -79,8 +98,14 @@ router.post('/login',
         [user.id]
       );
 
-
-      logger.info(`用户登录: ${user.username} (${email})`);
+      // 记录登录成功
+      moduleLogger.info('User login successful', {
+        userId: user.id,
+        email: user.email,
+        username: user.username,
+        role: user.role,
+        ip: clientIP
+      });
 
       res.json({
         message: '登录成功',
@@ -94,7 +119,7 @@ router.post('/login',
         token
       });
     } catch (error) {
-      logger.error('用户登录失败:', error);
+      logError('system', error, req);
       res.status(500).json({
         error: '登录失败',
         message: '服务器内部错误'
@@ -112,7 +137,17 @@ router.post('/login',
 router.post('/verify', async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
+    
+    // 记录令牌验证操作开始
+    moduleLogger.info('Token verification attempt', {
+      ip: req.ip,
+      userAgent: req.get('User-Agent')
+    });
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      moduleLogger.warn('Token verification failed - missing or invalid authorization header', {
+        ip: req.ip
+      });
       return res.status(401).json({
         error: '未授权',
         message: '缺少认证令牌'
@@ -131,6 +166,10 @@ router.post('/verify', async (req, res) => {
       );
 
       if (result.rows.length === 0) {
+        moduleLogger.warn('Token verification failed - user not found or inactive', {
+          userId: decoded.userId,
+          ip: req.ip
+        });
         return res.status(401).json({
           error: '令牌无效',
           message: '用户不存在或已禁用'
@@ -138,6 +177,13 @@ router.post('/verify', async (req, res) => {
       }
 
       const user = result.rows[0];
+
+      // 记录令牌验证成功
+      moduleLogger.info('Token verification successful', {
+        userId: user.id,
+        username: user.username,
+        ip: req.ip
+      });
 
       res.json({
         valid: true,
@@ -150,13 +196,17 @@ router.post('/verify', async (req, res) => {
         }
       });
     } catch (jwtError) {
+      moduleLogger.warn('Token verification failed - JWT error', {
+        error: jwtError.message,
+        ip: req.ip
+      });
       return res.status(401).json({
         error: '令牌无效',
         message: '令牌已过期或格式错误'
       });
     }
   } catch (error) {
-    logger.error('令牌验证失败:', error);
+    logError('system', error, req);
     res.status(500).json({
       error: '验证失败',
       message: '服务器内部错误'
@@ -172,7 +222,17 @@ router.post('/verify', async (req, res) => {
 router.post('/refresh', async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
+    
+    // 记录刷新令牌操作开始
+    moduleLogger.info('Token refresh attempt', {
+      ip: req.ip,
+      userAgent: req.get('User-Agent')
+    });
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      moduleLogger.warn('Token refresh failed - missing or invalid authorization header', {
+        ip: req.ip
+      });
       return res.status(401).json({
         error: '未授权',
         message: '缺少认证令牌'
@@ -199,6 +259,13 @@ router.post('/refresh', async (req, res) => {
 
       const user = result.rows[0];
 
+      // 记录刷新令牌成功
+      moduleLogger.info('Token refresh successful', {
+        userId: user.id,
+        username: user.username,
+        ip: req.ip
+      });
+
       // 生成新的令牌
       const newToken = jwtManager.sign(
         { 
@@ -214,13 +281,17 @@ router.post('/refresh', async (req, res) => {
         token: newToken
       });
     } catch (jwtError) {
+      moduleLogger.warn('Token refresh failed - JWT error', {
+        error: jwtError.message,
+        ip: req.ip
+      });
       return res.status(401).json({
         error: '令牌无效',
         message: '无法刷新令牌'
       });
     }
   } catch (error) {
-    logger.error('令牌刷新失败:', error);
+    logError('system', error, req);
     res.status(500).json({
       error: '刷新失败',
       message: '服务器内部错误'
@@ -235,16 +306,20 @@ router.post('/refresh', async (req, res) => {
  */
 router.post('/logout', async (req, res) => {
   try {
+    // 记录登出操作
+    moduleLogger.info('User logout', {
+      ip: req.ip,
+      userAgent: req.get('User-Agent')
+    });
+
     // 在实际应用中，这里可以将令牌加入黑名单
     // 或者使用数据库来管理令牌状态
-    
-    logger.info('用户登出');
     
     res.json({
       message: '登出成功'
     });
   } catch (error) {
-    logger.error('用户登出失败:', error);
+    logError('system', error, req);
     res.status(500).json({
       error: '登出失败',
       message: '服务器内部错误'
@@ -283,6 +358,14 @@ router.post('/bind-telegram',
       const decoded = jwtManager.verify(token);
       const { telegramId } = req.body;
 
+      // 记录绑定Telegram操作开始
+      moduleLogger.info('Telegram binding attempt', {
+        userId: decoded.userId,
+        telegramId,
+        ip: req.ip,
+        userAgent: req.get('User-Agent')
+      });
+
       // 检查 Telegram ID 是否已被使用
       const existingUser = await database.query(
         'SELECT id FROM users WHERE telegram_id = ? AND id != ?',
@@ -290,6 +373,12 @@ router.post('/bind-telegram',
       );
 
       if (existingUser.rows.length > 0) {
+        moduleLogger.warn('Telegram binding denied - telegram ID already bound', {
+          userId: decoded.userId,
+          telegramId,
+          existingUserId: existingUser.rows[0].id,
+          ip: req.ip
+        });
         return res.status(400).json({
           error: '绑定失败',
           message: '该 Telegram ID 已被其他用户绑定'
@@ -302,14 +391,19 @@ router.post('/bind-telegram',
         [telegramId, decoded.userId]
       );
 
-      logger.info(`用户 ${decoded.userId} 绑定 Telegram ID: ${telegramId}`);
+      // 记录绑定Telegram成功
+      moduleLogger.info('Telegram binding successful', {
+        userId: decoded.userId,
+        telegramId,
+        ip: req.ip
+      });
 
       res.json({
         message: 'Telegram ID 绑定成功',
         telegramId
       });
     } catch (error) {
-      logger.error('绑定 Telegram ID 失败:', error);
+      logError('system', error, req);
       res.status(500).json({
         error: '绑定失败',
         message: '服务器内部错误'
@@ -326,7 +420,17 @@ router.post('/bind-telegram',
 router.post('/unbind-telegram', async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
+    
+    // 记录解绑Telegram操作开始
+    moduleLogger.info('Telegram unbinding attempt', {
+      ip: req.ip,
+      userAgent: req.get('User-Agent')
+    });
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      moduleLogger.warn('Telegram unbinding denied - missing or invalid authorization header', {
+        ip: req.ip
+      });
       return res.status(401).json({
         error: '未授权',
         message: '缺少认证令牌'
@@ -342,13 +446,17 @@ router.post('/unbind-telegram', async (req, res) => {
       [decoded.userId]
     );
 
-    logger.info(`用户 ${decoded.userId} 解绑 Telegram ID`);
+    // 记录解绑Telegram成功
+    moduleLogger.info('Telegram unbinding successful', {
+      userId: decoded.userId,
+      ip: req.ip
+    });
 
     res.json({
       message: 'Telegram ID 解绑成功'
     });
   } catch (error) {
-    logger.error('解绑 Telegram ID 失败:', error);
+    logError('system', error, req);
     res.status(500).json({
       error: '解绑失败',
       message: '服务器内部错误'
@@ -377,7 +485,17 @@ router.post('/change-password',
       }
 
       const authHeader = req.headers.authorization;
+      
+      // 记录修改密码操作开始
+      moduleLogger.info('Password change attempt', {
+        ip: req.ip,
+        userAgent: req.get('User-Agent')
+      });
+
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        moduleLogger.warn('Password change denied - missing or invalid authorization header', {
+          ip: req.ip
+        });
         return res.status(401).json({
           error: '未授权',
           message: '缺少认证令牌'
@@ -405,6 +523,10 @@ router.post('/change-password',
       // 验证当前密码
       const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password_hash);
       if (!isCurrentPasswordValid) {
+        moduleLogger.warn('Password change failed - invalid current password', {
+          userId: decoded.userId,
+          ip: req.ip
+        });
         return res.status(400).json({
           error: '当前密码错误'
         });
@@ -420,14 +542,17 @@ router.post('/change-password',
         [newPasswordHash, decoded.userId]
       );
 
-
-      logger.info(`用户 ${decoded.userId} 修改密码成功`);
+      // 记录修改密码成功
+      moduleLogger.info('Password change successful', {
+        userId: decoded.userId,
+        ip: req.ip
+      });
 
       res.json({
         message: '密码修改成功'
       });
     } catch (error) {
-      logger.error('修改密码失败:', error);
+      logError('system', error, req);
       res.status(500).json({
         error: '修改密码失败',
         message: '服务器内部错误'

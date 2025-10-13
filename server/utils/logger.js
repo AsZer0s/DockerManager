@@ -33,7 +33,7 @@ const consoleFormat = winston.format.combine(
   })
 );
 
-// 创建 logger 实例
+// 创建基础 logger 实例
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
   format: logFormat,
@@ -54,6 +54,96 @@ const logger = winston.createLogger({
     }),
   ],
 });
+
+// 模块日志器存储
+const moduleLoggers = {};
+
+// 创建模块化日志器
+const createModuleLogger = (moduleName) => {
+  if (moduleLoggers[moduleName]) {
+    return moduleLoggers[moduleName];
+  }
+
+  const moduleLogger = winston.createLogger({
+    level: process.env.LOG_LEVEL || 'info',
+    format: logFormat,
+    defaultMeta: { service: 'docker-manager', module: moduleName },
+    transports: [
+      // 模块专用日志文件
+      new winston.transports.File({
+        filename: path.join(logDir, `${moduleName}.log`),
+        maxsize: 5242880, // 5MB
+        maxFiles: 5,
+      }),
+      // 错误日志文件
+      new winston.transports.File({
+        filename: path.join(logDir, 'error.log'),
+        level: 'error',
+        maxsize: 5242880, // 5MB
+        maxFiles: 5,
+      }),
+    ],
+  });
+
+  // 开发环境添加控制台输出
+  if (process.env.NODE_ENV !== 'production') {
+    moduleLogger.add(new winston.transports.Console({
+      format: consoleFormat
+    }));
+  }
+
+  moduleLoggers[moduleName] = moduleLogger;
+  return moduleLogger;
+};
+
+// 记录HTTP请求的完整信息
+const logRequest = (moduleName, req, res, responseTime, responseBody) => {
+  const moduleLogger = createModuleLogger(moduleName);
+  
+  const logData = {
+    method: req.method,
+    path: req.path,
+    url: req.url,
+    ip: req.ip || req.connection.remoteAddress,
+    userAgent: req.get('User-Agent'),
+    userId: req.user?.id || null,
+    requestBody: req.body,
+    responseBody: responseBody,
+    statusCode: res.statusCode,
+    responseTime: responseTime,
+    timestamp: new Date().toISOString()
+  };
+
+  if (res.statusCode >= 400) {
+    moduleLogger.error('HTTP Request Error', logData);
+  } else {
+    moduleLogger.info('HTTP Request', logData);
+  }
+};
+
+// 记录错误和堆栈
+const logError = (moduleName, error, req = null) => {
+  const moduleLogger = createModuleLogger(moduleName);
+  
+  const logData = {
+    error: error.message,
+    stack: error.stack,
+    timestamp: new Date().toISOString()
+  };
+
+  if (req) {
+    logData.request = {
+      method: req.method,
+      path: req.path,
+      url: req.url,
+      ip: req.ip || req.connection.remoteAddress,
+      userId: req.user?.id || null,
+      body: req.body
+    };
+  }
+
+  moduleLogger.error('Application Error', logData);
+};
 
 // 开发环境添加控制台输出
 if (process.env.NODE_ENV !== 'production') {
@@ -84,4 +174,6 @@ logger.rejections.handle(
   })
 );
 
+// 导出默认logger和新增的方法
 export default logger;
+export { createModuleLogger, logRequest, logError };

@@ -1,9 +1,12 @@
 import express from 'express';
-import logger from '../utils/logger.js';
+import logger, { createModuleLogger, logError } from '../utils/logger.js';
 import database from '../config/database.js';
 import dockerService from '../services/dockerService.js';
 import monitoringService from '../services/monitoringService.js';
 import telegramBotService from '../services/telegramBot.js';
+
+// 创建Telegram模块日志器
+const moduleLogger = createModuleLogger('telegram');
 
 const router = express.Router();
 
@@ -16,7 +19,17 @@ router.post('/auth', async (req, res) => {
   try {
     const { user_id } = req.body;
 
+    // 记录Telegram WebApp认证操作开始
+    moduleLogger.info('Telegram WebApp authentication', {
+      user_id,
+      ip: req.ip,
+      userAgent: req.get('User-Agent')
+    });
+
     if (!user_id) {
+      moduleLogger.warn('Telegram WebApp authentication denied - missing user ID', {
+        ip: req.ip
+      });
       return res.status(400).json({
         success: false,
         message: '用户ID不能为空'
@@ -30,11 +43,23 @@ router.post('/auth', async (req, res) => {
     );
 
     if (!user) {
+      moduleLogger.warn('Telegram WebApp authentication failed - user not found or inactive', {
+        user_id,
+        ip: req.ip
+      });
       return res.status(401).json({
         success: false,
         message: '用户未找到或未激活'
       });
     }
+
+    // 记录认证成功
+    moduleLogger.info('Telegram WebApp authentication successful', {
+      user_id,
+      userId: user.id,
+      username: user.username,
+      ip: req.ip
+    });
 
     // 生成临时token（可选，用于后续请求验证）
     const token = `tg_${user_id}_${Date.now()}`;
@@ -52,7 +77,7 @@ router.post('/auth', async (req, res) => {
     });
 
   } catch (error) {
-    logger.error('用户认证失败:', error);
+    logError('telegram', error, req);
     res.status(500).json({
       success: false,
       message: '用户认证失败'
@@ -75,7 +100,7 @@ router.get('/bot-info', async (req, res) => {
     });
 
   } catch (error) {
-    logger.error('获取机器人信息失败:', error);
+    logError('telegram', error, req);
     res.status(500).json({
       success: false,
       message: '获取机器人信息失败'
@@ -189,7 +214,7 @@ router.post('/servers/:serverId/containers', async (req, res) => {
     });
 
   } catch (error) {
-    logger.error('获取容器列表失败:', error);
+    logError('telegram', error, req);
     res.status(500).json({
       success: false,
       message: '获取容器列表失败'
@@ -361,7 +386,7 @@ router.post('/containers/:serverId/:containerId/:action', async (req, res) => {
     }
 
   } catch (error) {
-    logger.error('执行容器操作失败:', error);
+    logError('telegram', error, req);
     res.status(500).json({
       success: false,
       message: '执行容器操作失败'
@@ -445,7 +470,7 @@ router.post('/servers/:serverId/containers/:containerId/action', async (req, res
     }
 
   } catch (error) {
-    logger.error('执行容器操作失败:', error);
+    logError('telegram', error, req);
     res.status(500).json({
       success: false,
       message: '执行容器操作失败'
@@ -510,7 +535,7 @@ router.get('/servers', async (req, res) => {
     });
 
   } catch (error) {
-    logger.error('获取服务器列表失败:', error);
+    logError('telegram', error, req);
     res.status(500).json({
       success: false,
       message: '获取服务器列表失败'
@@ -570,7 +595,7 @@ router.post('/servers', async (req, res) => {
     });
 
   } catch (error) {
-    logger.error('获取服务器列表失败:', error);
+    logError('telegram', error, req);
     res.status(500).json({
       success: false,
       message: '获取服务器列表失败'

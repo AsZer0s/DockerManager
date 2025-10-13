@@ -3,10 +3,13 @@ import jwt from 'jsonwebtoken';
 import { Client } from 'ssh2';
 
 import database from '../config/database.js';
-import logger from '../utils/logger.js';
+import logger, { createModuleLogger, logError } from '../utils/logger.js';
 import encryption from '../utils/encryption.js';
 import { validateParams, commonValidation } from '../utils/validation.js';
 import { getOptimizedSSHConfig } from '../utils/sshConfig.js';
+
+// 创建SSH模块日志器
+const moduleLogger = createModuleLogger('ssh');
 
 const router = express.Router();
 
@@ -87,9 +90,16 @@ router.post('/:serverId/connect',
   authenticateToken,
   validateParams(commonValidation.serverId),
   checkSshPermission,
-  async (req, res) => {
+async (req, res) => {
     try {
       const serverId = parseInt(req.params.serverId);
+
+      // 记录SSH连接操作开始
+      moduleLogger.info('Attempting SSH connection', {
+        serverId,
+        userId: req.user.id,
+        ip: req.ip
+      });
 
       // 获取服务器信息
       const serverResult = await database.query(
@@ -98,6 +108,10 @@ router.post('/:serverId/connect',
       );
 
       if (serverResult.rows.length === 0) {
+        moduleLogger.warn('SSH connection failed - server not found', {
+          serverId,
+          userId: req.user.id
+        });
         return res.status(404).json({
           error: '服务器不存在',
           message: '未找到指定的服务器'
@@ -140,7 +154,14 @@ router.post('/:serverId/connect',
         const isOnline = await sshConnectionPool.checkServerStatus(server.id);
         
         if (isOnline) {
-          logger.info(`SSH 连接测试成功: ${server.name} (${server.host})`);
+          // 记录SSH连接成功
+          moduleLogger.info('SSH connection successful', {
+            serverId: server.id,
+            serverName: server.name,
+            host: server.host,
+            port: server.port,
+            userId: req.user.id
+          });
           
           res.json({
             message: 'SSH 连接测试成功',
@@ -155,7 +176,16 @@ router.post('/:serverId/connect',
           throw new Error('服务器连接失败');
         }
       } catch (connectionError) {
-        logger.error(`SSH 连接测试失败: ${server.name}`, connectionError);
+        // 记录SSH连接失败
+        moduleLogger.error('SSH connection failed', {
+          serverId: server.id,
+          serverName: server.name,
+          host: server.host,
+          port: server.port,
+          userId: req.user.id,
+          error: connectionError.message,
+          stack: connectionError.stack
+        });
         
         if (!res.headersSent) {
           res.status(400).json({
@@ -165,7 +195,7 @@ router.post('/:serverId/connect',
         }
       }
     } catch (error) {
-      logger.error('SSH 连接测试失败:', error);
+      logError('ssh', error, req);
       res.status(500).json({
         error: 'SSH 连接测试失败',
         message: '服务器内部错误'
@@ -188,7 +218,20 @@ router.post('/:serverId/execute',
       const serverId = parseInt(req.params.serverId);
       const { command, timeout = 30000 } = req.body;
 
+      // 记录SSH命令执行开始
+      moduleLogger.info('Executing SSH command', {
+        serverId,
+        command,
+        timeout,
+        userId: req.user.id,
+        ip: req.ip
+      });
+
       if (!command || typeof command !== 'string') {
+        moduleLogger.warn('SSH command execution denied - empty command', {
+          serverId,
+          userId: req.user.id
+        });
         return res.status(400).json({
           error: '参数错误',
           message: '命令不能为空'
@@ -214,6 +257,11 @@ router.post('/:serverId/execute',
       );
 
       if (isDangerous) {
+        moduleLogger.warn('SSH command execution denied - dangerous command', {
+          serverId,
+          command,
+          userId: req.user.id
+        });
         return res.status(400).json({
           error: '命令被拒绝',
           message: '不允许执行此命令'
@@ -268,6 +316,14 @@ router.post('/:serverId/execute',
           logger.error('记录 SSH 操作日志失败:', err);
         });
 
+        // 记录SSH命令执行成功
+        moduleLogger.info('SSH command executed successfully', {
+          serverId,
+          command,
+          userId: req.user.id,
+          outputLength: output.length
+        });
+
         res.json({
           message: '命令执行完成',
           result: {
@@ -279,7 +335,14 @@ router.post('/:serverId/execute',
           }
         });
       } catch (commandError) {
-        logger.error(`SSH 命令执行失败: ${server.name}`, commandError);
+        // 记录SSH命令执行失败
+        moduleLogger.error('SSH command execution failed', {
+          serverId,
+          command,
+          userId: req.user.id,
+          error: commandError.message,
+          stack: commandError.stack
+        });
         
         // 记录操作日志
         database.query(`
@@ -297,7 +360,7 @@ router.post('/:serverId/execute',
         }
       }
     } catch (error) {
-      logger.error('SSH 命令执行失败:', error);
+      logError('ssh', error, req);
       if (!res.headersSent) {
         res.status(500).json({
           error: 'SSH 命令执行失败',
@@ -439,7 +502,7 @@ router.get('/:serverId/files',
 
       conn.connect(sshConfig);
     } catch (error) {
-      logger.error('获取文件列表失败:', error);
+      logError('ssh', error, req);
       res.status(500).json({
         error: '获取文件列表失败',
         message: '服务器内部错误'
@@ -561,7 +624,7 @@ router.get('/:serverId/system-info',
 
       conn.connect(sshConfig);
     } catch (error) {
-      logger.error('获取系统信息失败:', error);
+      logError('ssh', error, req);
       res.status(500).json({
         error: '获取系统信息失败',
         message: '服务器内部错误'

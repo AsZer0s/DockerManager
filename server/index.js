@@ -130,6 +130,10 @@ app.use(morgan('combined', { stream: { write: message => logger.info(message.tri
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// 导入并添加请求日志中间件
+import requestLogger from './middleware/requestLogger.js';
+app.use(requestLogger);
+
 // 静态文件服务
 app.use('/static', express.static('public'));
 

@@ -2,8 +2,11 @@ import express from 'express';
 import { body, param, query } from 'express-validator';
 import { authenticateToken } from '../utils/auth.js';
 import dockerService from '../services/dockerService.js';
-import logger from '../utils/logger.js';
+import logger, { createModuleLogger, logError } from '../utils/logger.js';
 import database from '../config/database.js';
+
+// 创建Docker模块日志器
+const moduleLogger = createModuleLogger('docker');
 
 const router = express.Router();
 
@@ -72,7 +75,7 @@ router.get('/:serverId',
       const volumes = await dockerService.getVolumes(serverId);
       res.json({ success: true, data: volumes });
     } catch (error) {
-      logger.error(`获取服务器 ${req.params.serverId} 卷列表失败:`, error);
+      logError('docker', error, req);
       res.status(500).json({ success: false, message: '获取卷列表失败', error: error.message });
     }
   }
@@ -95,7 +98,7 @@ router.get('/:serverId/:name',
       const volume = await dockerService.getVolumeInfo(serverId, name);
       res.json({ success: true, data: volume });
     } catch (error) {
-      logger.error(`获取卷 ${req.params.name} 详细信息失败:`, error);
+      logError('docker', error, req);
       res.status(500).json({ success: false, message: '获取卷详细信息失败', error: error.message });
     }
   }
@@ -119,10 +122,28 @@ router.post('/:serverId',
     try {
       const { serverId } = req.params;
       const options = req.body;
+
+      // 记录创建卷操作开始
+      moduleLogger.info('Creating volume', {
+        serverId,
+        options,
+        userId: req.user.id,
+        ip: req.ip
+      });
+
       const result = await dockerService.createVolume(serverId, options);
+
+      // 记录创建成功
+      moduleLogger.info('Volume created successfully', {
+        serverId,
+        volumeName: options.Name,
+        userId: req.user.id,
+        result
+      });
+
       res.json({ success: true, message: '卷创建成功', data: result });
     } catch (error) {
-      logger.error(`创建卷失败:`, error);
+      logError('docker', error, req);
       res.status(500).json({ success: false, message: '卷创建失败', error: error.message });
     }
   }
@@ -145,9 +166,23 @@ router.delete('/:serverId/:name',
       const { serverId, name } = req.params;
       const { force } = req.query;
       
+      // 记录删除卷操作开始
+      moduleLogger.info('Removing volume', {
+        serverId,
+        volumeName: name,
+        force: force === 'true',
+        userId: req.user.id,
+        ip: req.ip
+      });
+      
       // 检查是否为系统卷
       const systemVolumes = ['docker_volumes', 'docker_containers'];
       if (systemVolumes.some(sysVol => name.includes(sysVol))) {
+        moduleLogger.warn('Attempted to delete system volume', {
+          serverId,
+          volumeName: name,
+          userId: req.user.id
+        });
         return res.status(400).json({
           success: false,
           message: '不能删除系统卷'
@@ -155,9 +190,19 @@ router.delete('/:serverId/:name',
       }
       
       const result = await dockerService.removeVolume(serverId, name, force === 'true');
+
+      // 记录删除成功
+      moduleLogger.info('Volume removed successfully', {
+        serverId,
+        volumeName: name,
+        force: force === 'true',
+        userId: req.user.id,
+        result
+      });
+
       res.json({ success: true, message: '卷删除成功', data: result });
     } catch (error) {
-      logger.error(`删除卷 ${req.params.name} 失败:`, error);
+      logError('docker', error, req);
       res.status(500).json({ success: false, message: '卷删除失败', error: error.message });
     }
   }
@@ -183,7 +228,7 @@ router.post('/:serverId/prune',
         data: result 
       });
     } catch (error) {
-      logger.error(`清理未使用卷失败:`, error);
+      logError('docker', error, req);
       res.status(500).json({ success: false, message: '清理未使用卷失败', error: error.message });
     }
   }

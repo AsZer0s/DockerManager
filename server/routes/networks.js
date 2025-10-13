@@ -2,8 +2,11 @@ import express from 'express';
 import { body, param, query } from 'express-validator';
 import { authenticateToken } from '../utils/auth.js';
 import dockerService from '../services/dockerService.js';
-import logger from '../utils/logger.js';
+import logger, { createModuleLogger, logError } from '../utils/logger.js';
 import database from '../config/database.js';
+
+// 创建Docker模块日志器
+const moduleLogger = createModuleLogger('docker');
 
 const router = express.Router();
 
@@ -72,7 +75,7 @@ router.get('/:serverId',
       const networks = await dockerService.getNetworks(serverId);
       res.json({ success: true, data: networks });
     } catch (error) {
-      logger.error(`获取服务器 ${req.params.serverId} 网络列表失败:`, error);
+      logError('docker', error, req);
       res.status(500).json({ success: false, message: '获取网络列表失败', error: error.message });
     }
   }
@@ -95,7 +98,7 @@ router.get('/:serverId/:id',
       const network = await dockerService.getNetworkInfo(serverId, id);
       res.json({ success: true, data: network });
     } catch (error) {
-      logger.error(`获取网络 ${req.params.id} 详细信息失败:`, error);
+      logError('docker', error, req);
       res.status(500).json({ success: false, message: '获取网络详细信息失败', error: error.message });
     }
   }
@@ -121,10 +124,28 @@ router.post('/:serverId',
     try {
       const { serverId } = req.params;
       const options = req.body;
+
+      // 记录创建网络操作开始
+      moduleLogger.info('Creating network', {
+        serverId,
+        options,
+        userId: req.user.id,
+        ip: req.ip
+      });
+
       const result = await dockerService.createNetwork(serverId, options);
+
+      // 记录创建成功
+      moduleLogger.info('Network created successfully', {
+        serverId,
+        networkName: options.Name,
+        userId: req.user.id,
+        result
+      });
+
       res.json({ success: true, message: '网络创建成功', data: result });
     } catch (error) {
-      logger.error(`创建网络失败:`, error);
+      logError('docker', error, req);
       res.status(500).json({ success: false, message: '网络创建失败', error: error.message });
     }
   }
@@ -145,11 +166,25 @@ router.delete('/:serverId/:id',
     try {
       const { serverId, id } = req.params;
       
+      // 记录删除网络操作开始
+      moduleLogger.info('Removing network', {
+        serverId,
+        networkId: id,
+        userId: req.user.id,
+        ip: req.ip
+      });
+      
       // 检查是否为系统网络
       const systemNetworks = ['bridge', 'host', 'none'];
       const network = await dockerService.getNetworkInfo(serverId, id);
       
       if (systemNetworks.includes(network.Name)) {
+        moduleLogger.warn('Attempted to delete system network', {
+          serverId,
+          networkId: id,
+          networkName: network.Name,
+          userId: req.user.id
+        });
         return res.status(400).json({
           success: false,
           message: '不能删除系统网络'
@@ -157,9 +192,18 @@ router.delete('/:serverId/:id',
       }
       
       const result = await dockerService.removeNetwork(serverId, id);
+
+      // 记录删除成功
+      moduleLogger.info('Network removed successfully', {
+        serverId,
+        networkId: id,
+        userId: req.user.id,
+        result
+      });
+
       res.json({ success: true, message: '网络删除成功', data: result });
     } catch (error) {
-      logger.error(`删除网络 ${req.params.id} 失败:`, error);
+      logError('docker', error, req);
       res.status(500).json({ success: false, message: '网络删除失败', error: error.message });
     }
   }
@@ -185,7 +229,7 @@ router.post('/:serverId/:id/connect',
       const result = await dockerService.connectContainerToNetwork(serverId, id, containerId, options);
       res.json({ success: true, message: '容器连接网络成功', data: result });
     } catch (error) {
-      logger.error(`连接容器到网络失败:`, error);
+      logError('docker', error, req);
       res.status(500).json({ success: false, message: '连接容器到网络失败', error: error.message });
     }
   }
@@ -210,7 +254,7 @@ router.post('/:serverId/:id/disconnect',
       const result = await dockerService.disconnectContainerFromNetwork(serverId, id, containerId);
       res.json({ success: true, message: '容器断开网络成功', data: result });
     } catch (error) {
-      logger.error(`断开容器与网络连接失败:`, error);
+      logError('docker', error, req);
       res.status(500).json({ success: false, message: '断开容器与网络连接失败', error: error.message });
     }
   }
@@ -236,7 +280,7 @@ router.post('/:serverId/prune',
         data: result 
       });
     } catch (error) {
-      logger.error(`清理未使用网络失败:`, error);
+      logError('docker', error, req);
       res.status(500).json({ success: false, message: '清理未使用网络失败', error: error.message });
     }
   }

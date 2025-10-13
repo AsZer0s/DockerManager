@@ -2,7 +2,10 @@ import express from 'express';
 import { body, param, query } from 'express-validator';
 import dockerService from '../services/dockerService.js';
 import { authenticateToken } from '../utils/auth.js';
-import logger from '../utils/logger.js';
+import logger, { createModuleLogger, logError } from '../utils/logger.js';
+
+// 创建Docker模块日志器
+const moduleLogger = createModuleLogger('docker');
 
 const router = express.Router();
 
@@ -81,7 +84,7 @@ router.get('/:serverId',
         data: images
       });
     } catch (error) {
-      logger.error('获取镜像列表失败:', error);
+      logError('docker', error, req);
       res.status(500).json({
         success: false,
         message: '获取镜像列表失败',
@@ -107,7 +110,25 @@ router.post('/:serverId/pull',
       const { serverId } = req.params;
       const { imageName, tag = 'latest' } = req.body;
 
+      // 记录拉取镜像操作开始
+      moduleLogger.info('Pulling image', {
+        serverId,
+        imageName,
+        tag,
+        userId: req.user.id,
+        ip: req.ip
+      });
+
       const result = await dockerService.pullImage(serverId, imageName, tag);
+
+      // 记录拉取成功
+      moduleLogger.info('Image pulled successfully', {
+        serverId,
+        imageName,
+        tag,
+        userId: req.user.id,
+        result
+      });
 
       res.json({
         success: true,
@@ -115,7 +136,7 @@ router.post('/:serverId/pull',
         data: result
       });
     } catch (error) {
-      logger.error('拉取镜像失败:', error);
+      logError('docker', error, req);
       res.status(500).json({
         success: false,
         message: '拉取镜像失败',
@@ -141,7 +162,25 @@ router.delete('/:serverId/:imageId',
       const { serverId, imageId } = req.params;
       const { force = false } = req.query;
 
+      // 记录删除镜像操作开始
+      moduleLogger.info('Removing image', {
+        serverId,
+        imageId,
+        force: force === 'true',
+        userId: req.user.id,
+        ip: req.ip
+      });
+
       const result = await dockerService.removeImage(serverId, imageId, force === 'true');
+
+      // 记录删除成功
+      moduleLogger.info('Image removed successfully', {
+        serverId,
+        imageId,
+        force: force === 'true',
+        userId: req.user.id,
+        result
+      });
 
       res.json({
         success: true,
@@ -149,7 +188,7 @@ router.delete('/:serverId/:imageId',
         data: result
       });
     } catch (error) {
-      logger.error('删除镜像失败:', error);
+      logError('docker', error, req);
       res.status(500).json({
         success: false,
         message: '删除镜像失败',
@@ -175,7 +214,25 @@ router.post('/:serverId/:imageId/tag',
       const { serverId, imageId } = req.params;
       const { newTag } = req.body;
 
+      // 记录修改镜像标签操作开始
+      moduleLogger.info('Tagging image', {
+        serverId,
+        imageId,
+        newTag,
+        userId: req.user.id,
+        ip: req.ip
+      });
+
       const result = await dockerService.tagImage(serverId, imageId, newTag);
+
+      // 记录修改成功
+      moduleLogger.info('Image tagged successfully', {
+        serverId,
+        imageId,
+        newTag,
+        userId: req.user.id,
+        result
+      });
 
       res.json({
         success: true,
@@ -183,7 +240,7 @@ router.post('/:serverId/:imageId/tag',
         data: result
       });
     } catch (error) {
-      logger.error('修改镜像标签失败:', error);
+      logError('docker', error, req);
       res.status(500).json({
         success: false,
         message: '修改镜像标签失败',
@@ -214,7 +271,7 @@ router.get('/:serverId/:imageId/info',
         data: imageInfo
       });
     } catch (error) {
-      logger.error('获取镜像信息失败:', error);
+      logError('docker', error, req);
       res.status(500).json({
         success: false,
         message: '获取镜像信息失败',

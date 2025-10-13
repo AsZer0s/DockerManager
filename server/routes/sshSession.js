@@ -3,7 +3,10 @@ import jwt from 'jsonwebtoken';
 import database from '../config/database.js';
 import sshSessionService from '../services/sshSessionService.js';
 import encryption from '../utils/encryption.js';
-import logger from '../utils/logger.js';
+import logger, { createModuleLogger, logError } from '../utils/logger.js';
+
+// 创建SSH模块日志器
+const moduleLogger = createModuleLogger('ssh');
 
 const router = express.Router();
 
@@ -97,7 +100,17 @@ router.post('/create', authenticateToken, checkServerPermission, async (req, res
   try {
     const { serverId } = req.body;
     
+    // 记录SSH会话创建开始
+    moduleLogger.info('Creating SSH session', {
+      serverId,
+      userId: req.user.id,
+      ip: req.ip
+    });
+    
     if (!serverId) {
+      moduleLogger.warn('SSH session creation denied - missing server ID', {
+        userId: req.user.id
+      });
       return res.status(400).json({ error: '缺少服务器ID' });
     }
 
@@ -152,6 +165,13 @@ router.post('/create', authenticateToken, checkServerPermission, async (req, res
     // 创建SSH会话
     await sshSessionService.createSession(sessionId, serverConfig);
 
+    // 记录SSH会话创建成功
+    moduleLogger.info('SSH session created successfully', {
+      sessionId,
+      serverId,
+      userId: req.user.id
+    });
+
     res.json({
       success: true,
       sessionId,
@@ -159,7 +179,7 @@ router.post('/create', authenticateToken, checkServerPermission, async (req, res
     });
 
   } catch (error) {
-    logger.error('创建SSH会话失败:', error);
+    logError('ssh', error, req);
     res.status(500).json({ error: error.message });
   }
 });
@@ -172,12 +192,33 @@ router.post('/execute', async (req, res) => {
   try {
     const { sessionId, command } = req.body;
     
+    // 记录SSH会话命令执行开始
+    moduleLogger.info('Executing SSH session command', {
+      sessionId,
+      command,
+      userId: req.user.id,
+      ip: req.ip
+    });
+    
     if (!sessionId || !command) {
+      moduleLogger.warn('SSH session command execution denied - missing parameters', {
+        sessionId,
+        command,
+        userId: req.user.id
+      });
       return res.status(400).json({ error: '缺少会话ID或命令' });
     }
 
     // 执行命令
     const result = await sshSessionService.executeCommand(sessionId, command);
+
+    // 记录SSH会话命令执行成功
+    moduleLogger.info('SSH session command executed successfully', {
+      sessionId,
+      command,
+      userId: req.user.id,
+      resultLength: result.output ? result.output.length : 0
+    });
 
     res.json({
       success: true,
@@ -185,7 +226,7 @@ router.post('/execute', async (req, res) => {
     });
 
   } catch (error) {
-    logger.error('执行SSH命令失败:', error);
+    logError('ssh', error, req);
     res.status(500).json({ error: error.message });
   }
 });
@@ -210,7 +251,7 @@ router.get('/info/:sessionId', async (req, res) => {
     });
 
   } catch (error) {
-    logger.error('获取会话信息失败:', error);
+    logError('ssh', error, req);
     res.status(500).json({ error: error.message });
   }
 });
@@ -231,7 +272,7 @@ router.delete('/close/:sessionId', async (req, res) => {
     });
 
   } catch (error) {
-    logger.error('关闭SSH会话失败:', error);
+    logError('ssh', error, req);
     res.status(500).json({ error: error.message });
   }
 });

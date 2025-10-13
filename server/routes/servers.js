@@ -3,11 +3,14 @@ import jwt from 'jsonwebtoken';
 import { body, validationResult } from 'express-validator';
 
 import database from '../config/database.js';
-import logger from '../utils/logger.js';
+import logger, { createModuleLogger, logError } from '../utils/logger.js';
 import encryption from '../utils/encryption.js';
 import dockerService from '../services/dockerService.js';
 import cacheService from '../services/cacheService.js';
 import { serverValidation, validate, validateParams, commonValidation } from '../utils/validation.js';
+
+// 创建系统模块日志器
+const moduleLogger = createModuleLogger('system');
 
 const router = express.Router();
 
@@ -215,13 +218,13 @@ router.get('/', authenticateToken, async (req, res) => {
       servers: serversWithStatus,
       total: serversWithStatus.length
     });
-  } catch (error) {
-    logger.error('获取服务器列表失败:', error);
-    res.status(500).json({
-      error: '获取服务器列表失败',
-      message: '服务器内部错误'
-    });
-  }
+    } catch (error) {
+      logError('system', error, req);
+      res.status(500).json({
+        error: '获取服务器列表失败',
+        message: '服务器内部错误'
+      });
+    }
 });
 
 /**
@@ -311,7 +314,7 @@ router.get('/statistics',
         generatedAt: new Date().toISOString()
       });
     } catch (error) {
-      logger.error('获取服务器统计信息失败:', error);
+      logError('system', error, req);
       res.status(500).json({
         error: '获取统计信息失败',
         message: '服务器内部错误'
@@ -376,7 +379,7 @@ router.get('/:id',
 
       res.json({ server });
     } catch (error) {
-      logger.error('获取服务器详情失败:', error);
+      logError('system', error, req);
       res.status(500).json({
         error: '获取服务器详情失败',
         message: '服务器内部错误'
@@ -401,6 +404,16 @@ router.post('/',
         proxy_enabled, proxy_host, proxy_port, proxy_username, proxy_password
       } = req.body;
 
+      // 记录创建服务器操作开始
+      moduleLogger.info('Creating server', {
+        name,
+        host,
+        port,
+        userId: req.user.id,
+        ip: req.ip,
+        userAgent: req.get('User-Agent')
+      });
+
       // 检查服务器是否已存在
       const existingServer = await database.db.get(
         'SELECT id FROM servers WHERE host = ? AND port = ? AND is_active = 1',
@@ -408,6 +421,14 @@ router.post('/',
       );
 
       if (existingServer) {
+        moduleLogger.warn('Server creation denied - server already exists', {
+          name,
+          host,
+          port,
+          existingServerId: existingServer.id,
+          userId: req.user.id,
+          ip: req.ip
+        });
         return res.status(400).json({
           error: '服务器已存在',
           message: '该主机和端口的服务器已存在'
@@ -450,7 +471,16 @@ router.post('/',
         FROM servers WHERE id = ?
       `, [result.lastID]);
 
-      logger.info(`管理员 ${req.user.username} 创建服务器: ${name} (${host}:${port})`);
+      // 记录创建服务器成功
+      moduleLogger.info('Server created successfully', {
+        serverId: server.id,
+        name,
+        host,
+        port,
+        userId: req.user.id,
+        username: req.user.username,
+        ip: req.ip
+      });
 
       // 强制刷新缓存
       try {
@@ -465,7 +495,7 @@ router.post('/',
         server
       });
     } catch (error) {
-      logger.error('创建服务器失败:', error);
+      logError('system', error, req);
       res.status(500).json({
         error: '创建服务器失败',
         message: '服务器内部错误'
@@ -636,7 +666,7 @@ router.put('/:id',
         server
       });
     } catch (error) {
-      logger.error('更新服务器失败:', error);
+      logError('system', error, req);
       res.status(500).json({
         error: '更新服务器失败',
         message: '服务器内部错误'
@@ -699,7 +729,7 @@ router.delete('/:id',
         message: '服务器删除成功'
       });
     } catch (error) {
-      logger.error('删除服务器失败:', error);
+      logError('system', error, req);
       res.status(500).json({
         error: '删除服务器失败',
         message: '服务器内部错误'
@@ -786,7 +816,7 @@ router.post('/:id/test-connection',
         });
       }
     } catch (error) {
-      logger.error('测试服务器连接失败:', error);
+      logError('system', error, req);
       res.status(500).json({
         error: '测试连接失败',
         message: '服务器内部错误'
@@ -835,7 +865,7 @@ router.get('/:id/containers',
         total: containers.length
       });
     } catch (error) {
-      logger.error('获取容器列表失败:', error);
+      logError('system', error, req);
       res.status(500).json({
         error: '获取容器列表失败',
         message: '服务器内部错误'
@@ -897,7 +927,7 @@ router.get('/:id/permissions',
         total: permissionsResult.length
       });
     } catch (error) {
-      logger.error('获取服务器权限列表失败:', error);
+      logError('system', error, req);
       res.status(500).json({
         error: '获取权限列表失败',
         message: '服务器内部错误'
@@ -987,7 +1017,7 @@ router.post('/:id/permissions',
         message: '权限分配成功'
       });
     } catch (error) {
-      logger.error('分配服务器权限失败:', error);
+      logError('system', error, req);
       res.status(500).json({
         error: '分配权限失败',
         message: '服务器内部错误'
@@ -1093,7 +1123,7 @@ router.put('/:id/permissions/:permissionId',
         permission
       });
     } catch (error) {
-      logger.error('更新服务器权限失败:', error);
+      logError('system', error, req);
       res.status(500).json({
         error: '更新权限失败',
         message: '服务器内部错误'
@@ -1152,7 +1182,7 @@ router.delete('/:id/permissions/:permissionId',
         message: '权限删除成功'
       });
     } catch (error) {
-      logger.error('删除服务器权限失败:', error);
+      logError('system', error, req);
       res.status(500).json({
         error: '删除权限失败',
         message: '服务器内部错误'
@@ -1237,7 +1267,7 @@ router.get('/:id/status',
         });
       }
     } catch (error) {
-      logger.error('获取服务器状态失败:', error);
+      logError('system', error, req);
       res.status(500).json({
         error: '获取服务器状态失败',
         message: '服务器内部错误'
@@ -1320,7 +1350,7 @@ router.post('/batch-test',
         results
       });
     } catch (error) {
-      logger.error('批量测试服务器连接失败:', error);
+      logError('system', error, req);
       res.status(500).json({
         error: '批量测试失败',
         message: '服务器内部错误'

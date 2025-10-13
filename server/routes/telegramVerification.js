@@ -1,7 +1,10 @@
 import express from 'express';
 import telegramBotService from '../services/telegramBot.js';
 import database from '../config/database.js';
-import logger from '../utils/logger.js';
+import logger, { createModuleLogger, logError } from '../utils/logger.js';
+
+// 创建Telegram模块日志器
+const moduleLogger = createModuleLogger('telegram');
 
 const router = express.Router();
 
@@ -10,7 +13,17 @@ router.post('/send-code', async (req, res) => {
   try {
     const { telegramId } = req.body;
 
+    // 记录发送验证码操作开始
+    moduleLogger.info('Sending verification code', {
+      telegramId,
+      ip: req.ip,
+      userAgent: req.get('User-Agent')
+    });
+
     if (!telegramId) {
+      moduleLogger.warn('Verification code send denied - missing telegram ID', {
+        ip: req.ip
+      });
       return res.status(400).json({
         success: false,
         message: 'Telegram ID 不能为空'
@@ -37,11 +50,25 @@ router.post('/send-code', async (req, res) => {
     );
 
     if (result.success) {
+      // 记录验证码发送成功
+      moduleLogger.info('Verification code sent successfully', {
+        telegramId,
+        ip: req.ip
+      });
+
       res.json({
         success: true,
         message: '验证码已发送'
       });
     } else {
+      // 记录验证码发送失败
+      moduleLogger.error('Verification code send failed', {
+        telegramId,
+        error: result.error,
+        message: result.message,
+        ip: req.ip
+      });
+
       if (result.error === 'SEND_FAILED') {
         res.status(400).json({
           success: false,
@@ -55,7 +82,7 @@ router.post('/send-code', async (req, res) => {
       }
     }
   } catch (error) {
-    logger.error('发送验证码失败:', error);
+    logError('telegram', error, req);
     res.status(500).json({
       success: false,
       message: '服务器内部错误'
@@ -68,7 +95,19 @@ router.post('/verify-code', async (req, res) => {
   try {
     const { telegramId, code } = req.body;
 
+    // 记录验证码验证操作开始
+    moduleLogger.info('Verifying verification code', {
+      telegramId,
+      ip: req.ip,
+      userAgent: req.get('User-Agent')
+    });
+
     if (!telegramId || !code) {
+      moduleLogger.warn('Verification code verification denied - missing parameters', {
+        telegramId,
+        code,
+        ip: req.ip
+      });
       return res.status(400).json({
         success: false,
         message: 'Telegram ID 和验证码不能为空'
@@ -79,6 +118,13 @@ router.post('/verify-code', async (req, res) => {
     const verificationResult = telegramBotService.verifyCode(telegramId, code);
 
     if (!verificationResult.success) {
+      // 记录验证码验证失败
+      moduleLogger.warn('Verification code verification failed', {
+        telegramId,
+        code,
+        error: verificationResult.message,
+        ip: req.ip
+      });
       return res.status(400).json({
         success: false,
         message: verificationResult.message
@@ -92,11 +138,22 @@ router.post('/verify-code', async (req, res) => {
     );
 
     if (existingUser) {
+      moduleLogger.warn('Verification code verification denied - telegram ID already bound', {
+        telegramId,
+        existingUserId: existingUser.id,
+        ip: req.ip
+      });
       return res.status(400).json({
         success: false,
         message: '该 Telegram ID 已被其他用户绑定'
       });
     }
+
+    // 记录验证码验证成功
+    moduleLogger.info('Verification code verified successfully', {
+      telegramId,
+      ip: req.ip
+    });
 
     // 这里需要获取当前登录用户的信息
     // 由于这是验证码验证，我们需要通过其他方式获取用户信息
@@ -106,7 +163,7 @@ router.post('/verify-code', async (req, res) => {
       message: '验证码验证成功，请完成绑定'
     });
   } catch (error) {
-    logger.error('验证验证码失败:', error);
+    logError('telegram', error, req);
     res.status(500).json({
       success: false,
       message: '服务器内部错误'
@@ -119,7 +176,19 @@ router.post('/complete-binding', async (req, res) => {
   try {
     const { telegramId, code, userId } = req.body;
 
+    // 记录完成绑定操作开始
+    moduleLogger.info('Completing telegram binding', {
+      telegramId,
+      userId,
+      ip: req.ip,
+      userAgent: req.get('User-Agent')
+    });
+
     if (!userId) {
+      moduleLogger.warn('Telegram binding completion denied - missing user ID', {
+        telegramId,
+        ip: req.ip
+      });
       return res.status(400).json({
         success: false,
         message: '用户ID不能为空'
@@ -127,6 +196,12 @@ router.post('/complete-binding', async (req, res) => {
     }
 
     if (!telegramId || !code) {
+      moduleLogger.warn('Telegram binding completion denied - missing parameters', {
+        telegramId,
+        code,
+        userId,
+        ip: req.ip
+      });
       return res.status(400).json({
         success: false,
         message: 'Telegram ID 和验证码不能为空'
@@ -188,7 +263,12 @@ router.post('/complete-binding', async (req, res) => {
       });
     }
 
-    logger.info(`绑定验证成功: 用户 ${userId} 的 Telegram ID 已更新为 ${telegramId}`);
+    // 记录绑定验证成功
+    moduleLogger.info('Telegram binding verification successful', {
+      userId,
+      telegramId,
+      ip: req.ip
+    });
 
     // 获取用户信息
     const user = await database.db.get(
@@ -196,7 +276,13 @@ router.post('/complete-binding', async (req, res) => {
       [userId]
     );
 
-    logger.info(`用户 ${user?.username || userId} 绑定 Telegram ID ${telegramId} 成功`);
+    // 记录绑定成功
+    moduleLogger.info('Telegram binding completed successfully', {
+      userId,
+      username: user?.username,
+      telegramId,
+      ip: req.ip
+    });
 
     // 发送绑定成功通知到 Telegram
     try {
@@ -219,7 +305,7 @@ router.post('/complete-binding', async (req, res) => {
       message: 'Telegram 绑定成功'
     });
   } catch (error) {
-    logger.error('完成绑定失败:', error);
+    logError('telegram', error, req);
     res.status(500).json({
       success: false,
       message: '服务器内部错误'
@@ -232,7 +318,17 @@ router.post('/send-unbind-code', async (req, res) => {
   try {
     const { userId } = req.body;
 
+    // 记录发送解绑验证码操作开始
+    moduleLogger.info('Sending unbind verification code', {
+      userId,
+      ip: req.ip,
+      userAgent: req.get('User-Agent')
+    });
+
     if (!userId) {
+      moduleLogger.warn('Unbind verification code send denied - missing user ID', {
+        ip: req.ip
+      });
       return res.status(400).json({
         success: false,
         message: '用户ID不能为空'
@@ -259,11 +355,27 @@ router.post('/send-unbind-code', async (req, res) => {
     );
 
     if (result.success) {
-      res.json({
-        success: true,
-        message: '解绑验证码已发送'
-      });
+    // 记录解绑验证码发送成功
+    moduleLogger.info('Unbind verification code sent successfully', {
+      userId,
+      telegramId: user.telegram_id,
+      ip: req.ip
+    });
+
+    res.json({
+      success: true,
+      message: '解绑验证码已发送'
+    });
     } else {
+      // 记录解绑验证码发送失败
+      moduleLogger.error('Unbind verification code send failed', {
+        userId,
+        telegramId: user.telegram_id,
+        error: result.error,
+        message: result.message,
+        ip: req.ip
+      });
+
       if (result.error === 'SEND_FAILED') {
         res.status(400).json({
           success: false,
@@ -277,7 +389,7 @@ router.post('/send-unbind-code', async (req, res) => {
       }
     }
   } catch (error) {
-    logger.error('发送解绑验证码失败:', error);
+    logError('telegram', error, req);
     res.status(500).json({
       success: false,
       message: '服务器内部错误'
@@ -290,7 +402,19 @@ router.post('/verify-unbind-code', async (req, res) => {
   try {
     const { userId, code } = req.body;
 
+    // 记录验证解绑验证码操作开始
+    moduleLogger.info('Verifying unbind verification code', {
+      userId,
+      ip: req.ip,
+      userAgent: req.get('User-Agent')
+    });
+
     if (!userId || !code) {
+      moduleLogger.warn('Unbind verification code verification denied - missing parameters', {
+        userId,
+        code,
+        ip: req.ip
+      });
       return res.status(400).json({
         success: false,
         message: '用户ID和验证码不能为空'
@@ -326,7 +450,13 @@ router.post('/verify-unbind-code', async (req, res) => {
       [userId]
     );
 
-    logger.info(`用户 ${user.username} (ID: ${userId}) 解除 Telegram 绑定成功`);
+    // 记录解绑成功
+    moduleLogger.info('Telegram unbinding completed successfully', {
+      userId,
+      username: user.username,
+      telegramId: user.telegram_id,
+      ip: req.ip
+    });
 
     // 发送解绑成功通知到 Telegram
     try {
@@ -347,7 +477,7 @@ router.post('/verify-unbind-code', async (req, res) => {
       message: 'Telegram 解绑成功'
     });
   } catch (error) {
-    logger.error('验证解绑验证码失败:', error);
+    logError('telegram', error, req);
     res.status(500).json({
       success: false,
       message: '服务器内部错误'
@@ -360,12 +490,23 @@ router.get('/binding-status/:telegramId', async (req, res) => {
   try {
     const { telegramId } = req.params;
 
+    // 记录检查绑定状态操作开始
+    moduleLogger.info('Checking telegram binding status', {
+      telegramId,
+      ip: req.ip,
+      userAgent: req.get('User-Agent')
+    });
+
     const user = await database.db.get(
       'SELECT telegram_verified, telegram_verified_at FROM users WHERE telegram_id = ?',
       [telegramId]
     );
 
     if (!user) {
+      moduleLogger.warn('Binding status check failed - user not found', {
+        telegramId,
+        ip: req.ip
+      });
       return res.status(404).json({
         success: false,
         message: '用户不存在'
@@ -380,7 +521,7 @@ router.get('/binding-status/:telegramId', async (req, res) => {
       }
     });
   } catch (error) {
-    logger.error('检查绑定状态失败:', error);
+    logError('telegram', error, req);
     res.status(500).json({
       success: false,
       message: '服务器内部错误'

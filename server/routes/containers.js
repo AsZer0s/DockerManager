@@ -3,11 +3,14 @@ import jwt from 'jsonwebtoken';
 import { body, validationResult } from 'express-validator';
 
 import database from '../config/database.js';
-import logger from '../utils/logger.js';
+import logger, { createModuleLogger, logError } from '../utils/logger.js';
 import dockerService from '../services/dockerService.js';
 import cacheService from '../services/cacheService.js';
 import alertService from '../services/alertService.js';
 import { containerValidation, validate, validateParams, commonValidation } from '../utils/validation.js';
+
+// 创建Docker模块日志器
+const moduleLogger = createModuleLogger('docker');
 
 const router = express.Router();
 
@@ -360,7 +363,20 @@ router.post('/:serverId/:containerId/start',
       const serverId = parseInt(req.params.serverId);
       const containerId = req.params.containerId;
 
+      // 记录启动容器操作开始
+      moduleLogger.info('Starting container', {
+        serverId,
+        containerId,
+        userId: req.user.id,
+        ip: req.ip
+      });
+
       if (!req.serverPermission.can_control) {
+        moduleLogger.warn('Container start denied - insufficient permissions', {
+          serverId,
+          containerId,
+          userId: req.user.id
+        });
         return res.status(403).json({
           error: '权限不足',
           message: '您没有权限控制此服务器的容器'
@@ -397,22 +413,43 @@ router.post('/:serverId/:containerId/start',
             }
           }
         } catch (notificationError) {
-          logger.error('发送容器启动通知失败:', notificationError);
+          moduleLogger.error('Failed to send container start notification', {
+            serverId,
+            containerId,
+            error: notificationError.message,
+            stack: notificationError.stack
+          });
           // 不抛出错误，避免影响容器操作
         }
+
+        // 记录启动成功
+        moduleLogger.info('Container started successfully', {
+          serverId,
+          containerId,
+          userId: req.user.id,
+          result
+        });
 
         res.json({
           message: '容器启动成功',
           result
         });
       } else {
+        // 记录启动失败
+        moduleLogger.error('Container start failed', {
+          serverId,
+          containerId,
+          userId: req.user.id,
+          result
+        });
+
         res.status(400).json({
           error: '容器启动失败',
           result
         });
       }
     } catch (error) {
-      logger.error('启动容器失败:', error);
+      logError('docker', error, req);
       res.status(500).json({
         error: '启动容器失败',
         message: '服务器内部错误'
@@ -436,7 +473,21 @@ router.post('/:serverId/:containerId/stop',
       const containerId = req.params.containerId;
       const { timeout = 10 } = req.body;
 
+      // 记录停止容器操作开始
+      moduleLogger.info('Stopping container', {
+        serverId,
+        containerId,
+        timeout,
+        userId: req.user.id,
+        ip: req.ip
+      });
+
       if (!req.serverPermission.can_control) {
+        moduleLogger.warn('Container stop denied - insufficient permissions', {
+          serverId,
+          containerId,
+          userId: req.user.id
+        });
         return res.status(403).json({
           error: '权限不足',
           message: '您没有权限控制此服务器的容器'
@@ -446,6 +497,14 @@ router.post('/:serverId/:containerId/stop',
       const result = await dockerService.stopContainer(serverId, containerId, timeout);
 
       if (result.success) {
+        // 记录停止成功
+        moduleLogger.info('Container stopped successfully', {
+          serverId,
+          containerId,
+          userId: req.user.id,
+          result
+        });
+
         // 发送容器事件通知
         try {
           const server = await database.db.get('SELECT name FROM servers WHERE id = ?', [serverId]);
@@ -472,7 +531,12 @@ router.post('/:serverId/:containerId/stop',
             }
           }
         } catch (notificationError) {
-          logger.error('发送容器停止通知失败:', notificationError);
+          moduleLogger.error('Failed to send container stop notification', {
+            serverId,
+            containerId,
+            error: notificationError.message,
+            stack: notificationError.stack
+          });
         }
 
         res.json({
@@ -480,13 +544,21 @@ router.post('/:serverId/:containerId/stop',
           result
         });
       } else {
+        // 记录停止失败
+        moduleLogger.error('Container stop failed', {
+          serverId,
+          containerId,
+          userId: req.user.id,
+          result
+        });
+
         res.status(400).json({
           error: '容器停止失败',
           result
         });
       }
     } catch (error) {
-      logger.error('停止容器失败:', error);
+      logError('docker', error, req);
       res.status(500).json({
         error: '停止容器失败',
         message: '服务器内部错误'
@@ -510,7 +582,21 @@ router.post('/:serverId/:containerId/restart',
       const containerId = req.params.containerId;
       const { timeout = 10 } = req.body;
 
+      // 记录重启容器操作开始
+      moduleLogger.info('Restarting container', {
+        serverId,
+        containerId,
+        timeout,
+        userId: req.user.id,
+        ip: req.ip
+      });
+
       if (!req.serverPermission.can_control) {
+        moduleLogger.warn('Container restart denied - insufficient permissions', {
+          serverId,
+          containerId,
+          userId: req.user.id
+        });
         return res.status(403).json({
           error: '权限不足',
           message: '您没有权限控制此服务器的容器'
@@ -520,6 +606,14 @@ router.post('/:serverId/:containerId/restart',
       const result = await dockerService.restartContainer(serverId, containerId, timeout);
 
       if (result.success) {
+        // 记录重启成功
+        moduleLogger.info('Container restarted successfully', {
+          serverId,
+          containerId,
+          userId: req.user.id,
+          result
+        });
+
         // 发送容器事件通知
         try {
           const server = await database.db.get('SELECT name FROM servers WHERE id = ?', [serverId]);
@@ -546,7 +640,12 @@ router.post('/:serverId/:containerId/restart',
             }
           }
         } catch (notificationError) {
-          logger.error('发送容器重启通知失败:', notificationError);
+          moduleLogger.error('Failed to send container restart notification', {
+            serverId,
+            containerId,
+            error: notificationError.message,
+            stack: notificationError.stack
+          });
         }
 
         res.json({
@@ -554,13 +653,21 @@ router.post('/:serverId/:containerId/restart',
           result
         });
       } else {
+        // 记录重启失败
+        moduleLogger.error('Container restart failed', {
+          serverId,
+          containerId,
+          userId: req.user.id,
+          result
+        });
+
         res.status(400).json({
           error: '容器重启失败',
           result
         });
       }
     } catch (error) {
-      logger.error('重启容器失败:', error);
+      logError('docker', error, req);
       res.status(500).json({
         error: '重启容器失败',
         message: '服务器内部错误'
@@ -635,18 +742,36 @@ router.delete('/:serverId/:containerId',
           }
         }
 
+        // 记录删除成功
+        moduleLogger.info('Container removed successfully', {
+          serverId,
+          containerId,
+          force,
+          userId: req.user.id,
+          result
+        });
+
         res.json({
           message: '容器删除成功',
           result
         });
       } else {
+        // 记录删除失败
+        moduleLogger.error('Container removal failed', {
+          serverId,
+          containerId,
+          force,
+          userId: req.user.id,
+          result
+        });
+
         res.status(400).json({
           error: '容器删除失败',
           result
         });
       }
     } catch (error) {
-      logger.error('删除容器失败:', error);
+      logError('docker', error, req);
       res.status(500).json({
         error: '删除容器失败',
         message: '服务器内部错误'

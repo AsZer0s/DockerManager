@@ -3,8 +3,10 @@ import { body, validationResult } from 'express-validator';
 import bcrypt from 'bcryptjs';
 
 import database from '../config/database.js';
-import logger from '../utils/logger.js';
+import logger, { createModuleLogger, logError } from '../utils/logger.js';
 import { authenticateToken, requireAdmin } from '../utils/auth.js';
+
+const moduleLogger = createModuleLogger('system');
 
 const router = express.Router();
 
@@ -66,7 +68,7 @@ router.get('/users', authenticateToken, requireAdmin, async (req, res) => {
 
     res.json({ users });
   } catch (error) {
-    logger.error('获取用户列表失败:', error);
+    logError('system', error, req);
     res.status(500).json({
       error: '获取用户列表失败',
       message: '服务器内部错误'
@@ -137,7 +139,7 @@ router.post('/users',
         }
       });
     } catch (error) {
-      logger.error('创建用户失败:', error);
+      logError('system', error, req);
       res.status(500).json({
         error: '创建用户失败',
         message: '服务器内部错误'
@@ -232,7 +234,7 @@ router.put('/users/:id',
         message: '用户信息更新成功'
       });
     } catch (error) {
-      logger.error('更新用户信息失败:', error);
+      logError('system', error, req);
       res.status(500).json({
         error: '更新用户信息失败',
         message: '服务器内部错误'
@@ -286,7 +288,7 @@ router.delete('/users/:id', authenticateToken, requireAdmin, async (req, res) =>
       message: '用户删除成功'
     });
   } catch (error) {
-    logger.error('删除用户失败:', error);
+    logError('system', error, req);
     res.status(500).json({
       error: '删除用户失败',
       message: '服务器内部错误'
@@ -318,7 +320,7 @@ router.get('/servers', authenticateToken, requireAdmin, async (req, res) => {
 
     res.json({ servers });
   } catch (error) {
-    logger.error('获取服务器列表失败:', error);
+    logError('system', error, req);
     res.status(500).json({
       error: '获取服务器列表失败',
       message: '服务器内部错误'
@@ -352,7 +354,7 @@ router.get('/containers', authenticateToken, requireAdmin, async (req, res) => {
 
     res.json({ containers });
   } catch (error) {
-    logger.error('获取容器列表失败:', error);
+    logError('system', error, req);
     res.status(500).json({
       error: '获取容器列表失败',
       message: '服务器内部错误'
@@ -432,7 +434,7 @@ router.put('/users/:id/servers',
         message: '用户服务器权限更新成功'
       });
     } catch (error) {
-      logger.error('更新用户服务器权限失败:', error);
+      logError('system', error, req);
       res.status(500).json({
         error: '更新用户服务器权限失败',
         message: '服务器内部错误'
@@ -519,7 +521,7 @@ router.put('/users/:id/containers',
         message: '用户容器权限更新成功'
       });
     } catch (error) {
-      logger.error('更新用户容器权限失败:', error);
+      logError('system', error, req);
       res.status(500).json({
         error: '更新用户容器权限失败',
         message: '服务器内部错误'
