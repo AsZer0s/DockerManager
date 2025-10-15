@@ -14,16 +14,19 @@ class NotificationService {
   /**
    * 获取SMTP配置
    * 优先级：数据库配置 > 环境变量 > 默认值
+   * 如果没有配置，返回null
    */
   async getSMTPConfig() {
     const now = Date.now();
     
     // 如果缓存未过期，直接返回缓存配置
-    if (this.smtpConfig && (now - this.lastConfigCheck) < this.configCacheTimeout) {
+    if (this.smtpConfig !== undefined && (now - this.lastConfigCheck) < this.configCacheTimeout) {
       return this.smtpConfig;
     }
 
     try {
+      let config = null;
+
       // 首先尝试从数据库获取配置
       const result = await database.query(
         'SELECT settings FROM system_settings WHERE key = ?',
@@ -32,34 +35,44 @@ class NotificationService {
 
       if (result.rows.length > 0) {
         const dbConfig = JSON.parse(result.rows[0].settings);
-        this.smtpConfig = {
-          host: dbConfig.host,
-          port: dbConfig.port,
-          secure: dbConfig.secure || false,
-          auth: {
-            user: dbConfig.user,
-            pass: dbConfig.pass
-          },
-          from: dbConfig.from || process.env.SMTP_FROM || 'Docker Manager <noreply@dockermanager.com>'
-        };
+        // 检查数据库配置是否完整
+        if (dbConfig.host && dbConfig.user && dbConfig.pass) {
+          config = {
+            host: dbConfig.host,
+            port: dbConfig.port,
+            secure: dbConfig.secure || false,
+            auth: {
+              user: dbConfig.user,
+              pass: dbConfig.pass
+            },
+            from: dbConfig.from || 'Docker Manager <noreply@dockermanager.com>'
+          };
+        }
       } else {
-        // 使用环境变量配置
-        this.smtpConfig = {
-          host: process.env.SMTP_HOST || 'smtp.gmail.com',
-          port: parseInt(process.env.SMTP_PORT) || 587,
-          secure: process.env.SMTP_SECURE === 'true',
-          auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS
-          },
-          from: process.env.SMTP_FROM || 'Docker Manager <noreply@dockermanager.com>'
-        };
+        // 检查环境变量配置
+        if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+          config = {
+            host: process.env.SMTP_HOST,
+            port: parseInt(process.env.SMTP_PORT) || 587,
+            secure: process.env.SMTP_SECURE === 'true',
+            auth: {
+              user: process.env.SMTP_USER,
+              pass: process.env.SMTP_PASS
+            },
+            from: process.env.SMTP_FROM || 'Docker Manager <noreply@dockermanager.com>'
+          };
+        }
       }
 
+      this.smtpConfig = config;
       this.lastConfigCheck = now;
+      
+      // SMTP配置未设置时，静默处理
+      
       return this.smtpConfig;
     } catch (error) {
       logger.error('获取SMTP配置失败:', error);
+      this.smtpConfig = null;
       return null;
     }
   }
@@ -70,8 +83,11 @@ class NotificationService {
   async initializeSMTP() {
     try {
       const config = await this.getSMTPConfig();
-      if (!config || !config.auth.user || !config.auth.pass) {
-        logger.warn('SMTP配置不完整，无法发送邮件');
+      if (!config) {
+        return false;
+      }
+
+      if (!config.auth.user || !config.auth.pass) {
         return false;
       }
 
@@ -92,14 +108,19 @@ class NotificationService {
    */
   async sendEmail(to, subject, content, isHtml = true) {
     try {
+      // 检查SMTP配置是否可用
+      const config = await this.getSMTPConfig();
+      if (!config) {
+        return { success: false, error: 'SMTP配置未设置' };
+      }
+
       if (!this.smtpTransporter) {
         const initialized = await this.initializeSMTP();
         if (!initialized) {
-          throw new Error('SMTP未正确初始化');
+          return { success: false, error: 'SMTP未正确初始化' };
         }
       }
 
-      const config = await this.getSMTPConfig();
       const mailOptions = {
         from: config.from,
         to: to,
@@ -199,6 +220,8 @@ class NotificationService {
           this.formatEmailContent(type, message, options)
         );
         results.push({ type: 'email', ...emailResult });
+        
+        // 如果邮件发送失败且是因为配置问题，静默处理
       }
 
       // 发送Telegram通知

@@ -233,12 +233,15 @@ const TelegramWebApp: React.FC = () => {
 
       const data = await response.json();
       
+      console.log('容器详情API响应:', data);
+      
       if (data.success) {
         setSelectedContainer(data.container);
         setLoadingContainerDetails(false);
         // 加载容器详情成功
       } else {
         // 加载容器详情失败
+        console.error('容器详情加载失败:', data.message);
         setError(data.message || '加载容器详情失败');
         setLoadingContainerDetails(false);
       }
@@ -749,6 +752,7 @@ const TelegramWebApp: React.FC = () => {
                           if (!loadingContainerDetails) {
                             // 先清空当前选中的容器，确保显示加载状态
                             setSelectedContainer(null);
+                            setError(null); // 清除之前的错误
                             // 切换到详情标签页
                             setActiveTab('details');
                             // 然后加载容器详情
@@ -793,6 +797,27 @@ const TelegramWebApp: React.FC = () => {
                       如果服务器连接较慢，请稍等片刻
                     </Text>
                   </div>
+                </div>
+              ) : error ? (
+                <div style={{ textAlign: 'center', padding: '50px' }}>
+                  <Alert
+                    message="加载失败"
+                    description={error}
+                    type="error"
+                    showIcon
+                    action={
+                      <Button 
+                        size="small" 
+                        onClick={() => {
+                          if (selectedServer && selectedContainer) {
+                            loadContainerDetails(selectedServer.id, selectedContainer.id);
+                          }
+                        }}
+                      >
+                        重试
+                      </Button>
+                    }
+                  />
                 </div>
               ) : selectedContainer ? (
                 <Space direction="vertical" style={{ width: '100%' }}>
