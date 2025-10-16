@@ -233,15 +233,12 @@ const TelegramWebApp: React.FC = () => {
 
       const data = await response.json();
       
-      console.log('容器详情API响应:', data);
-      
       if (data.success) {
         setSelectedContainer(data.container);
         setLoadingContainerDetails(false);
         // 加载容器详情成功
       } else {
         // 加载容器详情失败
-        console.error('容器详情加载失败:', data.message);
         setError(data.message || '加载容器详情失败');
         setLoadingContainerDetails(false);
       }
@@ -419,16 +416,15 @@ const TelegramWebApp: React.FC = () => {
             message="错误"
             description={
               <div>
-                <div>{error}</div>
-                <div style={{ marginTop: 8 }}>
-                  <Button 
-                    size="small" 
-                    type="link" 
-                    onClick={() => window.location.reload()}
-                  >
-                    刷新页面
-                  </Button>
-                </div>
+                <div style={{ marginBottom: 16 }}>{error}</div>
+                <Button 
+                  type="primary" 
+                  icon={<ReloadOutlined />}
+                  onClick={() => window.location.reload()}
+                  block
+                >
+                  刷新页面
+                </Button>
               </div>
             }
             type="error"
@@ -808,6 +804,7 @@ const TelegramWebApp: React.FC = () => {
                     action={
                       <Button 
                         size="small" 
+                        icon={<ReloadOutlined />}
                         onClick={() => {
                           if (selectedServer && selectedContainer) {
                             loadContainerDetails(selectedServer.id, selectedContainer.id);

@@ -187,6 +187,67 @@ class DockerService {
   }
 
   /**
+   * 获取容器详细信息
+   * @param {number} serverId - 服务器 ID
+   * @param {string} containerId - 容器 ID
+   * @returns {Promise<Object>} 容器详细信息
+   */
+  async getContainerInfo(serverId, containerId) {
+    try {
+      const docker = await dockerodeManager.getDockerConnection(serverId);
+      const container = docker.getContainer(containerId);
+      const info = await container.inspect();
+      
+      return {
+        id: info.Id,
+        name: info.Name ? info.Name.replace('/', '') : 'unnamed',
+        image: info.Config.Image,
+        status: info.State.Status,
+        state: info.State,
+        created: new Date(info.Created),
+        ports: this.parsePortBindings(info.NetworkSettings.Ports),
+        command: info.Config.Cmd,
+        labels: info.Config.Labels || {},
+        mounts: info.Mounts || [],
+        networks: Object.keys(info.NetworkSettings.Networks || {}),
+        env: info.Config.Env || []
+      };
+    } catch (error) {
+      logger.error(`获取容器详情失败 (服务器 ${serverId}, 容器 ${containerId}):`, error);
+      throw this.handleDockerError(error);
+    }
+  }
+
+  /**
+   * 解析端口绑定信息
+   * @param {Object} ports - Docker 端口绑定对象
+   * @returns {Array} 解析后的端口信息
+   */
+  parsePortBindings(ports) {
+    if (!ports) return [];
+    
+    const result = [];
+    for (const [containerPort, hostBindings] of Object.entries(ports)) {
+      if (hostBindings && hostBindings.length > 0) {
+        for (const binding of hostBindings) {
+          result.push({
+            privatePort: parseInt(containerPort.split('/')[0]),
+            publicPort: binding.HostPort,
+            type: containerPort.split('/')[1] || 'tcp'
+          });
+        }
+      } else {
+        result.push({
+          privatePort: parseInt(containerPort.split('/')[0]),
+          publicPort: null,
+          type: containerPort.split('/')[1] || 'tcp'
+        });
+      }
+    }
+    return result;
+  }
+
+  /**
    * 获取容器统计信息
    * @param {number} serverId - 服务器 ID
    * @param {string} containerId - 容器 ID
