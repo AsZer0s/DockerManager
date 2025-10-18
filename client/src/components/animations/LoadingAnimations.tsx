@@ -6,7 +6,7 @@ export const SpinningLoader: React.FC<{
   size?: number;
   color?: string;
   className?: string;
-}> = ({ size = 40, color = '#1890ff', className = '' }) => {
+}> = ({ size = 40, color = '#0072ff', className = '' }) => {
   return (
     <motion.div
       className={className}
@@ -36,7 +36,7 @@ export const PulseLoader: React.FC<{
   size?: number;
   color?: string;
   className?: string;
-}> = ({ size = 40, color = '#1890ff', className = '' }) => {
+}> = ({ size = 40, color = '#0072ff', className = '' }) => {
   return (
     <motion.div
       className={className}
@@ -60,7 +60,7 @@ export const PulseLoader: React.FC<{
 export const BouncingDots: React.FC<{
   color?: string;
   className?: string;
-}> = ({ color = '#1890ff', className = '' }) => {
+}> = ({ color = '#0072ff', className = '' }) => {
   return (
     <div className={`flex space-x-2 ${className}`}>
       {[0, 1, 2].map((index) => (
@@ -92,7 +92,7 @@ export const BouncingDots: React.FC<{
 export const WaveLoader: React.FC<{
   color?: string;
   className?: string;
-}> = ({ color = '#1890ff', className = '' }) => {
+}> = ({ color = '#0072ff', className = '' }) => {
   return (
     <div className={`flex space-x-1 ${className}`}>
       {[0, 1, 2, 3, 4].map((index) => (
@@ -124,7 +124,7 @@ export const RotatingSquares: React.FC<{
   size?: number;
   color?: string;
   className?: string;
-}> = ({ size = 40, color = '#1890ff', className = '' }) => {
+}> = ({ size = 40, color = '#0072ff', className = '' }) => {
   return (
     <div className={`relative ${className}`} style={{ width: size, height: size }}>
       {[0, 1, 2, 3].map((index) => (
@@ -159,7 +159,7 @@ export const ProgressLoader: React.FC<{
   color?: string;
   className?: string;
   showPercentage?: boolean;
-}> = ({ progress = 0, color = '#1890ff', className = '', showPercentage = false }) => {
+>} = ({ progress = 0, color = '#0072ff', className = '', showPercentage = false }) => {
   return (
     <div className={`w-full ${className}`}>
       <div

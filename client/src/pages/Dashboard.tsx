@@ -84,29 +84,29 @@ const Dashboard: React.FC = () => {
 
   const statCardGradients = isDark
     ? [
-        'linear-gradient(135deg, rgba(16, 43, 88, 0.92) 0%, rgba(22, 77, 168, 0.98) 100%)',
-        'linear-gradient(135deg, rgba(12, 52, 93, 0.92) 0%, rgba(20, 118, 163, 0.95) 100%)',
-        'linear-gradient(135deg, rgba(61, 30, 102, 0.9) 0%, rgba(78, 56, 149, 0.98) 100%)',
-        'linear-gradient(135deg, rgba(0, 80, 112, 0.92) 0%, rgba(1, 133, 173, 0.98) 100%)'
+        'linear-gradient(135deg, #0a2a5a 0%, #12438f 100%)',
+        'linear-gradient(135deg, #0c315f 0%, #1759af 100%)',
+        'linear-gradient(135deg, #10386a 0%, #1f66c3 100%)',
+        'linear-gradient(135deg, #153f75 0%, #2772d7 100%)'
       ]
     : [
-        'linear-gradient(135deg, rgba(0, 198, 255, 0.92) 0%, rgba(0, 114, 255, 0.95) 100%)',
-        'linear-gradient(135deg, rgba(72, 206, 141, 0.9) 0%, rgba(44, 172, 209, 0.94) 100%)',
-        'linear-gradient(135deg, rgba(245, 158, 11, 0.92) 0%, rgba(14, 116, 144, 0.92) 100%)',
-        'linear-gradient(135deg, rgba(99, 102, 241, 0.9) 0%, rgba(59, 130, 246, 0.95) 100%)'
+        'linear-gradient(135deg, #63d3ff 0%, #0072ff 100%)',
+        'linear-gradient(135deg, #7ce3ff 0%, #0095ff 100%)',
+        'linear-gradient(135deg, #9beaff 0%, #00a8ff 100%)',
+        'linear-gradient(135deg, #b9f1ff 0%, #00c6ff 100%)'
       ]
 
   const statCardBorder = isDark
-    ? '1px solid rgba(99, 181, 255, 0.22)'
-    : '1px solid rgba(255, 255, 255, 0.55)'
+    ? '1px solid rgba(93, 161, 255, 0.32)'
+    : '1px solid rgba(255, 255, 255, 0.5)'
 
   const statCardShadow = isDark
-    ? '0 32px 60px rgba(2, 12, 28, 0.65)'
-    : '0 28px 52px rgba(0, 114, 255, 0.18)'
+    ? '0 36px 72px rgba(0, 0, 0, 0.55)'
+    : '0 36px 72px rgba(0, 114, 255, 0.2)'
 
   const statValueColor = '#fefefe'
   const statTitleColor = 'rgba(255, 255, 255, 0.9)'
-  const statTextShadow = isDark ? '0 14px 26px rgba(0, 0, 0, 0.45)' : '0 18px 30px rgba(0, 114, 255, 0.35)'
+  const statTextShadow = isDark ? '0 18px 34px rgba(0, 0, 0, 0.45)' : '0 20px 40px rgba(0, 114, 255, 0.26)'
 
   const getStatCardStyle = (index: number) => ({
     background: statCardGradients[index % statCardGradients.length],
@@ -165,7 +165,7 @@ const Dashboard: React.FC = () => {
       align: 'center' as const,
       responsive: ['xs', 'sm', 'md', 'lg', 'xl'] as Breakpoint[],
       render: (text: string) => (
-        <div style={{ textAlign: 'center', fontWeight: 600, color: '#1890ff' }}>
+        <div style={{ textAlign: 'center', fontWeight: 600, color: '#0072ff' }}>
           {text}
         </div>
       ),
@@ -277,7 +277,7 @@ const Dashboard: React.FC = () => {
           font-size: 2rem;
           font-weight: 700;
           margin-bottom: 8px;
-          background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+          background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
@@ -285,14 +285,14 @@ const Dashboard: React.FC = () => {
         
         .dashboard-subtitle {
           font-size: 1rem;
-          color: #6b7280;
+          color: rgba(15, 28, 63, 0.68);
           line-height: 1.5;
         }
         
         .stat-title {
           font-size: 0.875rem;
           font-weight: 500;
-          color: #374151;
+          color: rgba(15, 28, 63, 0.72);
         }
       `}</style>
       <motion.div 

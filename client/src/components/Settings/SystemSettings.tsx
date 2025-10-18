@@ -600,7 +600,7 @@ const SystemSettings: React.FC = () => {
           <Row justify="space-between" align="middle">
             <Col>
               <Space>
-                <InfoCircleOutlined style={{ color: '#1890ff' }} />
+                <InfoCircleOutlined style={{ color: '#0072ff' }} />
                 <Text type="secondary">
                   设置将在保存后立即生效
                 </Text>

@@ -2,35 +2,43 @@
 @import url('./styles/theme-fixes.css');
 
 :root {
-  --app-gradient: linear-gradient(160deg, #00c6ff 0%, #0072ff 45%, #0b1b3a 100%);
-  --glass-surface: rgba(255, 255, 255, 0.6);
-  --glass-surface-strong: rgba(255, 255, 255, 0.72);
-  --glass-border: rgba(255, 255, 255, 0.35);
-  --glass-border-soft: rgba(255, 255, 255, 0.22);
-  --glass-shadow: 0 28px 48px rgba(0, 114, 255, 0.16);
-  --glass-text-primary: rgba(15, 23, 42, 0.9);
-  --glass-text-secondary: rgba(15, 23, 42, 0.64);
-  --glass-text-tertiary: rgba(15, 23, 42, 0.45);
-  --glass-highlight: rgba(0, 198, 255, 0.18);
-  --glass-skeleton-bg: linear-gradient(120deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.32) 100%);
-  --glass-skeleton-shimmer: rgba(255, 255, 255, 0.7);
+  --app-gradient: linear-gradient(160deg, #eaf6ff 0%, #d9edff 50%, #f4fbff 100%);
+  --glass-surface: rgba(255, 255, 255, 0.82);
+  --glass-surface-strong: rgba(255, 255, 255, 0.9);
+  --glass-border: rgba(0, 114, 255, 0.22);
+  --glass-border-soft: rgba(0, 114, 255, 0.12);
+  --glass-shadow: 0 32px 68px rgba(0, 114, 255, 0.18);
+  --glass-text-primary: #0f1c3f;
+  --glass-text-secondary: rgba(15, 28, 63, 0.68);
+  --glass-text-tertiary: rgba(15, 28, 63, 0.48);
+  --glass-highlight: rgba(0, 198, 255, 0.25);
+  --glass-skeleton-bg: linear-gradient(120deg, rgba(255, 255, 255, 0.88) 0%, rgba(255, 255, 255, 0.55) 100%);
+  --glass-skeleton-shimmer: rgba(255, 255, 255, 0.9);
   --glass-card-radius: 22px;
+  --menu-item-hover: rgba(0, 114, 255, 0.1);
+  --menu-item-text: rgba(15, 28, 63, 0.78);
+  --menu-item-icon: rgba(15, 28, 63, 0.68);
+  --menu-item-selected-text: #ffffff;
 }
 
 .dark {
-  --app-gradient: linear-gradient(160deg, #001a3d 0%, #00316d 45%, #050913 100%);
-  --glass-surface: rgba(12, 21, 40, 0.72);
-  --glass-surface-strong: rgba(16, 28, 52, 0.82);
-  --glass-border: rgba(255, 255, 255, 0.12);
-  --glass-border-soft: rgba(255, 255, 255, 0.08);
-  --glass-shadow: 0 32px 60px rgba(0, 0, 0, 0.55);
-  --glass-text-primary: rgba(226, 233, 249, 0.95);
-  --glass-text-secondary: rgba(148, 163, 184, 0.75);
-  --glass-text-tertiary: rgba(148, 163, 184, 0.5);
-  --glass-highlight: rgba(0, 114, 255, 0.24);
-  --glass-skeleton-bg: linear-gradient(120deg, rgba(28, 36, 56, 0.82) 0%, rgba(12, 21, 38, 0.68) 100%);
-  --glass-skeleton-shimmer: rgba(255, 255, 255, 0.3);
+  --app-gradient: linear-gradient(160deg, #020817 0%, #001a3c 45%, #03224f 100%);
+  --glass-surface: rgba(18, 28, 52, 0.78);
+  --glass-surface-strong: rgba(12, 20, 40, 0.88);
+  --glass-border: rgba(93, 161, 255, 0.28);
+  --glass-border-soft: rgba(93, 161, 255, 0.16);
+  --glass-shadow: 0 36px 76px rgba(0, 0, 0, 0.55);
+  --glass-text-primary: rgba(229, 239, 255, 0.95);
+  --glass-text-secondary: rgba(195, 214, 245, 0.75);
+  --glass-text-tertiary: rgba(195, 214, 245, 0.45);
+  --glass-highlight: rgba(0, 114, 255, 0.28);
+  --glass-skeleton-bg: linear-gradient(120deg, rgba(21, 34, 68, 0.85) 0%, rgba(10, 20, 44, 0.7) 100%);
+  --glass-skeleton-shimmer: rgba(95, 172, 255, 0.45);
   --glass-card-radius: 22px;
+  --menu-item-hover: rgba(45, 104, 196, 0.38);
+  --menu-item-text: rgba(214, 225, 247, 0.88);
+  --menu-item-icon: rgba(214, 225, 247, 0.82);
+  --menu-item-selected-text: #f5f9ff;
 }
 
 /* 全局样式重置 */
@@ -191,31 +199,44 @@ html, body {
   height: 46px;
   line-height: 46px;
   padding-inline: 18px !important;
-  color: rgba(15, 23, 42, 0.85) !important;
+  color: var(--menu-item-text) !important;
   background: transparent;
   transition: color 0.3s ease, background 0.35s ease, box-shadow 0.35s ease;
 }
 
-.dark .glass-menu .ant-menu-item {
-  color: rgba(214, 225, 247, 0.88) !important;
-}
-
 .glass-menu .ant-menu-item:not(.ant-menu-item-selected):hover {
-  color: #0b2340 !important;
-  background: rgba(255, 255, 255, 0.42) !important;
+  color: var(--glass-text-primary) !important;
+  background: var(--menu-item-hover) !important;
   box-shadow: 0 16px 30px rgba(0, 114, 255, 0.18);
 }
 
 .dark .glass-menu .ant-menu-item:not(.ant-menu-item-selected):hover {
-  color: #f5f9ff !important;
-  background: rgba(38, 60, 104, 0.68) !important;
   box-shadow: 0 20px 32px rgba(0, 0, 0, 0.38);
+}
+
+.glass-menu .ant-menu-item-icon,
+.glass-menu .ant-menu-item svg {
+  color: var(--menu-item-icon) !important;
+  fill: var(--menu-item-icon) !important;
+  transition: color 0.3s ease, fill 0.3s ease;
+}
+
+.glass-menu .ant-menu-item:not(.ant-menu-item-selected):hover .ant-menu-item-icon,
+.glass-menu .ant-menu-item:not(.ant-menu-item-selected):hover svg {
+  color: var(--glass-text-primary) !important;
+  fill: var(--glass-text-primary) !important;
 }
 
 .glass-menu .ant-menu-item-selected {
   background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%) !important;
-  color: #fdfdff !important;
+  color: var(--menu-item-selected-text) !important;
   box-shadow: 0 20px 36px rgba(0, 114, 255, 0.28);
+}
+
+.glass-menu .ant-menu-item-selected .ant-menu-item-icon,
+.glass-menu .ant-menu-item-selected svg {
+  color: var(--menu-item-selected-text) !important;
+  fill: var(--menu-item-selected-text) !important;
 }
 
 .glass-menu .ant-menu-item-selected::after {
