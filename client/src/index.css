@@ -175,6 +175,93 @@ html, body {
   box-shadow: 0 28px 48px rgba(0, 114, 255, 0.25);
 }
 
+.glass-app-layout .ant-layout-sider,
+.glass-app-layout .ant-layout-sider-children {
+  overflow: hidden !important;
+}
+
+.glass-menu {
+  padding-block: 8px;
+  overflow: visible !important;
+}
+
+.glass-menu .ant-menu-item {
+  margin: 6px 0;
+  border-radius: 18px;
+  height: 46px;
+  line-height: 46px;
+  padding-inline: 18px !important;
+  color: rgba(15, 23, 42, 0.85) !important;
+  background: transparent;
+  transition: color 0.3s ease, background 0.35s ease, box-shadow 0.35s ease;
+}
+
+.dark .glass-menu .ant-menu-item {
+  color: rgba(214, 225, 247, 0.88) !important;
+}
+
+.glass-menu .ant-menu-item:not(.ant-menu-item-selected):hover {
+  color: #0b2340 !important;
+  background: rgba(255, 255, 255, 0.42) !important;
+  box-shadow: 0 16px 30px rgba(0, 114, 255, 0.18);
+}
+
+.dark .glass-menu .ant-menu-item:not(.ant-menu-item-selected):hover {
+  color: #f5f9ff !important;
+  background: rgba(38, 60, 104, 0.68) !important;
+  box-shadow: 0 20px 32px rgba(0, 0, 0, 0.38);
+}
+
+.glass-menu .ant-menu-item-selected {
+  background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%) !important;
+  color: #fdfdff !important;
+  box-shadow: 0 20px 36px rgba(0, 114, 255, 0.28);
+}
+
+.glass-menu .ant-menu-item-selected::after {
+  display: none;
+}
+
+.glass-menu .ant-menu-item .ant-menu-title-content {
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.glass-stat-card {
+  border: none !important;
+  color: #ffffff !important;
+  border-radius: var(--glass-card-radius) !important;
+  overflow: hidden;
+}
+
+.glass-stat-card .ant-card-body {
+  padding: 24px !important;
+}
+
+.glass-stat-card .stat-title,
+.glass-stat-card .glass-stat-title {
+  color: rgba(255, 255, 255, 0.92) !important;
+  text-shadow: 0 12px 26px rgba(0, 0, 0, 0.35);
+  font-weight: 600;
+  letter-spacing: 0.4px;
+}
+
+.glass-stat-card .ant-statistic-content,
+.glass-stat-card .ant-statistic-content-value,
+.glass-stat-card .ant-statistic-content-prefix,
+.glass-stat-card .ant-statistic-content-suffix {
+  color: rgba(255, 255, 255, 0.98) !important;
+}
+
+.glass-stat-card .ant-statistic-content-value-int,
+.glass-stat-card .ant-statistic-content-value-dec {
+  text-shadow: 0 16px 28px rgba(0, 0, 0, 0.35);
+}
+
+.dark .glass-stat-card {
+  border: 1px solid rgba(99, 181, 255, 0.24) !important;
+}
+
 .glass-background {
   position: absolute;
   inset: 0;

@@ -256,6 +256,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           </span>
         </motion.div>
         <Menu
+          className="glass-menu"
           mode="inline"
           selectedKeys={[location.pathname]}
           items={menuItems}
