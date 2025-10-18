@@ -731,7 +731,6 @@ const Containers: React.FC = () => {
       title: <ColumnTitle title="操作" columnKey="action" />,
       key: 'action',
       width: columnWidths.action,
-      fixed: 'right' as const,
       align: 'center' as const,
       responsive: ['xs', 'sm', 'md', 'lg', 'xl'] as Breakpoint[],
       render: (record: Container & { serverId: number }) => {

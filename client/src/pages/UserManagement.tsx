@@ -508,7 +508,6 @@ const UserManagement: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      fixed: 'right' as const,
       align: 'center' as const,
       render: (_: any, record: User) => (
         <Space size="small" style={{ justifyContent: 'center', display: 'flex' }}>

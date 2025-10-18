@@ -293,12 +293,20 @@ html, body {
   color: var(--glass-text-primary) !important;
 }
 
+.light .ant-table-cell {
+  border-color: rgba(0, 114, 255, 0.08) !important;
+}
+
 .dark .ant-table,
 .dark .ant-table-container,
 .dark .ant-table-content,
 .dark .ant-table-cell {
   background: rgba(15, 27, 52, 0.92) !important;
   color: rgba(229, 239, 255, 0.95) !important;
+}
+
+.dark .ant-table-cell {
+  border-color: rgba(99, 181, 255, 0.18) !important;
 }
 
 .light .ant-table-thead > tr > th {
@@ -321,12 +329,53 @@ html, body {
   border-bottom: 1px solid rgba(99, 181, 255, 0.18) !important;
 }
 
-.light .ant-table-tbody > tr:hover > td {
+.ant-table-tbody > tr {
+  transition: background-color 0.3s ease, transform 0.3s ease;
+}
+
+.light .ant-table-tbody > tr:hover,
+.dark .ant-table-tbody > tr:hover {
+  transform: translateY(-2px);
+}
+
+.light .ant-table-tbody > tr:hover > td,
+.light .ant-table-row:hover > td,
+.light .ant-table-row:hover .ant-table-cell {
   background: rgba(0, 114, 255, 0.12) !important;
 }
 
-.dark .ant-table-tbody > tr:hover > td {
+.dark .ant-table-tbody > tr:hover > td,
+.dark .ant-table-row:hover > td,
+.dark .ant-table-row:hover .ant-table-cell {
   background: rgba(30, 54, 96, 0.75) !important;
+}
+
+/* 标签与间距组件配色 */
+.light .ant-tag-default {
+  background: rgba(0, 114, 255, 0.12) !important;
+  border-color: rgba(0, 114, 255, 0.2) !important;
+  color: var(--glass-text-primary) !important;
+}
+
+.dark .ant-tag-default {
+  background: rgba(34, 60, 106, 0.55) !important;
+  border-color: rgba(99, 181, 255, 0.28) !important;
+  color: rgba(229, 239, 255, 0.9) !important;
+}
+
+.ant-tag {
+  border-radius: 12px !important;
+  padding: 2px 12px !important;
+  font-weight: 500 !important;
+  line-height: 22px !important;
+}
+
+.light .ant-space-item {
+  color: var(--glass-text-primary) !important;
+}
+
+.dark .ant-space-item {
+  color: rgba(229, 239, 255, 0.92) !important;
 }
 
 /* 输入框统一背景 */

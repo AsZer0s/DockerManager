@@ -523,7 +523,6 @@ const Servers: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      fixed: 'right' as const,
       align: 'center' as const,
       render: (record: Server) => (
         <Space size="small" style={{ justifyContent: 'center', display: 'flex' }}>
