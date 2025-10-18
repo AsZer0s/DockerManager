@@ -2,9 +2,9 @@
 
 /* 全局主题变量 */
 :root {
-  --primary-color: #1890ff;
-  --primary-hover: #40a9ff;
-  --success-color: #52c41a;
+  --primary-color: #0072ff;
+  --primary-hover: #3690ff;
+
   --warning-color: #faad14;
   --error-color: #ff4d4f;
   --text-color: #000000d9;

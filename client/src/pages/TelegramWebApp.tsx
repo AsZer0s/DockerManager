@@ -290,7 +290,7 @@ const TelegramWebApp: React.FC = () => {
     } else if (lowerStatus.includes('paused')) {
       return <ExclamationCircleOutlined style={{ color: '#faad14' }} />;
     } else if (lowerStatus.includes('created') || lowerStatus.includes('restarting')) {
-      return <LoadingOutlined style={{ color: '#1890ff' }} />;
+      return <LoadingOutlined style={{ color: '#0072ff' }} />;
     } else {
       return <ExclamationCircleOutlined style={{ color: '#faad14' }} />;
     }
@@ -396,7 +396,7 @@ const TelegramWebApp: React.FC = () => {
           />
         </div>
         <div style={{ marginTop: '16px' }}>
-          <Spin indicator={<LoadingOutlined style={{ fontSize: 24, color: '#1890ff' }} spin />} />
+          <Spin indicator={<LoadingOutlined style={{ fontSize: 24, color: '#0072ff' }} spin />} />
         </div>
       </div>
     );
@@ -494,11 +494,11 @@ const TelegramWebApp: React.FC = () => {
           transition: all 0.3s ease !important;
         }
         .telegram-search-input:focus {
-          border-color: #1890ff !important;
-          box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1) !important;
+          border-color: #0072ff !important;
+          box-shadow: 0 0 0 2px rgba(0, 114, 255, 0.12) !important;
         }
         .telegram-search-input:hover {
-          border-color: #1890ff !important;
+          border-color: #0072ff !important;
         }
         
         /* 刷新按钮优化样式 */
@@ -835,7 +835,7 @@ const TelegramWebApp: React.FC = () => {
                       valueStyle={{ 
                         color: getStatusColor(selectedContainer.status) === 'success' ? '#3f8600' : 
                                getStatusColor(selectedContainer.status) === 'error' ? '#cf1322' : 
-                               getStatusColor(selectedContainer.status) === 'warning' ? '#d48806' : '#1890ff'
+                               getStatusColor(selectedContainer.status) === 'warning' ? '#d48806' : '#0072ff'
                       }}
                     />
                   </Col>

@@ -13,6 +13,7 @@ import { useQuery } from 'react-query'
 import { containerAPI, monitoringAPI, serverAPI } from '@/services/api'
 import { useGlobalServers } from '@/hooks/useGlobalServers'
 import { useAuthStore } from '@/stores/authStore'
+import { useThemeStore } from '@/stores/themeStore'
 import { motion } from 'framer-motion'
 import { 
   FadeInText, 
@@ -24,6 +25,7 @@ const { Text } = Typography
 const Dashboard: React.FC = () => {
   const navigate = useNavigate()
   const { user } = useAuthStore()
+  const { isDark } = useThemeStore()
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [refreshCooldown, setRefreshCooldown] = useState(false)
 
@@ -80,6 +82,41 @@ const Dashboard: React.FC = () => {
   const servers = serversData?.data.servers || []
   const containersStatsData = containersStats || { total: 0, running: 0, stopped: 0 }
 
+  const statCardGradients = isDark
+    ? [
+        'linear-gradient(135deg, #0a2a5a 0%, #12438f 100%)',
+        'linear-gradient(135deg, #0c315f 0%, #1759af 100%)',
+        'linear-gradient(135deg, #10386a 0%, #1f66c3 100%)',
+        'linear-gradient(135deg, #153f75 0%, #2772d7 100%)'
+      ]
+    : [
+        'linear-gradient(135deg, #63d3ff 0%, #0072ff 100%)',
+        'linear-gradient(135deg, #7ce3ff 0%, #0095ff 100%)',
+        'linear-gradient(135deg, #9beaff 0%, #00a8ff 100%)',
+        'linear-gradient(135deg, #b9f1ff 0%, #00c6ff 100%)'
+      ]
+
+  const statCardBorder = isDark
+    ? '1px solid rgba(93, 161, 255, 0.32)'
+    : '1px solid rgba(255, 255, 255, 0.5)'
+
+  const statCardShadow = isDark
+    ? '0 36px 72px rgba(0, 0, 0, 0.55)'
+    : '0 36px 72px rgba(0, 114, 255, 0.2)'
+
+  const statValueColor = isDark ? '#fefefe' : '#0f1c3f'
+  const statTitleColor = isDark ? 'rgba(255, 255, 255, 0.9)' : 'rgba(15, 28, 63, 0.78)'
+  const statTextShadow = isDark ? '0 18px 34px rgba(0, 0, 0, 0.45)' : '0 16px 28px rgba(0, 114, 255, 0.18)'
+
+  const getStatCardStyle = (index: number) => ({
+    background: statCardGradients[index % statCardGradients.length],
+    border: statCardBorder,
+    boxShadow: statCardShadow,
+    color: statValueColor,
+    backdropFilter: 'blur(24px)',
+    WebkitBackdropFilter: 'blur(24px)'
+  })
+
   // 防抖刷新函数
   const handleRefresh = useCallback(async () => {
     if (refreshCooldown) {
@@ -128,7 +165,7 @@ const Dashboard: React.FC = () => {
       align: 'center' as const,
       responsive: ['xs', 'sm', 'md', 'lg', 'xl'] as Breakpoint[],
       render: (text: string) => (
-        <div style={{ textAlign: 'center', fontWeight: 600, color: '#1890ff' }}>
+        <div style={{ textAlign: 'center', fontWeight: 600, color: '#0072ff' }}>
           {text}
         </div>
       ),
@@ -240,7 +277,7 @@ const Dashboard: React.FC = () => {
           font-size: 2rem;
           font-weight: 700;
           margin-bottom: 8px;
-          background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+          background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
@@ -248,14 +285,14 @@ const Dashboard: React.FC = () => {
         
         .dashboard-subtitle {
           font-size: 1rem;
-          color: #6b7280;
+          color: rgba(15, 28, 63, 0.68);
           line-height: 1.5;
         }
         
         .stat-title {
           font-size: 0.875rem;
           font-weight: 500;
-          color: #374151;
+          color: rgba(15, 28, 63, 0.72);
         }
       `}</style>
       <motion.div 
@@ -282,19 +319,27 @@ const Dashboard: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1 }}
           >
-            <Card hoverable>
+            <Card
+              hoverable
+              className="glass-stat-card"
+              style={getStatCardStyle(0)}
+            >
               <Statistic
                 title={
                   <SlideInText 
                     text="服务器总数" 
                     direction="left" 
                     delay={0.2}
-                    className="stat-title"
+                    className="stat-title glass-stat-title"
                   />
                 }
                 value={servers.length}
-                prefix={<DatabaseOutlined />}
-                valueStyle={{ color: '#1890ff' }}
+                prefix={<DatabaseOutlined style={{ color: statTitleColor }} />}
+                valueStyle={{ 
+                  color: statValueColor,
+                  fontWeight: 700,
+                  textShadow: statTextShadow
+                }}
               />
             </Card>
           </motion.div>
@@ -305,19 +350,27 @@ const Dashboard: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
           >
-            <Card hoverable>
+            <Card
+              hoverable
+              className="glass-stat-card"
+              style={getStatCardStyle(1)}
+            >
               <Statistic
                 title={
                   <SlideInText 
                     text="在线服务器" 
                     direction="left" 
                     delay={0.3}
-                    className="stat-title"
+                    className="stat-title glass-stat-title"
                   />
                 }
                 value={servers.filter(s => s.is_active && s.status === '在线').length}
-                prefix={<DatabaseOutlined />}
-                valueStyle={{ color: '#52c41a' }}
+                prefix={<DatabaseOutlined style={{ color: statTitleColor }} />}
+                valueStyle={{ 
+                  color: statValueColor,
+                  fontWeight: 700,
+                  textShadow: statTextShadow
+                }}
               />
             </Card>
           </motion.div>
@@ -328,19 +381,27 @@ const Dashboard: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.3 }}
           >
-            <Card hoverable>
+            <Card
+              hoverable
+              className="glass-stat-card"
+              style={getStatCardStyle(2)}
+            >
               <Statistic
                 title={
                   <SlideInText 
                     text="离线服务器" 
                     direction="left" 
                     delay={0.4}
-                    className="stat-title"
+                    className="stat-title glass-stat-title"
                   />
                 }
                 value={servers.filter(s => s.is_active && s.status === '离线').length}
-                prefix={<DatabaseOutlined />}
-                valueStyle={{ color: '#ff4d4f' }}
+                prefix={<DatabaseOutlined style={{ color: statTitleColor }} />}
+                valueStyle={{ 
+                  color: statValueColor,
+                  fontWeight: 700,
+                  textShadow: statTextShadow
+                }}
               />
             </Card>
           </motion.div>
@@ -351,19 +412,27 @@ const Dashboard: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.4 }}
           >
-            <Card hoverable>
+            <Card
+              hoverable
+              className="glass-stat-card"
+              style={getStatCardStyle(3)}
+            >
               <Statistic
                 title={
                   <SlideInText 
                     text="容器总数" 
                     direction="left" 
                     delay={0.5}
-                    className="stat-title"
+                    className="stat-title glass-stat-title"
                   />
                 }
                 value={containersStatsData.total}
-                prefix={<ContainerOutlined />}
-                valueStyle={{ color: '#52c41a' }}
+                prefix={<ContainerOutlined style={{ color: statTitleColor }} />}
+                valueStyle={{ 
+                  color: statValueColor,
+                  fontWeight: 700,
+                  textShadow: statTextShadow
+                }}
               />
             </Card>
           </motion.div>

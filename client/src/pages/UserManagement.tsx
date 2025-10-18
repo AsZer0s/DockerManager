@@ -368,9 +368,9 @@ const UserManagement: React.FC = () => {
       align: 'center' as const,
       render: (text: string) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
-          <UserOutlined style={{ color: '#1890ff' }} />
-          <div style={{ fontWeight: 600, color: '#1890ff' }}>
-            {text}
+          <UserOutlined style={{ color: '#0072ff' }} />
+          <div style={{ fontWeight: 600, color: '#0072ff' }}>
+
           </div>
         </div>
       )
@@ -476,8 +476,8 @@ const UserManagement: React.FC = () => {
           return (
             <Tooltip title="管理员可访问全部容器">
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                <ContainerOutlined style={{ color: '#1890ff' }} />
-                <span style={{ fontWeight: 500, color: '#1890ff' }}>全部</span>
+                <ContainerOutlined style={{ color: '#0072ff' }} />
+                <span style={{ fontWeight: 500, color: '#0072ff' }}>全部</span>
               </div>
             </Tooltip>
           )
@@ -486,7 +486,7 @@ const UserManagement: React.FC = () => {
         return (
           <Tooltip title={`可访问 ${containerIds?.length || 0} 个容器`}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-              <ContainerOutlined style={{ color: '#1890ff' }} />
+              <ContainerOutlined style={{ color: '#0072ff' }} />
               <span style={{ fontWeight: 500 }}>{containerIds?.length || 0}</span>
             </div>
           </Tooltip>
@@ -508,7 +508,6 @@ const UserManagement: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      fixed: 'right' as const,
       align: 'center' as const,
       render: (_: any, record: User) => (
         <Space size="small" style={{ justifyContent: 'center', display: 'flex' }}>

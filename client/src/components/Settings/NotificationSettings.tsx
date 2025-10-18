@@ -379,7 +379,7 @@ const NotificationSettings: React.FC = () => {
         footer={null}
       >
         <div style={{ textAlign: 'center', padding: '20px 0' }}>
-          <BellOutlined style={{ fontSize: 48, color: '#1890ff', marginBottom: 16 }} />
+          <BellOutlined style={{ fontSize: 48, color: '#0072ff', marginBottom: 16 }} />
           <p>正在发送 {testType} 测试通知...</p>
           <Text type="secondary">
             请检查您的 {testType === 'email' ? '邮箱' : 

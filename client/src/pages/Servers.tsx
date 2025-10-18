@@ -403,7 +403,7 @@ const Servers: React.FC = () => {
       fixed: 'left' as const,
       align: 'center' as const,
       render: (text: string) => (
-        <div style={{ fontWeight: 600, color: '#1890ff', textAlign: 'center' }}>
+        <div style={{ fontWeight: 600, color: '#0072ff', textAlign: 'center' }}>
           {text}
         </div>
       ),
@@ -523,7 +523,6 @@ const Servers: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      fixed: 'right' as const,
       align: 'center' as const,
       render: (record: Server) => (
         <Space size="small" style={{ justifyContent: 'center', display: 'flex' }}>
@@ -667,8 +666,8 @@ const Servers: React.FC = () => {
               onClick={() => handleStatusFilter('all')}
               style={{ 
                 cursor: 'pointer',
-                border: statusFilter === 'all' ? '2px solid #1890ff' : '1px solid #d9d9d9',
-                backgroundColor: statusFilter === 'all' ? '#f0f8ff' : 'transparent'
+                border: statusFilter === 'all' ? '2px solid #0072ff' : '1px solid #d9d9d9',
+                backgroundColor: statusFilter === 'all' ? 'rgba(0, 114, 255, 0.08)' : 'transparent'
               }}
             >
               <Statistic
@@ -681,7 +680,7 @@ const Servers: React.FC = () => {
                   />
                 }
                 value={allServers.length}
-                valueStyle={{ color: '#1890ff' }}
+                valueStyle={{ color: '#0072ff' }}
               />
             </Card>
           </motion.div>

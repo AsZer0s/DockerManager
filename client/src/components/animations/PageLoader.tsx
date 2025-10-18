@@ -33,7 +33,7 @@ export const PageLoader: React.FC<PageLoaderProps> = ({
         className="text-center"
       >
         <Spin
-          indicator={<LoadingOutlined style={{ fontSize: 48, color: '#1890ff' }} spin />}
+          indicator={<LoadingOutlined style={{ fontSize: 48, color: '#0072ff' }} spin />}
           size={size}
         />
         <motion.div

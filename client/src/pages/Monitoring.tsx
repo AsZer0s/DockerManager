@@ -224,7 +224,7 @@ const Monitoring: React.FC = () => {
           box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
         }
         .monitoring-card:hover .card-title {
-          color: #1890ff;
+          color: #0072ff;
         }
         /* 进度条悬停动效 */
         .progress-container {
@@ -290,7 +290,7 @@ const Monitoring: React.FC = () => {
               title="总服务器数"
               value={servers.length}
               prefix={<DatabaseOutlined />}
-              valueStyle={{ color: '#1890ff' }}
+              valueStyle={{ color: '#0072ff' }}
             />
           </Card>
         </Col>
@@ -338,7 +338,7 @@ const Monitoring: React.FC = () => {
           <Col span={24}>
             <Card>
               <div style={{ textAlign: 'center', padding: '40px 0' }}>
-                <MonitorOutlined style={{ fontSize: '48px', color: '#1890ff', marginBottom: '16px' }} />
+                <MonitorOutlined style={{ fontSize: '48px', color: '#0072ff', marginBottom: '16px' }} />
                 <Title level={4} type="secondary">正在加载监控数据...</Title>
                 <Text type="secondary">请稍候，正在获取服务器状态和性能数据</Text>
               </div>
@@ -425,7 +425,7 @@ const Monitoring: React.FC = () => {
                   <div>
                     <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 4 }}>
                       <Text strong>实时网络</Text>
-                      <ThunderboltOutlined className="network-icon" style={{ color: '#1890ff' }} />
+                      <ThunderboltOutlined className="network-icon" style={{ color: '#0072ff' }} />
                     </Space>
                     <Space style={{ width: '100%', justifyContent: 'space-between', fontSize: 12 }}>
                       <Text type="secondary">

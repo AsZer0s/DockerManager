@@ -37,7 +37,7 @@ const ThemeToaster: React.FC = () => {
         },
         loading: {
           iconTheme: {
-            primary: isDark ? '#1890ff' : '#1890ff',
+            primary: isDark ? '#0072ff' : '#0072ff',
             secondary: isDark ? '#1f1f1f' : '#ffffff',
           },
         },
