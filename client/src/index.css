@@ -295,6 +295,7 @@ html, body {
 
 .light .ant-table-cell {
   border-color: rgba(0, 114, 255, 0.08) !important;
+  background-color: var(--glass-surface) !important;
 }
 
 .dark .ant-table,
@@ -307,6 +308,7 @@ html, body {
 
 .dark .ant-table-cell {
   border-color: rgba(99, 181, 255, 0.18) !important;
+  background-color: rgba(15, 27, 52, 0.92) !important;
 }
 
 .light .ant-table-thead > tr > th {
@@ -533,6 +535,33 @@ html, body {
 .dark .ant-menu-item:hover,
 .dark .ant-menu-submenu-title:hover {
   background: rgba(45, 104, 196, 0.28) !important;
+  color: rgba(229, 239, 255, 0.95) !important;
+}
+
+.light .ant-menu-item-selected,
+.light .ant-menu-submenu-title-selected {
+  background: rgba(0, 114, 255, 0.2) !important;
+  color: #ffffff !important;
+  box-shadow: 0 18px 32px rgba(0, 114, 255, 0.18) !important;
+}
+
+.light .ant-menu-item-selected .ant-menu-item-icon,
+.light .ant-menu-item-selected svg,
+.light .ant-menu-item-selected .ant-menu-title-content {
+  color: #ffffff !important;
+}
+
+.dark .ant-menu-item-selected,
+.dark .ant-menu-submenu-title-selected {
+  background: rgba(57, 102, 194, 0.45) !important;
+  color: rgba(245, 249, 255, 0.96) !important;
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.45) !important;
+}
+
+.dark .ant-menu-item-selected .ant-menu-item-icon,
+.dark .ant-menu-item-selected svg,
+.dark .ant-menu-item-selected .ant-menu-title-content {
+  color: rgba(245, 249, 255, 0.96) !important;
 }
 
 .glass-stat-card .stat-title,
