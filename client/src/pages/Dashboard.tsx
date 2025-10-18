@@ -104,9 +104,9 @@ const Dashboard: React.FC = () => {
     ? '0 36px 72px rgba(0, 0, 0, 0.55)'
     : '0 36px 72px rgba(0, 114, 255, 0.2)'
 
-  const statValueColor = '#fefefe'
-  const statTitleColor = 'rgba(255, 255, 255, 0.9)'
-  const statTextShadow = isDark ? '0 18px 34px rgba(0, 0, 0, 0.45)' : '0 20px 40px rgba(0, 114, 255, 0.26)'
+  const statValueColor = isDark ? '#fefefe' : '#0f1c3f'
+  const statTitleColor = isDark ? 'rgba(255, 255, 255, 0.9)' : 'rgba(15, 28, 63, 0.78)'
+  const statTextShadow = isDark ? '0 18px 34px rgba(0, 0, 0, 0.45)' : '0 16px 28px rgba(0, 114, 255, 0.18)'
 
   const getStatCardStyle = (index: number) => ({
     background: statCardGradients[index % statCardGradients.length],
