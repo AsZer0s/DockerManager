@@ -259,6 +259,60 @@ html, body {
   padding: 24px !important;
 }
 
+/* 全局卡片配色 */
+.light .ant-card,
+.light .ant-card-head,
+.light .ant-card-body {
+  background: var(--glass-surface) !important;
+  border-color: rgba(0, 114, 255, 0.14) !important;
+}
+
+.dark .ant-card,
+.dark .ant-card-head,
+.dark .ant-card-body {
+  background: var(--glass-surface) !important;
+  border-color: rgba(93, 161, 255, 0.2) !important;
+}
+
+.light .ant-card-head-title,
+.dark .ant-card-head-title {
+  color: var(--glass-text-primary) !important;
+}
+
+.light .ant-card-head,
+.dark .ant-card-head {
+  border-bottom-color: var(--glass-border-soft) !important;
+}
+
+/* 输入框统一背景 */
+.light .ant-input,
+.light .ant-input-affix-wrapper,
+.light .ant-input-affix-wrapper .ant-input {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-color: rgba(0, 114, 255, 0.18) !important;
+  color: var(--glass-text-primary) !important;
+}
+
+.dark .ant-input,
+.dark .ant-input-affix-wrapper,
+.dark .ant-input-affix-wrapper .ant-input {
+  background: rgba(21, 32, 58, 0.9) !important;
+  border-color: rgba(99, 181, 255, 0.28) !important;
+  color: var(--glass-text-primary) !important;
+}
+
+.ant-input-affix-wrapper .ant-input {
+  background: transparent !important;
+}
+
+.light .ant-input::placeholder {
+  color: rgba(15, 28, 63, 0.45) !important;
+}
+
+.dark .ant-input::placeholder {
+  color: rgba(195, 214, 245, 0.55) !important;
+}
+
 .glass-stat-card .stat-title,
 .glass-stat-card .glass-stat-title {
   color: rgba(255, 255, 255, 0.92) !important;
