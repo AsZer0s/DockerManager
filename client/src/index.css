@@ -548,15 +548,29 @@ html, body {
 
 .light .ant-menu-item-selected,
 .light .ant-menu-submenu-title-selected {
-  background: rgba(0, 114, 255, 0.2) !important;
+  background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%) !important;
   color: #ffffff !important;
-  box-shadow: 0 18px 32px rgba(0, 114, 255, 0.18) !important;
+  box-shadow: 0 20px 36px rgba(0, 114, 255, 0.28) !important;
 }
 
 .light .ant-menu-item-selected .ant-menu-item-icon,
 .light .ant-menu-item-selected svg,
 .light .ant-menu-item-selected .ant-menu-title-content {
   color: #ffffff !important;
+}
+
+/* 确保glass-menu在浅色模式下的选中状态文字清晰可见 */
+.light .glass-menu .ant-menu-item-selected {
+  background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 20px 36px rgba(0, 114, 255, 0.28) !important;
+}
+
+.light .glass-menu .ant-menu-item-selected .ant-menu-item-icon,
+.light .glass-menu .ant-menu-item-selected svg,
+.light .glass-menu .ant-menu-item-selected .ant-menu-title-content {
+  color: #ffffff !important;
+  fill: #ffffff !important;
 }
 
 .dark .ant-menu-item-selected,
