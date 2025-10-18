@@ -370,12 +370,54 @@ html, body {
   line-height: 22px !important;
 }
 
+.light .ant-tag-green,
+.light .ant-tag-success {
+  background: rgba(34, 197, 94, 0.16) !important;
+  border-color: rgba(34, 197, 94, 0.22) !important;
+  color: #0f5132 !important;
+}
+
+.dark .ant-tag-green,
+.dark .ant-tag-success {
+  background: rgba(46, 164, 108, 0.28) !important;
+  border-color: rgba(99, 181, 255, 0.18) !important;
+  color: rgba(214, 242, 223, 0.92) !important;
+}
+
+.light .ant-tag-red,
+.light .ant-tag-error {
+  background: rgba(244, 63, 94, 0.16) !important;
+  border-color: rgba(244, 63, 94, 0.22) !important;
+  color: #7f1d1d !important;
+}
+
+.dark .ant-tag-red,
+.dark .ant-tag-error {
+  background: rgba(220, 38, 38, 0.28) !important;
+  border-color: rgba(220, 65, 65, 0.35) !important;
+  color: rgba(255, 214, 214, 0.92) !important;
+}
+
+.light .ant-tag-blue {
+  background: rgba(0, 114, 255, 0.18) !important;
+  border-color: rgba(0, 114, 255, 0.26) !important;
+  color: var(--glass-text-primary) !important;
+}
+
+.dark .ant-tag-blue {
+  background: rgba(45, 104, 196, 0.32) !important;
+  border-color: rgba(99, 181, 255, 0.32) !important;
+  color: rgba(214, 225, 247, 0.9) !important;
+}
+
 .light .ant-space-item {
   color: var(--glass-text-primary) !important;
+  background: transparent !important;
 }
 
 .dark .ant-space-item {
   color: rgba(229, 239, 255, 0.92) !important;
+  background: transparent !important;
 }
 
 /* 输入框统一背景 */
