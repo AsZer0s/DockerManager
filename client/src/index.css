@@ -284,6 +284,51 @@ html, body {
   border-bottom-color: var(--glass-border-soft) !important;
 }
 
+/* 表格全局样式 */
+.light .ant-table,
+.light .ant-table-container,
+.light .ant-table-content,
+.light .ant-table-cell {
+  background: var(--glass-surface) !important;
+  color: var(--glass-text-primary) !important;
+}
+
+.dark .ant-table,
+.dark .ant-table-container,
+.dark .ant-table-content,
+.dark .ant-table-cell {
+  background: rgba(15, 27, 52, 0.92) !important;
+  color: rgba(229, 239, 255, 0.95) !important;
+}
+
+.light .ant-table-thead > tr > th {
+  background: rgba(0, 114, 255, 0.08) !important;
+  color: rgba(15, 28, 63, 0.75) !important;
+  border-bottom: 1px solid rgba(0, 114, 255, 0.12) !important;
+}
+
+.dark .ant-table-thead > tr > th {
+  background: rgba(16, 36, 74, 0.88) !important;
+  color: rgba(214, 225, 247, 0.86) !important;
+  border-bottom: 1px solid rgba(99, 181, 255, 0.22) !important;
+}
+
+.light .ant-table-tbody > tr > td {
+  border-bottom: 1px solid rgba(0, 114, 255, 0.08) !important;
+}
+
+.dark .ant-table-tbody > tr > td {
+  border-bottom: 1px solid rgba(99, 181, 255, 0.18) !important;
+}
+
+.light .ant-table-tbody > tr:hover > td {
+  background: rgba(0, 114, 255, 0.12) !important;
+}
+
+.dark .ant-table-tbody > tr:hover > td {
+  background: rgba(30, 54, 96, 0.75) !important;
+}
+
 /* 输入框统一背景 */
 .light .ant-input,
 .light .ant-input-affix-wrapper,
@@ -311,6 +356,92 @@ html, body {
 
 .dark .ant-input::placeholder {
   color: rgba(195, 214, 245, 0.55) !important;
+}
+
+/* 按钮配色 */
+.light .ant-btn {
+  background: rgba(255, 255, 255, 0.9) !important;
+  color: var(--glass-text-primary) !important;
+  border-color: rgba(0, 114, 255, 0.18) !important;
+  box-shadow: 0 14px 32px rgba(0, 114, 255, 0.1) !important;
+  transition: all 0.3s ease;
+}
+
+.light .ant-btn:hover {
+  background: rgba(0, 114, 255, 0.16) !important;
+  border-color: rgba(0, 114, 255, 0.32) !important;
+  color: var(--glass-text-primary) !important;
+}
+
+.light .ant-btn-primary {
+  background: linear-gradient(135deg, #63d3ff 0%, #0072ff 100%) !important;
+  border-color: transparent !important;
+  color: #ffffff !important;
+  box-shadow: 0 18px 38px rgba(0, 114, 255, 0.22) !important;
+}
+
+.light .ant-btn-primary:hover {
+  background: linear-gradient(135deg, #7ce3ff 0%, #3690ff 100%) !important;
+}
+
+.dark .ant-btn {
+  background: rgba(21, 32, 58, 0.88) !important;
+  color: rgba(229, 239, 255, 0.95) !important;
+  border-color: rgba(99, 181, 255, 0.28) !important;
+  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.45) !important;
+  transition: all 0.3s ease;
+}
+
+.dark .ant-btn:hover {
+  background: rgba(45, 70, 120, 0.88) !important;
+  border-color: rgba(99, 181, 255, 0.45) !important;
+}
+
+.dark .ant-btn-primary {
+  background: linear-gradient(135deg, #1f66c3 0%, #63b5ff 100%) !important;
+  border-color: transparent !important;
+  color: #f5f9ff !important;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.55) !important;
+}
+
+.dark .ant-btn-primary:hover {
+  background: linear-gradient(135deg, #2772d7 0%, #7cc4ff 100%) !important;
+}
+
+/* 菜单配色 */
+.light .ant-menu,
+.light .ant-menu-sub,
+.light .ant-menu-inline {
+  background: rgba(255, 255, 255, 0.78) !important;
+  border-right: 1px solid rgba(0, 114, 255, 0.12) !important;
+}
+
+.dark .ant-menu,
+.dark .ant-menu-sub,
+.dark .ant-menu-inline {
+  background: rgba(12, 20, 40, 0.86) !important;
+  border-right: 1px solid rgba(93, 161, 255, 0.22) !important;
+}
+
+.light .ant-menu-item,
+.light .ant-menu-submenu-title {
+  color: rgba(15, 28, 63, 0.78) !important;
+}
+
+.dark .ant-menu-item,
+.dark .ant-menu-submenu-title {
+  color: rgba(214, 225, 247, 0.86) !important;
+}
+
+.light .ant-menu-item:hover,
+.light .ant-menu-submenu-title:hover {
+  background: rgba(0, 114, 255, 0.12) !important;
+  color: var(--glass-text-primary) !important;
+}
+
+.dark .ant-menu-item:hover,
+.dark .ant-menu-submenu-title:hover {
+  background: rgba(45, 104, 196, 0.28) !important;
 }
 
 .glass-stat-card .stat-title,
