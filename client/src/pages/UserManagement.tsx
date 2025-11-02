@@ -406,11 +406,7 @@ const UserManagement: React.FC = () => {
       render: (role: string) => (
         <Tag 
           color={role === 'admin' ? 'red' : 'blue'}
-          style={{ 
-            margin: 0,
-            borderRadius: '12px',
-            fontWeight: 500
-          }}
+          className="user-tag"
         >
           {role === 'admin' ? '管理员' : '用户'}
         </Tag>
@@ -425,11 +421,7 @@ const UserManagement: React.FC = () => {
       render: (isActive: boolean) => (
         <Tag 
           color={isActive ? 'green' : 'red'}
-          style={{ 
-            margin: 0,
-            borderRadius: '12px',
-            fontWeight: 500
-          }}
+          className="user-tag"
         >
           {isActive ? '活跃' : '禁用'}
         </Tag>
@@ -514,6 +506,7 @@ const UserManagement: React.FC = () => {
           <Button
             size="small"
             type="link"
+            className="action-button"
             icon={<EditOutlined />}
             onClick={() => handleEditUser(record)}
           >
@@ -522,6 +515,7 @@ const UserManagement: React.FC = () => {
           <Button
             size="small"
             type="link"
+            className="action-button"
             icon={<DatabaseOutlined />}
             onClick={() => handleManageServers(record)}
           >
@@ -530,6 +524,7 @@ const UserManagement: React.FC = () => {
           <Button
             size="small"
             type="link"
+            className="action-button"
             icon={<ContainerOutlined />}
             onClick={() => handleManageContainers(record)}
           >
@@ -546,6 +541,7 @@ const UserManagement: React.FC = () => {
                 size="small"
                 type="link"
                 danger
+                className="action-button"
                 icon={<DeleteOutlined />}
               >
                 删除
@@ -558,86 +554,279 @@ const UserManagement: React.FC = () => {
   ]
 
   return (
-    <div style={{ padding: '0 24px' }}>
+    <div>
       <style>{`
-        /* 页面标题渐变效果 */
+        /* Apple-style 用户管理 */
+        .user-management-container {
+          background: #f8fafc;
+          min-height: 100vh;
+          padding: 24px;
+        }
+        
+        .user-management-header {
+          background: white;
+          border-radius: 20px;
+          padding: 32px;
+          margin-bottom: 24px;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
         .page-title {
-          font-size: 2rem !important;
+          font-size: 2.5rem !important;
           font-weight: 700 !important;
           margin-bottom: 8px !important;
-          background: linear-gradient(135deg, #3b82f6, #8b5cf6) !important;
+          background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%) !important;
           -webkit-background-clip: text !important;
           -webkit-text-fill-color: transparent !important;
           background-clip: text !important;
           color: transparent !important;
+          letter-spacing: -0.02em !important;
+        }
+        
+        .page-description {
+          color: #6b7280 !important;
+          font-size: 1.1rem !important;
+          font-weight: 400 !important;
+        }
+        
+        .user-table-card {
+          background: white;
+          border-radius: 20px;
+          overflow: hidden;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+          border: 1px solid #e5e7eb;
+        }
+        
+        .table-header {
+          padding: 24px 32px;
+          border-bottom: 1px solid #e5e7eb;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        
+        .table-title {
+          font-size: 1.3rem !important;
+          font-weight: 600 !important;
+          color: #1f2937 !important;
+          margin: 0 !important;
+        }
+        
+        .add-user-btn {
+          border-radius: 12px !important;
+          font-weight: 600 !important;
+          height: 44px !important;
+          padding: 0 24px !important;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+          border: none !important;
+          box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3) !important;
+          background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%) !important;
+        }
+        
+        .add-user-btn:hover {
+          transform: translateY(-2px) !important;
+          box-shadow: 0 6px 16px rgba(0, 122, 255, 0.4) !important;
+        }
+        
+        .ant-table {
+          font-size: 0.95rem !important;
+        }
+        
+        .ant-table-thead > tr > th {
+          background: #f8fafc !important;
+          border-bottom: 2px solid #e5e7eb !important;
+          font-weight: 600 !important;
+          color: #374151 !important;
+          padding: 16px 8px !important;
+        }
+        
+        .ant-table-tbody > tr > td {
+          padding: 16px 8px !important;
+          border-bottom: 1px solid #f1f5f9 !important;
+        }
+        
+        .ant-table-tbody > tr:hover > td {
+          background: #f8fafc !important;
+        }
+        
+        .table-row-light {
+          background: white !important;
+        }
+        
+        .table-row-dark {
+          background: #fafbfc !important;
+        }
+        
+        .action-button {
+          border-radius: 8px !important;
+          font-weight: 500 !important;
+          height: 32px !important;
+          padding: 0 12px !important;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+          border: none !important;
+        }
+        
+        .action-button:hover {
+          transform: translateY(-1px) !important;
+        }
+        
+        .user-tag {
+          border-radius: 12px !important;
+          font-weight: 500 !important;
+          padding: 4px 12px !important;
+          border: none !important;
+        }
+        
+        .modal-form .ant-form-item-label > label {
+          font-weight: 600 !important;
+          color: #374151 !important;
+          font-size: 0.95rem !important;
+        }
+        
+        .modal-input {
+          border-radius: 12px !important;
+          border: 2px solid #e5e7eb !important;
+          padding: 12px 16px !important;
+          font-size: 1rem !important;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }
+        
+        .modal-input:hover {
+          border-color: #007AFF !important;
+        }
+        
+        .modal-input:focus {
+          border-color: #007AFF !important;
+          box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1) !important;
+        }
+        
+        .modal-button {
+          border-radius: 12px !important;
+          height: 44px !important;
+          font-weight: 600 !important;
+          padding: 0 24px !important;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }
+        
+        .modal-button-primary {
+          background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%) !important;
+          border: none !important;
+          box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3) !important;
+        }
+        
+        .modal-button-primary:hover {
+          transform: translateY(-2px) !important;
+          box-shadow: 0 6px 16px rgba(0, 122, 255, 0.4) !important;
+        }
+        
+        .modal-button-default {
+          background: #f3f4f6 !important;
+          border: 2px solid #e5e7eb !important;
+          color: #374151 !important;
+        }
+        
+        .modal-button-default:hover {
+          background: #e5e7eb !important;
+          border-color: #d1d5db !important;
         }
       `}</style>
-      <motion.div 
-        style={{ marginBottom: 24 }}
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-      >
-        <Typography.Title level={1} className="page-title">
-          用户管理
-        </Typography.Title>
-        <Text type="secondary">管理用户账户和权限设置</Text>
-      </motion.div>
+      
+      <div className="user-management-container">
+        <motion.div 
+          className="user-management-header"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          <Typography.Title level={1} className="page-title">
+            用户管理
+          </Typography.Title>
+          <Typography.Text className="page-description">
+            管理用户账户、角色权限和访问控制
+          </Typography.Text>
+        </motion.div>
 
-      <Card>
-        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Title level={4} style={{ margin: 0 }}>用户列表</Title>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => setVisible(true)}
-          >
-            添加用户
-          </Button>
-        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+        >
+          <div className="user-table-card">
+            <div className="table-header">
+              <Title level={3} className="table-title">用户列表</Title>
+              <Button
+                type="primary"
+                className="add-user-btn"
+                icon={<PlusOutlined />}
+                onClick={() => setVisible(true)}
+                size="large"
+              >
+                添加用户
+              </Button>
+            </div>
 
-        <Table
-          columns={columns}
-          dataSource={usersData}
-          loading={usersLoading}
-          rowKey="id"
-          pagination={{
-            pageSize: 10,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total) => `共 ${total} 个用户`,
-            style: { padding: '16px 24px' }
-          }}
-          scroll={{ x: 1200 }}
-          size="middle"
-          style={{
-            borderRadius: '8px'
-          }}
-          rowClassName={(_, index) => 
-            index % 2 === 0 ? 'table-row-light' : 'table-row-dark'
-          }
-        />
-      </Card>
+                    <div style={{ padding: '0 32px 32px' }}>
+              <Table
+                columns={columns}
+                dataSource={usersData}
+                loading={usersLoading}
+                rowKey="id"
+                pagination={{
+                  pageSize: 10,
+                  showSizeChanger: true,
+                  showQuickJumper: true,
+                  showTotal: (total) => `共 ${total} 个用户`,
+                  style: { padding: '16px 0' }
+                }}
+                scroll={{ x: 1200 }}
+                size="middle"
+                rowClassName={(_, index) => 
+                  index % 2 === 0 ? 'table-row-light' : 'table-row-dark'
+                }
+              />
+            </div>
+          </div>
+        </motion.div>
+      </div>
 
       {/* 创建用户模态框 */}
       <Modal
-        title="添加用户"
+        title={
+          <div style={{ textAlign: 'center', padding: '8px 0' }}>
+            <div style={{ 
+              fontSize: '1.5rem', 
+              fontWeight: 600, 
+              background: 'linear-gradient(135deg, #007AFF 0%, #5856D6 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              color: 'transparent'
+            }}>
+              添加用户
+            </div>
+          </div>
+        }
         open={visible}
         onCancel={() => setVisible(false)}
         footer={null}
         width={500}
+        styles={{
+          body: { padding: '24px 32px 32px' },
+          content: { borderRadius: '20px', overflow: 'hidden' }
+        }}
       >
         <Form
           form={form}
           layout="vertical"
           onFinish={handleCreateUser}
+          className="modal-form"
         >
           <Form.Item
             label="用户名"
             name="username"
             rules={[{ required: true, message: '请输入用户名' }]}
           >
-            <Input placeholder="请输入用户名" />
+            <Input placeholder="请输入用户名" className="modal-input" />
           </Form.Item>
 
           <Form.Item
@@ -648,7 +837,7 @@ const UserManagement: React.FC = () => {
               { type: 'email', message: '请输入有效的邮箱地址' }
             ]}
           >
-            <Input placeholder="请输入邮箱" />
+            <Input placeholder="请输入邮箱" className="modal-input" />
           </Form.Item>
 
           <Form.Item
@@ -659,7 +848,7 @@ const UserManagement: React.FC = () => {
               { min: 6, message: '密码至少6个字符' }
             ]}
           >
-            <Input.Password placeholder="请输入密码" />
+            <Input.Password placeholder="请输入密码" className="modal-input" />
           </Form.Item>
 
           <Form.Item
@@ -667,17 +856,23 @@ const UserManagement: React.FC = () => {
             name="role"
             rules={[{ required: true, message: '请选择角色' }]}
           >
-            <Select placeholder="请选择角色">
+            <Select placeholder="请选择角色" className="modal-input">
               <Option value="user">用户</Option>
               <Option value="admin">管理员</Option>
             </Select>
           </Form.Item>
 
-          <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
-            <Space>
-              <Button onClick={() => setVisible(false)}>取消</Button>
+          <Form.Item style={{ marginBottom: 0, textAlign: 'right', marginTop: 32 }}>
+            <Space size={12}>
+              <Button 
+                className="modal-button modal-button-default"
+                onClick={() => setVisible(false)}
+              >
+                取消
+              </Button>
               <Button 
                 type="primary" 
+                className="modal-button modal-button-primary"
                 htmlType="submit"
                 loading={createUserMutation.isLoading}
               >
@@ -690,23 +885,42 @@ const UserManagement: React.FC = () => {
 
       {/* 编辑用户模态框 */}
       <Modal
-        title="编辑用户"
+        title={
+          <div style={{ textAlign: 'center', padding: '8px 0' }}>
+            <div style={{ 
+              fontSize: '1.5rem', 
+              fontWeight: 600, 
+              background: 'linear-gradient(135deg, #007AFF 0%, #5856D6 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              color: 'transparent'
+            }}>
+              编辑用户
+            </div>
+          </div>
+        }
         open={!!editingUser}
         onCancel={() => setEditingUser(null)}
         footer={null}
         width={500}
+        styles={{
+          body: { padding: '24px 32px 32px' },
+          content: { borderRadius: '20px', overflow: 'hidden' }
+        }}
       >
         <Form
           form={editForm}
           layout="vertical"
           onFinish={handleUpdateUser}
+          className="modal-form"
         >
           <Form.Item
             label="用户名"
             name="username"
             rules={[{ required: true, message: '请输入用户名' }]}
           >
-            <Input placeholder="请输入用户名" />
+            <Input placeholder="请输入用户名" className="modal-input" />
           </Form.Item>
 
           <Form.Item
@@ -717,7 +931,7 @@ const UserManagement: React.FC = () => {
               { type: 'email', message: '请输入有效的邮箱地址' }
             ]}
           >
-            <Input placeholder="请输入邮箱" />
+            <Input placeholder="请输入邮箱" className="modal-input" />
           </Form.Item>
 
           <Form.Item
@@ -725,7 +939,7 @@ const UserManagement: React.FC = () => {
             name="role"
             rules={[{ required: true, message: '请选择角色' }]}
           >
-            <Select placeholder="请选择角色">
+            <Select placeholder="请选择角色" className="modal-input">
               <Option value="user">用户</Option>
               <Option value="admin">管理员</Option>
             </Select>
@@ -736,17 +950,23 @@ const UserManagement: React.FC = () => {
             name="isActive"
             valuePropName="checked"
           >
-            <Select placeholder="请选择状态">
+            <Select placeholder="请选择状态" className="modal-input">
               <Option value={true}>活跃</Option>
               <Option value={false}>禁用</Option>
             </Select>
           </Form.Item>
 
-          <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
-            <Space>
-              <Button onClick={() => setEditingUser(null)}>取消</Button>
+          <Form.Item style={{ marginBottom: 0, textAlign: 'right', marginTop: 32 }}>
+            <Space size={12}>
+              <Button 
+                className="modal-button modal-button-default"
+                onClick={() => setEditingUser(null)}
+              >
+                取消
+              </Button>
               <Button 
                 type="primary" 
+                className="modal-button modal-button-primary"
                 htmlType="submit"
                 loading={updateUserMutation.isLoading}
               >
@@ -759,11 +979,32 @@ const UserManagement: React.FC = () => {
 
       {/* 管理服务器权限模态框 */}
       <Modal
-        title={`管理用户 ${selectedUser?.username} 的服务器权限`}
+        title={
+          <div style={{ textAlign: 'center', padding: '8px 0' }}>
+            <div style={{ 
+              fontSize: '1.5rem', 
+              fontWeight: 600, 
+              background: 'linear-gradient(135deg, #007AFF 0%, #5856D6 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              color: 'transparent'
+            }}>
+              管理服务器权限
+            </div>
+            <div style={{ fontSize: '0.9rem', color: '#6b7280', marginTop: '4px' }}>
+              用户：{selectedUser?.username}
+            </div>
+          </div>
+        }
         open={serverModalVisible}
         onCancel={() => setServerModalVisible(false)}
         footer={null}
         width={600}
+        styles={{
+          body: { padding: '24px 32px 32px' },
+          content: { borderRadius: '20px', overflow: 'hidden' }
+        }}
       >
         <Form
           layout="vertical"
@@ -771,6 +1012,7 @@ const UserManagement: React.FC = () => {
           initialValues={{
             serverIds: selectedUser?.visibleServers || []
           }}
+          className="modal-form"
         >
           <Form.Item
             label="可见服务器"
@@ -781,6 +1023,7 @@ const UserManagement: React.FC = () => {
               mode="multiple"
               placeholder="请选择服务器"
               style={{ width: '100%' }}
+              className="modal-input"
             >
               {serversData?.map((server: Server) => (
                 <Option key={server.id} value={server.id}>
@@ -790,11 +1033,17 @@ const UserManagement: React.FC = () => {
             </Select>
           </Form.Item>
 
-          <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
-            <Space>
-              <Button onClick={() => setServerModalVisible(false)}>取消</Button>
+          <Form.Item style={{ marginBottom: 0, textAlign: 'right', marginTop: 32 }}>
+            <Space size={12}>
+              <Button 
+                className="modal-button modal-button-default"
+                onClick={() => setServerModalVisible(false)}
+              >
+                取消
+              </Button>
               <Button 
                 type="primary" 
+                className="modal-button modal-button-primary"
                 htmlType="submit"
                 loading={updateUserServersMutation.isLoading}
               >
@@ -807,11 +1056,32 @@ const UserManagement: React.FC = () => {
 
       {/* 管理容器权限模态框 */}
       <Modal
-        title={`管理用户 ${selectedUser?.username} 的容器权限`}
+        title={
+          <div style={{ textAlign: 'center', padding: '8px 0' }}>
+            <div style={{ 
+              fontSize: '1.5rem', 
+              fontWeight: 600, 
+              background: 'linear-gradient(135deg, #007AFF 0%, #5856D6 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              color: 'transparent'
+            }}>
+              管理容器权限
+            </div>
+            <div style={{ fontSize: '0.9rem', color: '#6b7280', marginTop: '4px' }}>
+              用户：{selectedUser?.username}
+            </div>
+          </div>
+        }
         open={containerModalVisible}
         onCancel={() => setContainerModalVisible(false)}
         footer={null}
         width={600}
+        styles={{
+          body: { padding: '24px 32px 32px' },
+          content: { borderRadius: '20px', overflow: 'hidden' }
+        }}
       >
         <Form
           layout="vertical"
@@ -819,6 +1089,7 @@ const UserManagement: React.FC = () => {
           initialValues={{
             containerIds: selectedUser?.visibleContainers || []
           }}
+          className="modal-form"
         >
           <Form.Item
             label="可见容器"
@@ -829,6 +1100,7 @@ const UserManagement: React.FC = () => {
               mode="multiple"
               placeholder="请选择容器"
               style={{ width: '100%' }}
+              className="modal-input"
             >
               {containersData?.map((container: Container) => (
                 <Option key={container.id} value={container.id}>
@@ -838,11 +1110,17 @@ const UserManagement: React.FC = () => {
             </Select>
           </Form.Item>
 
-          <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
-            <Space>
-              <Button onClick={() => setContainerModalVisible(false)}>取消</Button>
+          <Form.Item style={{ marginBottom: 0, textAlign: 'right', marginTop: 32 }}>
+            <Space size={12}>
+              <Button 
+                className="modal-button modal-button-default"
+                onClick={() => setContainerModalVisible(false)}
+              >
+                取消
+              </Button>
               <Button 
                 type="primary" 
+                className="modal-button modal-button-primary"
                 htmlType="submit"
                 loading={updateUserContainersMutation.isLoading}
               >
