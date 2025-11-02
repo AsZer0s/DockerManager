@@ -93,103 +93,284 @@ const SSH: React.FC = () => {
 
   return (
     <div>
-      <motion.div 
-        style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-      >
-        <Typography.Title level={1} className="page-title">
-          SSH 控制台
-        </Typography.Title>
-        <Space>
-          <Select
-            placeholder="选择服务器"
-            value={selectedServer}
-            onChange={setSelectedServer}
-            style={{ width: 200 }}
-            disabled={isConnected}
+      <style>{`
+        /* Apple-style SSH 控制台 */
+        .ssh-container {
+          background: #f8fafc;
+          min-height: 100vh;
+          padding: 24px;
+        }
+        
+        .ssh-header {
+          background: white;
+          border-radius: 20px;
+          padding: 32px;
+          margin-bottom: 24px;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .ssh-title {
+          font-size: 2.5rem !important;
+          font-weight: 700 !important;
+          margin-bottom: 8px !important;
+          background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%) !important;
+          -webkit-background-clip: text !important;
+          -webkit-text-fill-color: transparent !important;
+          background-clip: text !important;
+          color: transparent !important;
+          letter-spacing: -0.02em !important;
+        }
+        
+        .ssh-controls {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          margin-top: 16px;
+        }
+        
+        .server-select {
+          border-radius: 12px !important;
+          border: 2px solid #e5e7eb !important;
+          padding: 8px 12px !important;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }
+        
+        .server-select:hover {
+          border-color: #007AFF !important;
+        }
+        
+        .server-select:focus {
+          border-color: #007AFF !important;
+          box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1) !important;
+        }
+        
+        .ssh-button {
+          border-radius: 12px !important;
+          font-weight: 600 !important;
+          height: 44px !important;
+          padding: 0 24px !important;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+          border: none !important;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+        }
+        
+        .ssh-button:hover {
+          transform: translateY(-2px) !important;
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15) !important;
+        }
+        
+        .ssh-button-primary {
+          background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%) !important;
+          box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3) !important;
+        }
+        
+        .ssh-button-danger {
+          background: linear-gradient(135deg, #FF3B30 0%, #FF2D92 100%) !important;
+          box-shadow: 0 4px 12px rgba(255, 59, 48, 0.3) !important;
+        }
+        
+        .ssh-terminal {
+          background: white;
+          border-radius: 20px;
+          overflow: hidden;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+          border: 1px solid #e5e7eb;
+        }
+        
+        .terminal-output {
+          background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%) !important;
+          color: #e5e5e5 !important;
+          padding: 24px !important;
+          border-radius: 0 !important;
+          margin: 0 !important;
+          overflow: auto !important;
+          font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace !important;
+          font-size: 14px !important;
+          line-height: 1.6 !important;
+          min-height: 400px !important;
+          max-height: 500px !important;
+        }
+        
+        .terminal-output::-webkit-scrollbar {
+          width: 8px;
+        }
+        
+        .terminal-output::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 4px;
+        }
+        
+        .terminal-output::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.3);
+          border-radius: 4px;
+        }
+        
+        .terminal-output::-webkit-scrollbar-thumb:hover {
+          background: rgba(255, 255, 255, 0.5);
+        }
+        
+        .terminal-input-area {
+          padding: 24px;
+          background: #f8fafc;
+          border-top: 1px solid #e5e7eb;
+        }
+        
+        .terminal-input {
+          border-radius: 12px !important;
+          border: 2px solid #e5e7eb !important;
+          padding: 12px 16px !important;
+          font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace !important;
+          font-size: 14px !important;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+          resize: none !important;
+        }
+        
+        .terminal-input:hover {
+          border-color: #007AFF !important;
+        }
+        
+        .terminal-input:focus {
+          border-color: #007AFF !important;
+          box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1) !important;
+        }
+        
+        .empty-state {
+          background: white;
+          border-radius: 20px;
+          padding: 60px 40px;
+          text-align: center;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+          border: 1px solid #e5e7eb;
+        }
+        
+        .empty-icon {
+          color: #d1d5db !important;
+          font-size: 64px !important;
+          margin-bottom: 24px !important;
+        }
+        
+        .empty-title {
+          color: #6b7280 !important;
+          font-size: 1.2rem !important;
+          font-weight: 500 !important;
+          margin-bottom: 8px !important;
+        }
+        
+        .empty-description {
+          color: #9ca3af !important;
+          font-size: 1rem !important;
+        }
+      `}</style>
+      
+      <div className="ssh-container">
+        <motion.div 
+          className="ssh-header"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          <Typography.Title level={1} className="ssh-title">
+            SSH 控制台
+          </Typography.Title>
+          <Typography.Text style={{ fontSize: '1.1rem', color: '#6b7280' }}>
+            安全连接到远程服务器并执行命令
+          </Typography.Text>
+          
+          <div className="ssh-controls">
+            <Select
+              placeholder="选择服务器"
+              value={selectedServer}
+              onChange={setSelectedServer}
+              style={{ width: 240 }}
+              disabled={isConnected}
+              className="server-select"
+              size="large"
+            >
+              {servers.map(server => (
+                <Option key={server.id} value={server.id}>
+                  {server.name}
+                </Option>
+              ))}
+            </Select>
+            {!isConnected ? (
+              <Button
+                type="primary"
+                className="ssh-button ssh-button-primary"
+                icon={<ConsoleSqlOutlined />}
+                onClick={handleConnect}
+                disabled={!selectedServer}
+                size="large"
+              >
+                连接
+              </Button>
+            ) : (
+              <Button
+                danger
+                className="ssh-button ssh-button-danger"
+                icon={<DisconnectOutlined />}
+                onClick={handleDisconnect}
+                size="large"
+              >
+                断开连接
+              </Button>
+            )}
+          </div>
+        </motion.div>
+
+        {selectedServer ? (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
           >
-            {servers.map(server => (
-              <Option key={server.id} value={server.id}>
-                {server.name}
-              </Option>
-            ))}
-          </Select>
-          {!isConnected ? (
-            <Button
-              type="primary"
-              icon={<ConsoleSqlOutlined />}
-              onClick={handleConnect}
-              disabled={!selectedServer}
-            >
-              连接
-            </Button>
-          ) : (
-            <Button
-              danger
-              icon={<DisconnectOutlined />}
-              onClick={handleDisconnect}
-            >
-              断开连接
-            </Button>
-          )}
-        </Space>
-      </motion.div>
+            <div className="ssh-terminal">
+              {/* 终端输出区域 */}
+              <div className="terminal-output">
+                <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
+                  {output || (isConnected ? 'SSH 终端已就绪，请输入命令...\n' : '请先连接到服务器')}
+                </pre>
+              </div>
 
-      <Card>
-        <div style={{ height: 500, display: 'flex', flexDirection: 'column' }}>
-          {/* 终端输出区域 */}
-          <div
-            style={{
-              flex: 1,
-              background: '#1e1e1e',
-              color: '#d4d4d4',
-              padding: 16,
-              borderRadius: 6,
-              marginBottom: 16,
-              overflow: 'auto',
-              fontFamily: 'Consolas, Monaco, Courier New, monospace',
-              fontSize: 14,
-              lineHeight: 1.4,
-            }}
+              {/* 命令输入区域 */}
+              <div className="terminal-input-area">
+                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end' }}>
+                  <TextArea
+                    value={command}
+                    onChange={(e) => setCommand(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder={isConnected ? "输入命令并按回车执行..." : "请先连接到服务器"}
+                    disabled={!isConnected}
+                    autoSize={{ minRows: 1, maxRows: 3 }}
+                    style={{ flex: 1 }}
+                    className="terminal-input"
+                  />
+                  <Button
+                    type="primary"
+                    className="ssh-button ssh-button-primary"
+                    icon={<SendOutlined />}
+                    onClick={handleExecuteCommand}
+                    disabled={!isConnected || !command.trim()}
+                    size="large"
+                  >
+                    执行
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            className="empty-state"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
           >
-            <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
-              {output || (isConnected ? 'SSH 终端已就绪，请输入命令...\n' : '请先连接到服务器')}
-            </pre>
-          </div>
-
-          {/* 命令输入区域 */}
-          <div style={{ display: 'flex', gap: 8 }}>
-            <TextArea
-              value={command}
-              onChange={(e) => setCommand(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder={isConnected ? "输入命令并按回车执行..." : "请先连接到服务器"}
-              disabled={!isConnected}
-              autoSize={{ minRows: 1, maxRows: 3 }}
-              style={{ flex: 1 }}
-            />
-            <Button
-              type="primary"
-              icon={<SendOutlined />}
-              onClick={handleExecuteCommand}
-              disabled={!isConnected || !command.trim()}
-            >
-              执行
-            </Button>
-          </div>
-        </div>
-      </Card>
-
-      {!selectedServer && (
-        <Card style={{ marginTop: 16 }}>
-          <div style={{ textAlign: 'center', padding: '40px 0' }}>
-            <ConsoleSqlOutlined style={{ fontSize: 48, color: '#d9d9d9', marginBottom: 16 }} />
-            <Typography.Title level={4} type="secondary">请选择一个服务器进行 SSH 连接</Typography.Title>
-          </div>
-        </Card>
-      )}
+            <ConsoleSqlOutlined className="empty-icon" />
+            <Typography.Title level={3} className="empty-title">请选择一个服务器</Typography.Title>
+            <Typography.Text className="empty-description">选择服务器后即可建立 SSH 连接</Typography.Text>
+          </motion.div>
+        )}
+      </div>
     </div>
   )
 }
