@@ -34,6 +34,18 @@ fi
 # 确保数据目录存在
 mkdir -p /app/data /app/logs
 
+# 检查权限和用户信息
+echo "🔍 权限诊断:"
+echo "当前用户: $(whoami)"
+echo "用户ID: $(id)"
+echo "数据目录权限:"
+ls -la /app/data
+echo "数据目录父目录权限:"
+ls -la /app/
+echo "尝试在数据目录创建测试文件:"
+touch /app/data/test.txt 2>&1 && echo "✅ 可以创建文件" || echo "❌ 无法创建文件"
+echo "数据库路径: $DATABASE_PATH"
+
 # 显示启动信息
 echo "📊 环境信息:"
 echo "  - NODE_ENV: $NODE_ENV"
