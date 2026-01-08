@@ -1,51 +1,45 @@
-version: '3.8'
-
 services:
   docker-manager:
-    build: .
+    image: aszer0s/docker-manager:latest
     container_name: docker-manager
+    restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
-      - NODE_ENV=production
-      - DATABASE_PATH=/app/data/database.sqlite
-      - JWT_SECRET=auto-generated-will-be-set-by-container
-      - ENCRYPTION_KEY=auto-generated-will-be-set-by-container
-      - LOG_LEVEL=info
-      - MONITORING_INTERVAL=5000
-      - CORS_ORIGIN=http://localhost:3000,http://127.0.0.1:3000
-      # 可选配置 - 用户可以通过 .env 文件或环境变量覆盖
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
-      - TELEGRAM_WEBAPP_URL=${TELEGRAM_WEBAPP_URL:-http://localhost:3000/telegram-webapp}
-      - TGBOT_PROXY=${TGBOT_PROXY:-}
+      # 基础配置
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_PATH: /app/data/database.sqlite
+      LOG_LEVEL: info
+      MONITORING_INTERVAL: 5000
+      
+      # 安全密钥 (容器启动时自动生成)
+      JWT_SECRET: auto-generated-will-be-set-by-container
+      ENCRYPTION_KEY: auto-generated-will-be-set-by-container
+      
+      # CORS 配置
+      CORS_ORIGIN: http://localhost:3000,http://127.0.0.1:3000
+      
+      # Telegram Bot 配置 (可选 - 如果不需要可以删除这些行)
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_WEBAPP_URL: ${TELEGRAM_WEBAPP_URL:-http://localhost:3000/telegram-webapp}
+      TGBOT_PROXY: ${TGBOT_PROXY:-}
+      
+      # SMTP 邮件配置 (可选 - 如果不需要可以删除这些行)
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-Docker Manager <noreply@dockermanager.com>}
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # 数据持久化
       - ./data:/app/data
       - ./logs:/app/logs
-    restart: unless-stopped
+      # Docker Socket 访问
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: '0.5'
-        reservations:
-          memory: 256M
-          cpus: '0.25'
-    networks:
-      - docker-manager-network
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-networks:
-  docker-manager-network:
-    driver: bridge
-    
