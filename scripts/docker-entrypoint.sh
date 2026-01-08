@@ -115,11 +115,16 @@ if [ "$1" = "node" ] && [ "$2" = "server/index.js" ]; then
         exit 1
     }
     
-    # 测试导入 dotenv
+    # 测试导入 dotenv (使用 ES 模块方式)
     echo "🧪 测试 dotenv 导入..."
     node -e "
-    require('dotenv').config();
-    console.log('✅ dotenv 导入成功');
+    import('dotenv').then(dotenv => {
+        dotenv.config();
+        console.log('✅ dotenv ES 模块导入成功');
+    }).catch(e => {
+        console.error('❌ dotenv ES 模块导入失败:', e.message);
+        process.exit(1);
+    });
     " || {
         echo "❌ dotenv 导入失败"
         exit 1

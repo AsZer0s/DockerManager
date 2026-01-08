@@ -55,14 +55,12 @@ WORKDIR /app
 COPY --from=builder --chown=docker-manager:nodejs /app/server ./server
 COPY --from=builder --chown=docker-manager:nodejs /app/client/dist ./client/dist
 COPY --from=builder --chown=docker-manager:nodejs /app/package*.json ./
+COPY --from=builder --chown=docker-manager:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=docker-manager:nodejs /app/server/node_modules ./server/node_modules
 COPY --chown=docker-manager:nodejs scripts/docker-entrypoint.sh ./scripts/
 
 # 设置启动脚本权限
 RUN chmod +x ./scripts/docker-entrypoint.sh
-
-# 安装生产依赖
-RUN npm install --only=production && \
-    cd server && npm install --only=production
 
 # 创建必要的目录并设置权限
 RUN mkdir -p /app/data /app/logs && \
