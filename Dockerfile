@@ -42,6 +42,7 @@ RUN apk add --no-cache \
     curl \
     sqlite \
     dumb-init \
+    su-exec \
     && rm -rf /var/cache/apk/*
 
 # 创建应用用户和组
@@ -79,8 +80,8 @@ ENV LOG_LEVEL=info
 ENV MONITORING_INTERVAL=5000
 ENV CORS_ORIGIN=http://localhost:3000,http://127.0.0.1:3000
 
-# 切换到非 root 用户
-USER docker-manager
+# 不在这里切换用户，在启动脚本中处理
+# USER docker-manager
 
 # 暴露端口
 EXPOSE 3000

@@ -46,6 +46,24 @@ echo "尝试在数据目录创建测试文件:"
 touch /app/data/test.txt 2>&1 && echo "✅ 可以创建文件" || echo "❌ 无法创建文件"
 echo "数据库路径: $DATABASE_PATH"
 
+# 如果无法创建文件，尝试修复权限
+if ! touch /app/data/test2.txt 2>/dev/null; then
+    echo "🔧 尝试修复数据目录权限..."
+    
+    # 修复权限（以 root 身份运行）
+    chown -R docker-manager:nodejs /app/data /app/logs
+    echo "✅ 权限已修复"
+    
+    # 验证权限修复
+    ls -la /app/data /app/logs
+fi
+
+# 如果当前是 root 用户，切换到 docker-manager 用户执行应用
+if [ "$(whoami)" = "root" ]; then
+    echo "🔄 切换到 docker-manager 用户执行应用..."
+    exec su-exec docker-manager "$@"
+fi
+
 # 显示启动信息
 echo "📊 环境信息:"
 echo "  - NODE_ENV: $NODE_ENV"
