@@ -63,22 +63,24 @@ RUN npm ci --only=production && \
 RUN mkdir -p /app/data /app/logs && \
     chown -R docker-manager:nodejs /app/data /app/logs
 
-# 复制环境变量示例文件
-COPY --chown=docker-manager:nodejs server/env.example ./server/.env.example
-
-# 设置环境变量
+# 设置默认环境变量
 ENV NODE_ENV=production
 ENV PORT=3000
-ENV CLIENT_PORT=3001
+ENV DATABASE_PATH=/app/data/database.sqlite
+ENV JWT_SECRET=auto-generated-will-be-set-by-container
+ENV ENCRYPTION_KEY=auto-generated-will-be-set-by-container
+ENV LOG_LEVEL=info
+ENV MONITORING_INTERVAL=5000
+ENV CORS_ORIGIN=http://localhost:3000,http://127.0.0.1:3000
 
 # 切换到非 root 用户
 USER docker-manager
 
 # 暴露端口
-EXPOSE 3000 3001
+EXPOSE 3000
 
 # 健康检查
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:3000/health || exit 1
 
 # 使用 dumb-init 作为 PID 1，正确处理信号

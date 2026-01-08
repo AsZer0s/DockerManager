@@ -1,0 +1,664 @@
+/* WebSocket 性能监控面板样式 */
+.websocket-performance-monitor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #ffffff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* 监控头部 */
+.monitor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.monitor-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.monitor-title h2 {
+  margin: 0;
+  font-size: 20px;
+  color: #333;
+}
+
+.connection-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.connection-indicator.connected {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.connection-indicator.disconnected {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.monitor-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.auto-refresh-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.btn-refresh {
+  padding: 8px 16px;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #333;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.btn-refresh:hover:not(:disabled) {
+  background: #e9ecef;
+}
+
+.btn-refresh:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* 标签页 */
+.monitor-tabs {
+  display: flex;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.tab {
+  padding: 12px 20px;
+  border: none;
+  background: transparent;
+  color: #666;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+  border-bottom: 2px solid transparent;
+}
+
+.tab:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #333;
+}
+
+.tab.active {
+  color: #007bff;
+  border-bottom-color: #007bff;
+  background: #ffffff;
+}
+
+/* 监控内容 */
+.monitor-content {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  position: relative;
+}
+
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.loading-spinner {
+  padding: 20px;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  font-size: 16px;
+  color: #666;
+}
+
+/* 概览网格 */
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.metric-card {
+  background: #ffffff;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.metric-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.metric-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #333;
+}
+
+.status-indicator {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.performance-score {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.metric-content {
+  padding: 20px;
+}
+
+.metric-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f1f3f4;
+}
+
+.metric-item:last-child {
+  border-bottom: none;
+}
+
+.metric-item span:first-child {
+  color: #666;
+  font-size: 14px;
+}
+
+.metric-item span:last-child {
+  font-weight: 600;
+  color: #333;
+}
+
+/* 事件列表 */
+.event-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.event-item {
+  display: flex;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid #f1f3f4;
+  font-size: 12px;
+}
+
+.event-item:last-child {
+  border-bottom: none;
+}
+
+.event-time {
+  color: #666;
+  min-width: 60px;
+}
+
+.event-desc {
+  color: #333;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.event-count {
+  font-size: 12px;
+  color: #666;
+}
+
+/* 服务器网格 */
+.servers-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.quality-group {
+  background: #ffffff;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.quality-header {
+  padding: 16px 20px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.quality-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.server-count {
+  font-size: 12px;
+  color: #666;
+  font-weight: normal;
+}
+
+.server-list {
+  padding: 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.server-item {
+  padding: 16px;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  background: #fafbfc;
+}
+
+.server-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.server-id {
+  font-weight: 600;
+  color: #333;
+}
+
+.quality-score {
+  font-size: 12px;
+  color: #666;
+  background: #e9ecef;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.server-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.server-metric {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.server-metric span:first-child {
+  font-size: 11px;
+  color: #666;
+  margin-bottom: 2px;
+}
+
+.server-metric span:last-child {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+/* 连接池详情 */
+.pool-details {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.pool-summary {
+  background: #ffffff;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.pool-summary h3 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  color: #333;
+}
+
+.pool-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+}
+
+.pool-metric {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  text-align: center;
+}
+
+.pool-metric span:first-child {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.pool-metric span:last-child {
+  font-size: 20px;
+  font-weight: 700;
+  color: #333;
+}
+
+.connection-list {
+  background: #ffffff;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.connection-list h3 {
+  margin: 0;
+  padding: 16px 20px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+  font-size: 16px;
+  color: #333;
+}
+
+.connection-table {
+  display: flex;
+  flex-direction: column;
+}
+
+.table-header,
+.table-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 80px 100px 100px;
+  gap: 16px;
+  padding: 12px 20px;
+  align-items: center;
+}
+
+.table-header {
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+  font-weight: 600;
+  font-size: 12px;
+  color: #666;
+  text-transform: uppercase;
+}
+
+.table-row {
+  border-bottom: 1px solid #f1f3f4;
+  font-size: 14px;
+}
+
+.table-row:last-child {
+  border-bottom: none;
+}
+
+.connection-status {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.connection-status.alive {
+  color: #28a745;
+}
+
+.connection-status.dead {
+  color: #dc3545;
+}
+
+/* 事件面板 */
+.events-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.events-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.events-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #333;
+}
+
+.events-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-clear {
+  padding: 6px 12px;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #666;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.btn-clear:hover {
+  background: #f8f9fa;
+  color: #333;
+}
+
+.events-list {
+  flex: 1;
+  overflow-y: auto;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.no-events {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: #666;
+  font-style: italic;
+}
+
+.event-detail {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f1f3f4;
+}
+
+.event-detail:last-child {
+  border-bottom: none;
+}
+
+.event-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.event-timestamp {
+  font-size: 12px;
+  color: #666;
+  font-family: monospace;
+}
+
+.event-type {
+  font-size: 11px;
+  background: #e9ecef;
+  color: #666;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+.event-data {
+  font-size: 13px;
+  color: #333;
+  line-height: 1.4;
+}
+
+.event-data pre {
+  background: #f8f9fa;
+  padding: 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  overflow-x: auto;
+  margin: 4px 0 0 0;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .monitor-header {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  
+  .monitor-controls {
+    align-self: stretch;
+    justify-content: space-between;
+  }
+  
+  .overview-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .server-list {
+    grid-template-columns: 1fr;
+  }
+  
+  .pool-metrics {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .table-header,
+  .table-row {
+    grid-template-columns: 1fr 80px 80px;
+    gap: 8px;
+    font-size: 12px;
+  }
+  
+  .table-header span:nth-child(2),
+  .table-row span:nth-child(2),
+  .table-header span:nth-child(4),
+  .table-row span:nth-child(4) {
+    display: none;
+  }
+}
+
+/* 暗色主题 */
+@media (prefers-color-scheme: dark) {
+  .websocket-performance-monitor {
+    background: #1e1e1e;
+    color: #d4d4d4;
+  }
+  
+  .monitor-header,
+  .metric-header,
+  .quality-header,
+  .connection-list h3,
+  .table-header {
+    background: #2d2d30;
+    border-color: #3e3e42;
+    color: #d4d4d4;
+  }
+  
+  .metric-card,
+  .quality-group,
+  .pool-summary,
+  .connection-list,
+  .events-list {
+    background: #252526;
+    border-color: #3e3e42;
+  }
+  
+  .server-item {
+    background: #2d2d30;
+    border-color: #3e3e42;
+  }
+  
+  .pool-metric {
+    background: #2d2d30;
+  }
+  
+  .btn-refresh,
+  .btn-clear {
+    background: #252526;
+    border-color: #3e3e42;
+    color: #d4d4d4;
+  }
+  
+  .btn-refresh:hover:not(:disabled),
+  .btn-clear:hover {
+    background: #2d2d30;
+  }
+  
+  .tab {
+    color: #888;
+  }
+  
+  .tab:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #d4d4d4;
+  }
+  
+  .tab.active {
+    background: #252526;
+    color: #007acc;
+    border-bottom-color: #007acc;
+  }
+}

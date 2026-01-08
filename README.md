@@ -41,38 +41,81 @@
 - **Docker** + **Docker Compose** - 容器化部署
 - **多阶段构建** - 优化镜像大小
 
-## 🚀 快速开始
+# Docker Manager - 容器管理系统
 
-### 环境要求
+一个功能强大的 Docker 容器管理系统，支持多服务器管理、实时监控、Web SSH 控制台和 Telegram 机器人。
 
-- Docker 和 Docker Compose
-- Node.js 22+ (用于开发)
+## 🚀 一键启动
 
-### 一键部署
+### 快速开始
 
-1. **克隆项目**
 ```bash
+# 克隆项目
 git clone <repository-url>
 cd docker-manager
-```
 
-2. **配置环境变量**
-```bash
-# 复制环境变量模板
-cp server/env.example .env
+# 一键启动 (Linux/macOS)
+chmod +x start.sh && ./start.sh
 
-# 编辑环境变量
-nano .env
-```
+# 一键启动 (Windows)
+start.bat
 
-3. **启动服务**
-```bash
+# 或使用 Docker Compose
 docker-compose up -d
 ```
 
-4. **访问应用**
-- Web 界面: http://localhost:3000
-- 默认管理员账户: admin / admin@ztms.top
+**就是这么简单！** 🎉
+
+### 访问系统
+
+- **Web 界面**: http://localhost:3000
+- **默认账户**: admin@ztms.top (密码在启动日志中显示)
+
+## ✨ 功能特性
+
+- **多服务器管理**: 轻松添加、删除和管理多个服务器
+- **Docker 容器操作**: 查看容器列表、详细信息、日志，并执行启动、停止、重启等操作
+- **用户权限控制**: 管理员可以授权特定用户访问指定的服务器
+- **信息隐藏**: 管理员可以为普通用户隐藏敏感信息，如服务器地址、端口、容器ID等
+- **网页版 SSH 控制台**: 提供一个基于 Web 的实时 SSH 终端，方便直接在服务器上执行命令
+- **实时监控**: 监控服务器状态信息（CPU、RAM、磁盘、网络等）和容器资源使用情况
+- **Telegram 机器人**: 通过 Telegram 查询容器状态、执行基本操作
+- **Telegram Web App**: 在 Telegram 内直接使用 Web 界面
+- **灵活部署**: 支持使用 Docker Compose 在您自己的服务器上部署
+
+## 🔧 可选配置
+
+系统开箱即用，无需任何配置。如需启用额外功能：
+
+```bash
+# 复制配置模板
+cp .env.example .env
+
+# 编辑配置文件
+nano .env
+```
+
+主要可选配置：
+- `TELEGRAM_BOT_TOKEN` - Telegram 机器人功能
+- `SMTP_*` - 邮件通知功能  
+- `MYSQL_*` - 使用 MySQL 数据库
+
+## 🛠️ 常用命令
+
+```bash
+# 快速操作
+npm run quick-start    # 启动服务
+npm run quick-stop     # 停止服务
+npm run quick-restart  # 重启服务
+npm run quick-logs     # 查看日志
+npm run quick-status   # 查看状态
+
+# 或使用 Docker Compose
+docker-compose up -d      # 启动
+docker-compose down       # 停止
+docker-compose logs -f    # 查看日志
+docker-compose ps         # 查看状态
+```
 
 ### 环境变量配置
 

@@ -15,6 +15,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 import logger from './utils/logger.js';
+import envValidator from './utils/envValidator.js';
+import { helmetConfig, corsConfig } from './config/security.js';
 import database from './config/database.js';
 import encryption from './utils/encryption.js';
 import jwtManager from './utils/jwt.js';
@@ -103,23 +105,9 @@ app.set('trust proxy', true);
 const server = createServer(app);
 
 // 中间件配置
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "https://telegram.org"],
-      imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", "https://telegram.org"],
-      objectSrc: ["'none'"]
-    }
-  }
-}));
+app.use(helmetConfig);
 
-app.use(cors({
-  origin: true, // 允许所有来源
-  credentials: true
-}));
+app.use(cors(corsConfig));
 
 app.use(compression());
 app.use(morgan('combined', { stream: { write: message => logger.info(message.trim()) } }));
@@ -290,6 +278,12 @@ async function initializeServices() {
   try {
     console.log('🚀 开始初始化服务...');
     
+    // 验证环境变量
+    console.log('🔍 验证环境变量...');
+    envValidator.validate();
+    envValidator.checkForInsecureDefaults();
+    console.log('✅ 环境变量验证通过');
+    
     // 检查是否需要初始化数据库和管理员账户
     await initializeDatabase();
     
@@ -327,17 +321,23 @@ async function initializeServices() {
     pollingService.initialize();
     console.log('✅ HTTP 轮询服务初始化成功');
 
+    // 初始化 SSH 连接池
+    console.log('🔗 初始化 SSH 连接池...');
+    const sshConnectionPool = (await import('./services/sshConnectionPool.js')).default;
+    sshConnectionPool.initialize();
+    console.log('✅ SSH 连接池初始化成功');
+
     // 初始化 SSH 会话服务
     console.log('🔐 初始化 SSH 会话服务...');
     const sshSessionService = (await import('./services/sshSessionService.js')).default;
     sshSessionService.initialize();
     console.log('✅ SSH 会话服务初始化成功');
 
-    // 初始化 SSH 连接池
-    console.log('🔗 初始化 SSH 连接池...');
-    const sshConnectionPool = (await import('./services/sshConnectionPool.js')).default;
-    sshConnectionPool.initialize();
-    console.log('✅ SSH 连接池初始化成功');
+    // 初始化统一 WebSocket 服务（替代单独的 SSH WebSocket）
+    console.log('🌐 初始化统一 WebSocket 服务...');
+    const unifiedWebSocketService = (await import('./services/unifiedWebSocketService.js')).default;
+    unifiedWebSocketService.initialize(server);
+    console.log('✅ 统一 WebSocket 服务初始化成功');
 
     // 初始化 Dockerode 管理器
     console.log('🐳 初始化 Dockerode 管理器...');

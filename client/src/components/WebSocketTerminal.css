@@ -1,0 +1,327 @@
+/* WebSocket 终端样式 */
+.websocket-terminal {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* 终端头部 */
+.terminal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background: #2d2d30;
+  border-bottom: 1px solid #3e3e42;
+  min-height: 40px;
+}
+
+.terminal-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.server-name {
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.session-info {
+  font-size: 12px;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.status.connected {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+}
+
+.status.disconnected {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.terminal-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-clear,
+.btn-close {
+  padding: 4px 8px;
+  border: none;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #d4d4d4;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background-color 0.2s;
+}
+
+.btn-clear:hover {
+  background: rgba(59, 130, 246, 0.3);
+}
+
+.btn-close:hover {
+  background: rgba(239, 68, 68, 0.3);
+}
+
+/* 终端容器 */
+.terminal-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* 终端输出 */
+.terminal-output {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  background: #1e1e1e;
+  font-size: 14px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.terminal-output::-webkit-scrollbar {
+  width: 8px;
+}
+
+.terminal-output::-webkit-scrollbar-track {
+  background: #2d2d30;
+}
+
+.terminal-output::-webkit-scrollbar-thumb {
+  background: #404040;
+  border-radius: 4px;
+}
+
+.terminal-output::-webkit-scrollbar-thumb:hover {
+  background: #505050;
+}
+
+.terminal-output pre {
+  margin: 0;
+  font-family: inherit;
+  color: #d4d4d4;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100px;
+  color: #888;
+  font-style: italic;
+}
+
+/* 终端输入行 */
+.terminal-input-line {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  background: #252526;
+  border-top: 1px solid #3e3e42;
+  min-height: 48px;
+}
+
+.prompt {
+  color: #4ec9b0;
+  font-weight: 600;
+  margin-right: 8px;
+  white-space: nowrap;
+}
+
+.terminal-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #d4d4d4;
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+  padding: 0;
+}
+
+.terminal-input::placeholder {
+  color: #666;
+}
+
+.terminal-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 终端底部 */
+.terminal-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 16px;
+  background: #2d2d30;
+  border-top: 1px solid #3e3e42;
+  font-size: 11px;
+  color: #888;
+}
+
+.terminal-info {
+  display: flex;
+  gap: 16px;
+}
+
+.terminal-shortcuts {
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .terminal-header {
+    padding: 6px 12px;
+    min-height: 36px;
+  }
+  
+  .terminal-title {
+    gap: 8px;
+  }
+  
+  .server-name {
+    font-size: 14px;
+  }
+  
+  .terminal-output {
+    padding: 12px;
+    font-size: 13px;
+  }
+  
+  .terminal-input-line {
+    padding: 8px 12px;
+    min-height: 40px;
+  }
+  
+  .terminal-input {
+    font-size: 13px;
+  }
+  
+  .terminal-footer {
+    padding: 4px 12px;
+    flex-direction: column;
+    gap: 4px;
+    align-items: flex-start;
+  }
+  
+  .terminal-info {
+    gap: 12px;
+  }
+  
+  .terminal-shortcuts {
+    display: none;
+  }
+}
+
+/* 暗色主题变体 */
+.websocket-terminal.theme-dark {
+  background: #0d1117;
+  color: #c9d1d9;
+}
+
+.websocket-terminal.theme-dark .terminal-header {
+  background: #161b22;
+  border-bottom-color: #21262d;
+}
+
+.websocket-terminal.theme-dark .terminal-output {
+  background: #0d1117;
+}
+
+.websocket-terminal.theme-dark .terminal-input-line {
+  background: #161b22;
+  border-top-color: #21262d;
+}
+
+.websocket-terminal.theme-dark .terminal-footer {
+  background: #161b22;
+  border-top-color: #21262d;
+}
+
+/* 绿色主题变体 */
+.websocket-terminal.theme-green {
+  background: #001100;
+  color: #00ff00;
+}
+
+.websocket-terminal.theme-green .terminal-header {
+  background: #002200;
+  border-bottom-color: #004400;
+}
+
+.websocket-terminal.theme-green .terminal-output {
+  background: #001100;
+}
+
+.websocket-terminal.theme-green .terminal-input-line {
+  background: #002200;
+  border-top-color: #004400;
+}
+
+.websocket-terminal.theme-green .terminal-footer {
+  background: #002200;
+  border-top-color: #004400;
+}
+
+.websocket-terminal.theme-green .prompt {
+  color: #00ff00;
+}
+
+/* 动画效果 */
+.terminal-output {
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* 光标闪烁效果 */
+.terminal-input::after {
+  content: '';
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background: #d4d4d4;
+  margin-left: 2px;
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 50% {
+    opacity: 1;
+  }
+  51%, 100% {
+    opacity: 0;
+  }
+}

@@ -2,6 +2,7 @@ import { Client } from 'ssh2';
 import logger from '../utils/logger.js';
 import encryption from '../utils/encryption.js';
 import database from '../config/database.js';
+import sshPerformanceMonitor from './sshPerformanceMonitor.js';
 
 class SSHConnectionPool {
   constructor() {
@@ -26,6 +27,9 @@ class SSHConnectionPool {
    */
   initialize() {
     if (this.isInitialized) return;
+    
+    // 初始化性能监控
+    sshPerformanceMonitor.initialize();
     
     // 启动定期清理
     this.startCleanupTimer();
@@ -230,16 +234,19 @@ class SSHConnectionPool {
       // 创建SSH客户端
       const client = new Client();
       
-      // 连接配置
+      // 优化的连接配置
       const connectConfig = {
         host: server.host,
         port: server.ssh_port || server.port || 22,
         username: server.username || 'root',
-        readyTimeout: 20000, // 增加到20秒，适应代理环境
-        keepaliveInterval: 30000,
-        keepaliveCountMax: 3,
-        // 代理环境下的优化配置
-        sock: null, // 可以在这里配置代理socket
+        readyTimeout: 25000, // 增加到25秒，适应代理环境
+        keepaliveInterval: 15000, // 15秒心跳间隔
+        keepaliveCountMax: 5, // 最大心跳失败次数
+        // 启用压缩以提高网络性能
+        compress: true,
+        // 优化缓冲区大小
+        windowSize: 2 * 1024 * 1024, // 2MB窗口
+        packetSize: 32768, // 32KB包大小
         // 更宽松的算法配置，适应不同的网络环境
         algorithms: {
           kex: [
@@ -266,7 +273,10 @@ class SSHConnectionPool {
             'hmac-sha2-512',
             'hmac-sha1'
           ]
-        }
+        },
+        // 调试选项（生产环境可关闭）
+        debug: process.env.NODE_ENV === 'development' ? 
+          (msg) => logger.debug(`SSH Debug [${server.name}]: ${msg}`) : undefined
       };
 
       // 添加认证信息
@@ -278,20 +288,38 @@ class SSHConnectionPool {
       }
 
       // 建立连接
+      const connectionStartTime = Date.now();
       await new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
           client.destroy();
+          const responseTime = Date.now() - connectionStartTime;
+          sshPerformanceMonitor.recordConnectionEvent(serverId, 'connect_failure', responseTime, {
+            reason: 'timeout',
+            server: server.name
+          });
           reject(new Error(`SSH连接超时: ${server.name} (${server.host}) - 可能是代理环境导致的延迟`));
-        }, 30000); // 增加到30秒，适应代理环境
+        }, 35000); // 增加到35秒，适应代理环境
 
         client.on('ready', () => {
           clearTimeout(timeout);
-          logger.info(`SSH连接建立成功: ${server.name} (${server.host})`);
+          const responseTime = Date.now() - connectionStartTime;
+          sshPerformanceMonitor.recordConnectionEvent(serverId, 'connect_success', responseTime, {
+            server: server.name,
+            host: server.host
+          });
+          logger.info(`SSH连接建立成功: ${server.name} (${server.host}) - 响应时间: ${responseTime}ms`);
           resolve();
         });
 
         client.on('error', (err) => {
           clearTimeout(timeout);
+          const responseTime = Date.now() - connectionStartTime;
+          sshPerformanceMonitor.recordConnectionEvent(serverId, 'connect_failure', responseTime, {
+            reason: err.message,
+            code: err.code,
+            server: server.name
+          });
+          
           // 提供更详细的错误信息，帮助诊断代理相关问题
           const errorDetails = {
             error: err.message,
@@ -314,6 +342,15 @@ class SSHConnectionPool {
           logger.debug(`SSH连接已关闭: ${server.name} (${server.host})`);
         });
 
+        // 添加连接事件监听以提供更好的调试信息
+        client.on('greeting', (msg) => {
+          logger.debug(`SSH服务器问候: ${server.name} - ${msg}`);
+        });
+
+        client.on('banner', (msg) => {
+          logger.debug(`SSH服务器横幅: ${server.name} - ${msg}`);
+        });
+
         try {
           client.connect(connectConfig);
         } catch (connectError) {
@@ -331,7 +368,11 @@ class SSHConnectionPool {
         host: server.host,
         createdAt: Date.now(),
         lastUsed: Date.now(),
-        isAlive: true
+        isAlive: true,
+        connectionQuality: 'good', // 初始连接质量
+        commandCount: 0, // 执行的命令数量
+        totalResponseTime: 0, // 总响应时间
+        averageResponseTime: 0 // 平均响应时间
       };
 
       this.connections.set(serverId, connectionInfo);
@@ -445,15 +486,24 @@ class SSHConnectionPool {
    * @returns {Promise<string>} 命令输出
    */
   async executeSingleCommand(serverId, command, timeout = 10000) {
+    const startTime = Date.now();
+    
     try {
       const client = await this.getConnection(serverId);
+      const connectionInfo = this.connections.get(serverId);
       
       return new Promise((resolve, reject) => {
         const timeoutId = setTimeout(() => {
           reject(new Error(`命令执行超时: ${command}`));
         }, timeout);
 
-        client.exec(command, (err, stream) => {
+        client.exec(command, { 
+          pty: false, // 禁用PTY以获得更清洁的输出
+          env: {
+            LANG: 'en_US.UTF-8',
+            LC_ALL: 'en_US.UTF-8'
+          }
+        }, (err, stream) => {
           if (err) {
             clearTimeout(timeoutId);
             logger.error(`SSH命令执行失败 (服务器 ${serverId}):`, {
@@ -467,43 +517,105 @@ class SSHConnectionPool {
 
           let output = '';
           let errorOutput = '';
+          let isCompleted = false;
+
+          // 设置流编码
+          stream.setEncoding('utf8');
 
           stream.on('data', (data) => {
-            output += data.toString();
+            output += data;
           });
 
           stream.stderr.on('data', (data) => {
-            errorOutput += data.toString();
+            errorOutput += data;
           });
 
-          stream.on('close', (code) => {
+          stream.on('close', (code, signal) => {
+            if (isCompleted) return;
+            isCompleted = true;
+            
             clearTimeout(timeoutId);
+            
+            // 更新连接性能指标
+            const responseTime = Date.now() - startTime;
+            if (connectionInfo) {
+              connectionInfo.lastUsed = Date.now();
+              connectionInfo.commandCount++;
+              connectionInfo.totalResponseTime += responseTime;
+              connectionInfo.averageResponseTime = connectionInfo.totalResponseTime / connectionInfo.commandCount;
+              
+              // 更新连接质量评估
+              if (responseTime < 500) {
+                connectionInfo.connectionQuality = 'excellent';
+              } else if (responseTime < 1500) {
+                connectionInfo.connectionQuality = 'good';
+              } else if (responseTime < 3000) {
+                connectionInfo.connectionQuality = 'fair';
+              } else {
+                connectionInfo.connectionQuality = 'poor';
+              }
+            }
+            
+            // 清理输出
+            const cleanedOutput = this.cleanCommandOutput(output);
+            const cleanedError = this.cleanCommandOutput(errorOutput);
+            
             if (code === 0) {
-              resolve(output.trim());
+              // 记录成功的命令执行
+              sshPerformanceMonitor.recordCommandEvent(serverId, 'command_success', responseTime, {
+                command: command.substring(0, 50) + (command.length > 50 ? '...' : ''),
+                outputLength: cleanedOutput.length
+              });
+              
+              logger.debug(`SSH命令执行成功 (服务器 ${serverId}):`, {
+                command: command.substring(0, 50) + (command.length > 50 ? '...' : ''),
+                responseTime,
+                outputLength: cleanedOutput.length
+              });
+              resolve(cleanedOutput);
             } else if (code === null) {
               // exitCode: null 是后台进程的正常现象，不是错误
-              // 对于后台命令（如nohup），这是预期的行为
-              logger.debug(`SSH命令后台执行完成 (服务器 ${serverId}):`, {
-                command,
-                exitCode: code,
-                errorOutput
+              sshPerformanceMonitor.recordCommandEvent(serverId, 'command_success', responseTime, {
+                command: command.substring(0, 50) + (command.length > 50 ? '...' : ''),
+                outputLength: cleanedOutput.length,
+                background: true
               });
-              resolve(output.trim());
-            } else {
-              const errorMsg = `命令执行失败 (退出码: ${code}): ${errorOutput || '未知错误'}`;
-              logger.error(`SSH命令执行失败 (服务器 ${serverId}):`, {
-                command,
+              
+              logger.debug(`SSH命令后台执行完成 (服务器 ${serverId}):`, {
+                command: command.substring(0, 50) + (command.length > 50 ? '...' : ''),
                 exitCode: code,
-                errorOutput
+                signal,
+                responseTime
+              });
+              resolve(cleanedOutput);
+            } else {
+              // 记录失败的命令执行
+              sshPerformanceMonitor.recordCommandEvent(serverId, 'command_failure', responseTime, {
+                command: command.substring(0, 50) + (command.length > 50 ? '...' : ''),
+                exitCode: code,
+                signal,
+                error: cleanedError
+              });
+              
+              const errorMsg = `命令执行失败 (退出码: ${code}${signal ? ', 信号: ' + signal : ''}): ${cleanedError || '未知错误'}`;
+              logger.warn(`SSH命令执行失败 (服务器 ${serverId}):`, {
+                command: command.substring(0, 50) + (command.length > 50 ? '...' : ''),
+                exitCode: code,
+                signal,
+                errorOutput: cleanedError,
+                responseTime
               });
               reject(new Error(errorMsg));
             }
           });
 
           stream.on('error', (streamErr) => {
+            if (isCompleted) return;
+            isCompleted = true;
+            
             clearTimeout(timeoutId);
             logger.error(`SSH流错误 (服务器 ${serverId}):`, {
-              command,
+              command: command.substring(0, 50) + (command.length > 50 ? '...' : ''),
               error: streamErr.message
             });
             reject(streamErr);
@@ -511,12 +623,33 @@ class SSHConnectionPool {
         });
       });
     } catch (error) {
+      const responseTime = Date.now() - startTime;
       logger.error(`执行SSH命令失败 (服务器 ${serverId}):`, {
-        command,
-        error: error.message
+        command: command.substring(0, 50) + (command.length > 50 ? '...' : ''),
+        error: error.message,
+        responseTime
       });
       throw error;
     }
+  }
+
+  /**
+   * 清理命令输出
+   * @param {string} output - 原始输出
+   * @returns {string} - 清理后的输出
+   */
+  cleanCommandOutput(output) {
+    if (!output) return '';
+    
+    return output
+      // 移除ANSI转义序列
+      .replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '')
+      // 移除回车符
+      .replace(/\r/g, '')
+      // 移除多余的空行
+      .replace(/\n{3,}/g, '\n\n')
+      // 移除首尾空白
+      .trim();
   }
 
   /**

@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build outputs
+dist/
+build/
+client/dist/
+server/dist/
+
+# Logs
+logs/
+*.log
+
+# Data
+data/
+*.sqlite
+*.db
+
+# Temp
+temp/
+tmp/
+
+# Generated files
+coverage/
+.nyc_output/
+
+# Package files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Environment files
+.env*
+
+# IDE
+.vscode/
+.idea/
