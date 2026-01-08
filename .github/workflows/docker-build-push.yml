@@ -28,12 +28,16 @@ jobs:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
         
-    - name: Get package version
+    - name: Get version from tag
       id: version
       run: |
-        VERSION=$(node -p "require('./package.json').version")
+        # 从 Git 标签获取版本号（去掉 v 前缀）
+        TAG_NAME=${GITHUB_REF#refs/tags/}
+        VERSION=${TAG_NAME#v}
+        echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
         echo "version=$VERSION" >> $GITHUB_OUTPUT
-        echo "📦 Package version: $VERSION"
+        echo "📦 Git Tag: $TAG_NAME"
+        echo "📦 Version: $VERSION"
         
     - name: Extract metadata
       id: meta
@@ -42,6 +46,7 @@ jobs:
         images: ${{ env.IMAGE_NAME }}
         tags: |
           type=raw,value=${{ steps.version.outputs.version }}
+          type=raw,value=${{ steps.version.outputs.tag }}
           type=raw,value=latest
           
     - name: Build and push Docker image
@@ -60,8 +65,9 @@ jobs:
       run: |
         echo "🏗️ Build completed successfully!"
         echo "📦 Image: ${{ env.IMAGE_NAME }}"
+        echo "🏷️ Git Tag: ${{ steps.version.outputs.tag }}"
         echo "🏷️ Version: ${{ steps.version.outputs.version }}"
-        echo "🏷️ Tags: ${{ steps.meta.outputs.tags }}"
+        echo "🏷️ Docker Tags: ${{ steps.meta.outputs.tags }}"
         echo "🔧 Platforms: linux/amd64,linux/arm64"
         echo "📋 Digest: ${{ steps.build.outputs.digest }}"
       
