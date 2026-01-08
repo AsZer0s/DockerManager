@@ -38,6 +38,7 @@ FROM node:22-alpine AS production
 RUN apk add --no-cache \
     docker-cli \
     openssh-client \
+    openssl \
     curl \
     sqlite \
     dumb-init \

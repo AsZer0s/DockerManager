@@ -10,14 +10,24 @@ echo "🚀 启动 Docker Manager 容器..."
 # 生成 JWT Secret（如果未设置）
 if [ -z "$JWT_SECRET" ] || [ "$JWT_SECRET" = "auto-generated-will-be-set-by-container" ]; then
     echo "🔑 生成 JWT Secret..."
-    export JWT_SECRET=$(openssl rand -hex 32)
+    if command -v openssl >/dev/null 2>&1; then
+        export JWT_SECRET=$(openssl rand -hex 32)
+    else
+        # 备用方案：使用 Node.js 生成
+        export JWT_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
+    fi
     echo "✅ JWT Secret 已生成"
 fi
 
 # 生成 Encryption Key（如果未设置）
 if [ -z "$ENCRYPTION_KEY" ] || [ "$ENCRYPTION_KEY" = "auto-generated-will-be-set-by-container" ]; then
     echo "🔐 生成 Encryption Key..."
-    export ENCRYPTION_KEY=$(openssl rand -hex 16)
+    if command -v openssl >/dev/null 2>&1; then
+        export ENCRYPTION_KEY=$(openssl rand -hex 16)
+    else
+        # 备用方案：使用 Node.js 生成
+        export ENCRYPTION_KEY=$(node -e "console.log(require('crypto').randomBytes(16).toString('hex'))")
+    fi
     echo "✅ Encryption Key 已生成"
 fi
 
