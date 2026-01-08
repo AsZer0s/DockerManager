@@ -55,12 +55,17 @@ WORKDIR /app
 COPY --from=builder --chown=docker-manager:nodejs /app/server ./server
 COPY --from=builder --chown=docker-manager:nodejs /app/client/dist ./client/dist
 COPY --from=builder --chown=docker-manager:nodejs /app/package*.json ./
-COPY --from=builder --chown=docker-manager:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=docker-manager:nodejs /app/server/node_modules ./server/node_modules
 COPY --chown=docker-manager:nodejs scripts/docker-entrypoint.sh ./scripts/
 
 # 设置启动脚本权限
 RUN chmod +x ./scripts/docker-entrypoint.sh
+
+# 重新安装生产依赖（确保在正确的环境中）
+RUN npm install --only=production && \
+    cd server && npm install --only=production
+
+# 将服务器依赖链接到根目录（解决模块查找问题）
+RUN ln -sf /app/server/node_modules /app/node_modules || true
 
 # 创建必要的目录并设置权限
 RUN mkdir -p /app/data /app/logs && \
@@ -87,5 +92,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 # 使用 dumb-init 作为 PID 1，正确处理信号
 ENTRYPOINT ["dumb-init", "--", "./scripts/docker-entrypoint.sh"]
 
-# 启动命令
-CMD ["node", "server/index.js"]
+# 启动命令（从 server 目录启动）
+CMD ["sh", "-c", "cd server && node index.js"]

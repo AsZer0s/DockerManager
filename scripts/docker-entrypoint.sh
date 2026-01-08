@@ -45,125 +45,27 @@ echo "  - ENCRYPTION_KEY: [已设置]"
 
 echo "🎯 启动应用服务器..."
 
-# 检查 Node.js 应用是否存在
-if [ ! -f "server/index.js" ]; then
-    echo "❌ 错误: server/index.js 文件不存在"
-    ls -la server/
-    exit 1
-fi
-
 # 检查 Node.js 版本
 echo "🔍 Node.js 版本:"
 node --version
 
-# 测试基本的 Node.js 功能
-echo "🧪 测试 Node.js 基本功能..."
-node -e "console.log('Node.js 基本功能正常')" || {
-    echo "❌ Node.js 基本功能测试失败"
-    exit 1
-}
+# 检查目录结构
+echo "📁 当前目录结构:"
+ls -la
 
-# 测试 ES 模块支持
-echo "🧪 测试 ES 模块支持..."
-node -e "import('crypto').then(() => console.log('ES 模块支持正常')).catch(e => { console.error('ES 模块错误:', e.message); process.exit(1); })" || {
-    echo "❌ ES 模块支持测试失败"
-    exit 1
-}
+echo "📁 服务器目录结构:"
+ls -la server/
 
-# 检查关键依赖
-echo "🔍 检查关键依赖..."
-cd server
-node -e "
-try {
-  require('express');
-  console.log('✅ express 可用');
-} catch(e) {
-  console.error('❌ express 不可用:', e.message);
-  process.exit(1);
-}
+# 检查服务器依赖
+echo "🔍 检查服务器依赖..."
+if [ -d "server/node_modules" ]; then
+    echo "✅ 服务器 node_modules 存在"
+    ls server/node_modules/ | head -5
+else
+    echo "❌ 服务器 node_modules 不存在"
+fi
 
-try {
-  require('dotenv');
-  console.log('✅ dotenv 可用');
-} catch(e) {
-  console.error('❌ dotenv 不可用:', e.message);
-  process.exit(1);
-}
-" || {
-    echo "❌ 依赖检查失败"
-    exit 1
-}
-
-cd /app
-
-# 尝试启动应用，如果失败显示详细错误
 echo "🚀 执行启动命令: $@"
 
-# 直接运行并捕获错误
-if [ "$1" = "node" ] && [ "$2" = "server/index.js" ]; then
-    echo "🔧 直接启动 Node.js 应用..."
-    
-    # 首先测试一个最简单的 Node.js 脚本
-    echo "🧪 测试最简单的 Node.js 脚本..."
-    node -e "
-    console.log('✅ 基本 Node.js 运行正常');
-    console.log('✅ 当前工作目录:', process.cwd());
-    console.log('✅ Node.js 版本:', process.version);
-    console.log('✅ 环境变量 NODE_ENV:', process.env.NODE_ENV);
-    " || {
-        echo "❌ 基本 Node.js 测试失败"
-        exit 1
-    }
-    
-    # 测试导入 dotenv (使用 ES 模块方式)
-    echo "🧪 测试 dotenv 导入..."
-    node -e "
-    import('dotenv').then(dotenv => {
-        dotenv.config();
-        console.log('✅ dotenv ES 模块导入成功');
-    }).catch(e => {
-        console.error('❌ dotenv ES 模块导入失败:', e.message);
-        process.exit(1);
-    });
-    " || {
-        echo "❌ dotenv 导入失败"
-        exit 1
-    }
-    
-    # 测试 ES 模块导入
-    echo "🧪 测试 ES 模块导入..."
-    node -e "
-    import('path').then(() => {
-        console.log('✅ ES 模块导入成功');
-    }).catch(e => {
-        console.error('❌ ES 模块导入失败:', e.message);
-        process.exit(1);
-    });
-    " || {
-        echo "❌ ES 模块导入失败"
-        exit 1
-    }
-    
-    # 检查数据目录权限
-    echo "🔍 检查数据目录..."
-    mkdir -p /app/data /app/logs || {
-        echo "❌ 无法创建数据目录"
-        exit 1
-    }
-    
-    echo "✅ 数据目录权限正常"
-    ls -la /app/data /app/logs
-    
-    echo "📋 运行主应用: node server/index.js"
-    
-    # 直接运行，让所有输出都显示
-    node server/index.js
-    
-    # 如果到这里说明进程退出了
-    EXIT_CODE=$?
-    echo "❌ Node.js 应用退出，错误码: $EXIT_CODE"
-    exit $EXIT_CODE
-else
-    # 执行传入的命令
-    exec "$@"
-fi
+# 执行传入的命令
+exec "$@"
