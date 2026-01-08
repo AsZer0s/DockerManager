@@ -102,10 +102,62 @@ echo "🚀 执行启动命令: $@"
 # 直接运行并捕获错误
 if [ "$1" = "node" ] && [ "$2" = "server/index.js" ]; then
     echo "🔧 直接启动 Node.js 应用..."
-    node server/index.js 2>&1 || {
-        echo "❌ Node.js 应用启动失败，错误码: $?"
+    
+    # 首先测试一个最简单的 Node.js 脚本
+    echo "🧪 测试最简单的 Node.js 脚本..."
+    node -e "
+    console.log('✅ 基本 Node.js 运行正常');
+    console.log('✅ 当前工作目录:', process.cwd());
+    console.log('✅ Node.js 版本:', process.version);
+    console.log('✅ 环境变量 NODE_ENV:', process.env.NODE_ENV);
+    " || {
+        echo "❌ 基本 Node.js 测试失败"
         exit 1
     }
+    
+    # 测试导入 dotenv
+    echo "🧪 测试 dotenv 导入..."
+    node -e "
+    require('dotenv').config();
+    console.log('✅ dotenv 导入成功');
+    " || {
+        echo "❌ dotenv 导入失败"
+        exit 1
+    }
+    
+    # 测试 ES 模块导入
+    echo "🧪 测试 ES 模块导入..."
+    node -e "
+    import('path').then(() => {
+        console.log('✅ ES 模块导入成功');
+    }).catch(e => {
+        console.error('❌ ES 模块导入失败:', e.message);
+        process.exit(1);
+    });
+    " || {
+        echo "❌ ES 模块导入失败"
+        exit 1
+    }
+    
+    # 检查数据目录权限
+    echo "🔍 检查数据目录..."
+    mkdir -p /app/data /app/logs || {
+        echo "❌ 无法创建数据目录"
+        exit 1
+    }
+    
+    echo "✅ 数据目录权限正常"
+    ls -la /app/data /app/logs
+    
+    echo "📋 运行主应用: node server/index.js"
+    
+    # 直接运行，让所有输出都显示
+    node server/index.js
+    
+    # 如果到这里说明进程退出了
+    EXIT_CODE=$?
+    echo "❌ Node.js 应用退出，错误码: $EXIT_CODE"
+    exit $EXIT_CODE
 else
     # 执行传入的命令
     exec "$@"
