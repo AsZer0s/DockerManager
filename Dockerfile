@@ -69,7 +69,7 @@ RUN ln -sf /app/server/node_modules /app/node_modules || true
 
 # 创建必要的目录并设置权限
 RUN mkdir -p /app/data /app/logs && \
-    chown -R docker-manager:nodejs /app/data /app/logs
+    chown -R docker-manager:nodejs /app
 
 # 设置默认环境变量（不包含敏感信息）
 ENV NODE_ENV=production
