@@ -56,6 +56,11 @@ if ! touch /app/data/test2.txt 2>/dev/null; then
     
     # 验证权限修复
     ls -la /app/data /app/logs
+else
+    echo "✅ 数据目录权限正常，但仍需确保所有权正确"
+    # 即使可以创建文件，也要确保目录所有权正确
+    chown -R docker-manager:nodejs /app/data /app/logs
+    echo "✅ 目录所有权已确保正确"
 fi
 
 # 如果当前是 root 用户，切换到 docker-manager 用户执行应用
