@@ -25,14 +25,14 @@ class EnvValidator {
   /**
    * 验证所有环境变量
    */
-  validate() {
+  async validate() {
     logger.info('🔍 开始验证环境变量...');
     
     const errors = [];
     const warnings = [];
 
     // 检查是否需要自动生成密钥
-    this.autoGenerateKeysIfNeeded();
+    await this.autoGenerateKeysIfNeeded();
 
     // 验证必需变量
     for (const varName of this.requiredVars) {
@@ -87,18 +87,18 @@ class EnvValidator {
   /**
    * 自动生成密钥（如果需要）
    */
-  autoGenerateKeysIfNeeded() {
+  async autoGenerateKeysIfNeeded() {
     const needsGeneration = [
-      { key: 'JWT_SECRET', length: 32 },
-      { key: 'ENCRYPTION_KEY', length: 16 }
+      { key: 'JWT_SECRET', length: 32, file: '/app/data/.jwt_secret' },
+      { key: 'ENCRYPTION_KEY', length: 16, file: '/app/data/.encryption_key' }
     ];
 
     let generated = false;
 
-    needsGeneration.forEach(({ key, length }) => {
+    for (const { key, length, file } of needsGeneration) {
       const value = process.env[key];
       
-      // 如果值为空或者是占位符，则自动生成
+      // 如果值为空或者是占位符，尝试从文件读取或生成新的
       if (!value || 
           value === 'auto-generated-will-be-set-by-container' ||
           value.includes('your_') || 
@@ -106,15 +106,50 @@ class EnvValidator {
           value === 'Zer0Teams' ||
           value === 'DockerManager_PoweredByZer0Teams') {
         
+        // 尝试从文件读取
+        try {
+          const fs = await import('fs');
+          if (fs.existsSync(file)) {
+            const fileValue = fs.readFileSync(file, 'utf8').trim();
+            if (fileValue && fileValue.length >= length) {
+              process.env[key] = fileValue;
+              logger.info(`🔑 从文件加载 ${key}: ${fileValue.substring(0, 8)}...`);
+              continue;
+            }
+          }
+        } catch (error) {
+          logger.warn(`无法从文件读取 ${key}:`, error.message);
+        }
+        
+        // 生成新密钥
         const newValue = key === 'ENCRYPTION_KEY' 
           ? crypto.randomBytes(length).toString('hex')
           : crypto.randomBytes(length).toString('hex');
         
         process.env[key] = newValue;
-        logger.info(`🔑 自动生成 ${key}: ${newValue.substring(0, 8)}...`);
+        
+        // 尝试保存到文件
+        try {
+          const fs = await import('fs');
+          const path = await import('path');
+          
+          // 确保目录存在
+          const dir = path.dirname(file);
+          if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+          }
+          
+          fs.writeFileSync(file, newValue);
+          fs.chmodSync(file, 0o600); // 设置文件权限为仅所有者可读写
+          logger.info(`🔑 生成并保存 ${key}: ${newValue.substring(0, 8)}...`);
+        } catch (error) {
+          logger.warn(`无法保存 ${key} 到文件:`, error.message);
+          logger.info(`🔑 生成 ${key}: ${newValue.substring(0, 8)}...`);
+        }
+        
         generated = true;
       }
-    });
+    }
 
     if (generated) {
       logger.info('✅ 已自动生成安全密钥');

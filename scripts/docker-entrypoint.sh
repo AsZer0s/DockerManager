@@ -7,28 +7,50 @@ set -e
 
 echo "🚀 启动 Docker Manager 容器..."
 
-# 生成 JWT Secret（如果未设置）
+# 密钥文件路径
+JWT_SECRET_FILE="/app/data/.jwt_secret"
+ENCRYPTION_KEY_FILE="/app/data/.encryption_key"
+
+# 生成或读取 JWT Secret
 if [ -z "$JWT_SECRET" ] || [ "$JWT_SECRET" = "auto-generated-will-be-set-by-container" ]; then
-    echo "🔑 生成 JWT Secret..."
-    if command -v openssl >/dev/null 2>&1; then
-        export JWT_SECRET=$(openssl rand -hex 32)
+    if [ -f "$JWT_SECRET_FILE" ]; then
+        echo "🔑 从文件读取 JWT Secret..."
+        export JWT_SECRET=$(cat "$JWT_SECRET_FILE")
+        echo "✅ JWT Secret 已从文件加载"
     else
-        # 备用方案：使用 Node.js 生成
-        export JWT_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
+        echo "🔑 生成新的 JWT Secret..."
+        if command -v openssl >/dev/null 2>&1; then
+            export JWT_SECRET=$(openssl rand -hex 32)
+        else
+            # 备用方案：使用 Node.js 生成
+            export JWT_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
+        fi
+        # 保存到文件
+        echo "$JWT_SECRET" > "$JWT_SECRET_FILE"
+        chmod 600 "$JWT_SECRET_FILE"
+        echo "✅ JWT Secret 已生成并保存到文件"
     fi
-    echo "✅ JWT Secret 已生成"
 fi
 
-# 生成 Encryption Key（如果未设置）
+# 生成或读取 Encryption Key
 if [ -z "$ENCRYPTION_KEY" ] || [ "$ENCRYPTION_KEY" = "auto-generated-will-be-set-by-container" ]; then
-    echo "🔐 生成 Encryption Key..."
-    if command -v openssl >/dev/null 2>&1; then
-        export ENCRYPTION_KEY=$(openssl rand -hex 16)
+    if [ -f "$ENCRYPTION_KEY_FILE" ]; then
+        echo "🔐 从文件读取 Encryption Key..."
+        export ENCRYPTION_KEY=$(cat "$ENCRYPTION_KEY_FILE")
+        echo "✅ Encryption Key 已从文件加载"
     else
-        # 备用方案：使用 Node.js 生成
-        export ENCRYPTION_KEY=$(node -e "console.log(require('crypto').randomBytes(16).toString('hex'))")
+        echo "🔐 生成新的 Encryption Key..."
+        if command -v openssl >/dev/null 2>&1; then
+            export ENCRYPTION_KEY=$(openssl rand -hex 16)
+        else
+            # 备用方案：使用 Node.js 生成
+            export ENCRYPTION_KEY=$(node -e "console.log(require('crypto').randomBytes(16).toString('hex'))")
+        fi
+        # 保存到文件
+        echo "$ENCRYPTION_KEY" > "$ENCRYPTION_KEY_FILE"
+        chmod 600 "$ENCRYPTION_KEY_FILE"
+        echo "✅ Encryption Key 已生成并保存到文件"
     fi
-    echo "✅ Encryption Key 已生成"
 fi
 
 # 确保数据目录存在

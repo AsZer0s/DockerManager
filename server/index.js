@@ -280,7 +280,7 @@ async function initializeServices() {
     
     // 验证环境变量
     console.log('🔍 验证环境变量...');
-    envValidator.validate();
+    await envValidator.validate();
     envValidator.checkForInsecureDefaults();
     console.log('✅ 环境变量验证通过');
     
