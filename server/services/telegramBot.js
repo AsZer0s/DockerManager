@@ -92,15 +92,22 @@ class TelegramBotService {
       if (proxyUrl) {
         logger.info(`使用代理连接 Telegram: ${proxyUrl}`);
         
-        // 根据代理类型创建相应的代理代理
-        if (proxyUrl.startsWith('socks5://') || proxyUrl.startsWith('socks4://')) {
-          agent = new SocksProxyAgent(proxyUrl);
-          logger.info('使用 SOCKS 代理');
-        } else if (proxyUrl.startsWith('http://') || proxyUrl.startsWith('https://')) {
-          agent = new HttpsProxyAgent(proxyUrl);
-          logger.info('使用 HTTP 代理');
-        } else {
-          logger.warn('不支持的代理协议，支持的协议: http, https, socks4, socks5');
+        try {
+          // 根据代理类型创建相应的代理代理
+          if (proxyUrl.startsWith('socks5://') || proxyUrl.startsWith('socks4://')) {
+            const { SocksProxyAgent } = await import('socks-proxy-agent');
+            agent = new SocksProxyAgent(proxyUrl);
+            logger.info('使用 SOCKS 代理');
+          } else if (proxyUrl.startsWith('http://') || proxyUrl.startsWith('https://')) {
+            const { HttpsProxyAgent } = await import('https-proxy-agent');
+            agent = new HttpsProxyAgent(proxyUrl);
+            logger.info('使用 HTTP 代理');
+          } else {
+            logger.warn('不支持的代理协议，支持的协议: http, https, socks4, socks5');
+          }
+        } catch (importError) {
+          logger.error('导入代理模块失败:', importError.message);
+          logger.warn('请确保已安装代理依赖: npm install https-proxy-agent socks-proxy-agent');
         }
       }
 
@@ -235,7 +242,7 @@ class TelegramBotService {
         'Docker Manager 机器人\n\n' +
         '点击下方按钮打开 Web 应用进行管理';
 
-      const webAppUrl = process.env.TELEGRAM_WEBAPP_URL || 'https://ztms.top/telegram-webapp';
+      const webAppUrl = process.env.TELEGRAM_WEBAPP_URL || 'https://localhost:3000/telegram-webapp';
 
       await ctx.reply(welcomeMessage, {
         parse_mode: 'Markdown',
