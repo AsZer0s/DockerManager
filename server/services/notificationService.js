@@ -37,13 +37,27 @@ class NotificationService {
         const dbConfig = JSON.parse(result.rows[0].settings);
         // 检查数据库配置是否完整
         if (dbConfig.host && dbConfig.user && dbConfig.pass) {
+          // 解密密码
+          let decryptedPass = dbConfig.pass;
+          try {
+            const encryption = await import('../utils/encryption.js');
+            // 检查密码是否已加密（包含冒号分隔符）
+            if (dbConfig.pass.includes(':')) {
+              decryptedPass = encryption.default.decrypt(dbConfig.pass);
+            }
+          } catch (decryptError) {
+            logger.warn('解密SMTP密码失败，使用原始密码:', decryptError.message);
+            // 如果解密失败，使用原始密码（可能是未加密的）
+            decryptedPass = dbConfig.pass;
+          }
+          
           config = {
             host: dbConfig.host,
             port: dbConfig.port,
             secure: dbConfig.secure || false,
             auth: {
               user: dbConfig.user,
-              pass: dbConfig.pass
+              pass: decryptedPass
             },
             from: dbConfig.from || 'Docker Manager <noreply@dockermanager.com>'
           };
@@ -84,12 +98,21 @@ class NotificationService {
     try {
       const config = await this.getSMTPConfig();
       if (!config) {
+        logger.warn('SMTP配置未设置，邮件功能不可用');
         return false;
       }
 
       if (!config.auth.user || !config.auth.pass) {
+        logger.warn('SMTP认证信息不完整，邮件功能不可用');
         return false;
       }
+
+      logger.info('正在初始化SMTP连接...', {
+        host: config.host,
+        port: config.port,
+        secure: config.secure,
+        user: config.auth.user
+      });
 
       this.smtpTransporter = nodemailer.createTransport(config);
       
@@ -98,7 +121,23 @@ class NotificationService {
       logger.info('SMTP连接验证成功');
       return true;
     } catch (error) {
-      logger.error('SMTP初始化失败:', error);
+      logger.error('SMTP初始化失败:', {
+        error: error.message,
+        code: error.code,
+        command: error.command
+      });
+      
+      // 提供具体的错误建议
+      if (error.code === 'EAUTH') {
+        logger.error('SMTP认证失败，请检查用户名和密码是否正确');
+      } else if (error.code === 'ECONNECTION') {
+        logger.error('SMTP连接失败，请检查服务器地址和端口');
+      } else if (error.code === 'ETIMEDOUT') {
+        logger.error('SMTP连接超时，请检查网络连接');
+      } else if (error.code === 'EENVELOPE') {
+        logger.error('发件人地址错误，请确保发件人地址与认证用户匹配');
+      }
+      
       return false;
     }
   }
