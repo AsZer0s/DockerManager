@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   dockermanager:
-    image: ${DOCKER_IMAGE:-your-dockerhub-username/dockermanager}:latest
+    image: aszer0s/dockermanager:latest
     container_name: dockermanager
     ports:
       - "9090:9090"

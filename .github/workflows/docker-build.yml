@@ -2,8 +2,7 @@ name: Docker Build and Publish
 
 on:
   push:
-    branches: [ "main", "master" ]
-    tags: [ 'v*.*.*' ]
+    tags: [ 'v*' ]
 
 env:
   IMAGE_NAME: aszer0s/docker-manager
@@ -34,9 +33,8 @@ jobs:
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
-            type=ref,event=branch
             type=semver,pattern={{version}}
-            type=sha,prefix=
+            type=raw,value=latest
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
