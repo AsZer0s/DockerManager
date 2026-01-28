@@ -1,119 +1,42 @@
-# Dependencies
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+
+# IDEs
+.vscode/
+.idea/
+*.iml
+
+# Node / Frontend
 node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+.env
+frontend/.env
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.eslintcache
 
-# Environment variables - NEVER COMMIT THESE
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-server/.env
-client/.env.local
-.env.*
-!.env.example
-!server/env.example
+# Go / Backend
+backend/app.exe
+backend/dockermanager
+backend/dockermanager.exe
+backend/static/
+backend/dockerpulse.db
+backend/.sk
+*.out
+*.test
+bin/
+vendor/
 
-# Build outputs
-dist/
-build/
-client/dist/
-server/dist/
-
-# Logs
-logs/
-*.log
-
-# Runtime data
-pids/
-*.pid
-*.seed
-*.pid.lock
-
-# Coverage directory used by tools like istanbul
-coverage/
-
-# nyc test coverage
-.nyc_output
-
-# Dependency directories
-jspm_packages/
-
-# Optional npm cache directory
-.npm
-
-# Optional REPL history
-.node_repl_history
-
-# Output of 'npm pack'
-*.tgz
-
-# Yarn Integrity file
-.yarn-integrity
-
-# dotenv environment variables file
-.env
-
-# parcel-bundler cache (https://parceljs.org/)
-.cache
-.parcel-cache
-
-# next.js build output
-.next
-
-# nuxt.js build output
-.nuxt
-
-# vuepress build output
-.vuepress/dist
-
-# Serverless directories
-.serverless
-
-# FuseBox cache
-.fusebox/
-
-# DynamoDB Local files
-.dynamodb/
-
-# TernJS port file
-.tern-port
-
-# IDE files
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS generated files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
+# App Specific Data
+data/
+*.db
+.sk
 
 # Docker
-.dockerignore
-
-# Data directories
-data/
-uploads/
-
-# SSL certificates
-ssl/
-*.pem
-*.key
-*.crt
-
-# Backup files
-*.backup
-*.bak
-
-# Temporary files
-tmp/
-temp/
+.docker/

@@ -1,45 +1,13 @@
+version: '3.8'
+
 services:
-  docker-manager:
-    image: aszer0s/docker-manager:latest
-    container_name: docker-manager
-    restart: unless-stopped
+  dockermanager:
+    image: ${DOCKER_IMAGE:-your-dockerhub-username/dockermanager}:latest
+    container_name: dockermanager
     ports:
-      - "3000:3000"
-    environment:
-      # 基础配置
-      NODE_ENV: production
-      PORT: 3000
-      DATABASE_PATH: /app/data/database.sqlite
-      LOG_LEVEL: info
-      MONITORING_INTERVAL: 5000
-      
-      # 安全密钥 (容器启动时自动生成)
-      JWT_SECRET: auto-generated-will-be-set-by-container
-      ENCRYPTION_KEY: auto-generated-will-be-set-by-container
-      
-      # CORS 配置
-      CORS_ORIGIN: http://localhost:3000,http://127.0.0.1:3000
-      
-      # Telegram Bot 配置 (可选 - 如果不需要可以删除这些行)
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
-      TELEGRAM_WEBAPP_URL: ${TELEGRAM_WEBAPP_URL:-http://localhost:3000/telegram-webapp}
-      TGBOT_PROXY: ${TGBOT_PROXY:-}
-      
-      # SMTP 邮件配置 (可选 - 如果不需要可以删除这些行)
-      SMTP_HOST: ${SMTP_HOST:-}
-      SMTP_PORT: ${SMTP_PORT:-587}
-      SMTP_SECURE: ${SMTP_SECURE:-false}
-      SMTP_USER: ${SMTP_USER:-}
-      SMTP_PASS: ${SMTP_PASS:-}
-      SMTP_FROM: ${SMTP_FROM:-Docker Manager <noreply@dockermanager.com>}
+      - "9090:9090"
     volumes:
-      # 数据持久化
-      - ./data:/app/data
-      - ./logs:/app/logs
-      # Docker Socket 访问
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      - ./data:/app
+    environment:
+      - GIN_MODE=release
+    restart: unless-stopped
