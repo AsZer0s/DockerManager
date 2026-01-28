@@ -7,7 +7,6 @@ import {
   TrendingUp,
   Clock,
   Plus,
-  Filter,
   ChevronDown,
   Check
 } from 'lucide-react';

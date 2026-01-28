@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { Terminal as XTerm } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import { WebglAddon } from 'xterm-addon-webgl';
-import { AlertCircle, CheckCircle2, Loader2, WifiOff } from 'lucide-react';
+import { AlertCircle, Loader2, WifiOff } from 'lucide-react';
 import { useApp } from '../hooks/useApp';
 import 'xterm/css/xterm.css';
 

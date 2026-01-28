@@ -7,8 +7,6 @@ import {
   Settings,
   LogOut,
   Box,
-  Bell,
-  Search,
   Menu,
   ChevronRight,
   Sun,

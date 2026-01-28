@@ -8,7 +8,6 @@ import {
   Smartphone,
   Lock,
   X,
-  Search,
   Server as ServerIcon // Added ServerIcon for permissions
 } from 'lucide-react';
 import api from '../lib/api';

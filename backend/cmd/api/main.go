@@ -25,7 +25,7 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-//go:embed static/*
+//go:embed static
 var staticFiles embed.FS
 
 const (

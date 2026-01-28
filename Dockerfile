@@ -14,8 +14,8 @@ WORKDIR /app/backend
 COPY backend/go.mod backend/go.sum ./
 RUN go mod download
 COPY backend/ ./
-# Copy built frontend to backend/static for embedding
-COPY --from=frontend-builder /app/frontend/dist ./static
+# Copy built frontend to backend/cmd/api/static for embedding
+COPY --from=frontend-builder /app/frontend/dist ./cmd/api/static
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app/dockermanager cmd/api/main.go
 
 # Stage 3: Final Image

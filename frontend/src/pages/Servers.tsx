@@ -1,16 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Server as ServerIcon,
-  Plus,
-  Cpu,
-  HardDrive,
-  MoreVertical,
-  Activity,
-  Terminal,
-  Power,
-  RefreshCw,
-  Edit2,
-  Trash2
+  Plus
 } from 'lucide-react';
 import { serverApi, Server, ServerPayload, ServerStats } from '../lib/api';
 import ServerModal from '../components/ServerModal';

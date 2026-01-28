@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { containerApi, FileEntry, FileListResponse, FileContentResponse } from '../lib/api';
+import React, { useState, useEffect } from 'react';
+import { containerApi, FileEntry } from '../lib/api';
 import { Folder, FileText, ArrowLeft, Download, RefreshCw, AlertTriangle, Loader2, X } from 'lucide-react';
 import { useApp } from '../hooks/useApp';
 import { format } from 'date-fns';
