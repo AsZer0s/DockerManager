@@ -4,8 +4,6 @@ DockerManager 是一个现代化、轻量级的多服务器 Docker 管理面板�
 
 DockerManager is a modern, lightweight multi-server Docker management dashboard. It provides a beautiful web interface for centrally managing multiple Docker hosts, containers, and their associated resources.
 
-![Overview](./docs/overview.png)
-
 ## ✨ 特性 (Features)
 
 - 📊 **实时仪表盘 (Real-time Dashboard)**: 监控所有连接服务器的 CPU、内存、容器状态和网络延迟。
