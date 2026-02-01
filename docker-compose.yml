@@ -2,12 +2,12 @@ version: '3.8'
 
 services:
   dockermanager:
-    image: aszer0s/dockermanager:latest
+    image: aszer0s/docker-manager:latest
     container_name: dockermanager
     ports:
       - "9090:9090"
     volumes:
-      - ./data:/app
+      - ./data:/app/data
     environment:
       - GIN_MODE=release
     restart: unless-stopped
