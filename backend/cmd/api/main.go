@@ -195,6 +195,11 @@ func setupRouter(db *gorm.DB, cfg Config) *gin.Engine {
 	staticFS, _ := fs.Sub(staticFiles, "static")
 	fileServer := http.FileServer(http.FS(staticFS))
 
+	// Handle root path directly to avoid 301 redirects
+	r.GET("/", func(c *gin.Context) {
+		c.FileFromFS("index.html", http.FS(staticFS))
+	})
+
 	r.NoRoute(func(c *gin.Context) {
 		path := c.Request.URL.Path
 		// If the path starts with /api/ or /ws/, don't serve static files
