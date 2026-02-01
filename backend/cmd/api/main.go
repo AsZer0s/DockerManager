@@ -193,7 +193,6 @@ func setupRouter(db *gorm.DB, cfg Config) *gin.Engine {
 
 	// Static files serving
 	staticFS, _ := fs.Sub(staticFiles, "static")
-	fileServer := http.FileServer(http.FS(staticFS))
 
 	// Handle root path directly to avoid 301 redirects
 	r.GET("/", func(c *gin.Context) {
@@ -214,7 +213,7 @@ func setupRouter(db *gorm.DB, cfg Config) *gin.Engine {
 }
 
 func main() {
-	log.Println("DockerManager | Verison 1.0.5")
+	log.Println("DockerManager | Verison 1.0.6")
 	db := initDB()
 	cfg := loadConfig(db)
 	stats.StartCollector(db)
