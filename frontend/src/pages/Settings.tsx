@@ -250,7 +250,7 @@ const Settings: React.FC = () => {
               <h3 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">{t('telegram_bind')}</h3>
             </div>
 
-            <p className="text-zinc-500 text-sm mb-8 leading-relaxed">
+            <p className="text-zinc-500 dark:text-zinc-400 text-sm mb-8 leading-relaxed">
               {t('bind_telegram_desc')}
             </p>
 
@@ -308,7 +308,7 @@ const Settings: React.FC = () => {
               <h3 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">{t('bot_config')}</h3>
             </div>
 
-            <p className="text-zinc-500 text-sm mb-8 leading-relaxed">
+            <p className="text-zinc-500 dark:text-zinc-400 text-sm mb-8 leading-relaxed">
               {t('bot_config_desc')}
             </p>
 
@@ -319,7 +319,7 @@ const Settings: React.FC = () => {
                     {t('bot_token')}
                   </label>
                   <div className="relative">
-                    <Bot className="absolute left-3 top-2.5 w-5 h-5 text-zinc-500 group-focus-within:text-emerald-400 transition-colors" />
+                    <Bot className="absolute left-3 top-2.5 w-5 h-5 text-zinc-500 dark:text-zinc-400 group-focus-within:text-emerald-400 transition-colors" />
                     <input
                       type="password"
                       value={botToken}
@@ -335,7 +335,7 @@ const Settings: React.FC = () => {
                     {t('web_app_url')}
                   </label>
                   <div className="relative">
-                    <Globe className="absolute left-3 top-2.5 w-5 h-5 text-zinc-500 group-focus-within:text-emerald-400 transition-colors" />
+                    <Globe className="absolute left-3 top-2.5 w-5 h-5 text-zinc-500 dark:text-zinc-400 group-focus-within:text-emerald-400 transition-colors" />
                     <input
                       type="url"
                       value={webAppUrl}
@@ -395,7 +395,7 @@ const Settings: React.FC = () => {
               </button>
             </div>
 
-            <p className="text-zinc-500 text-sm mb-8 leading-relaxed">
+            <p className="text-zinc-500 dark:text-zinc-400 text-sm mb-8 leading-relaxed">
               {t('monitoring_config_desc')}
             </p>
 
@@ -410,7 +410,7 @@ const Settings: React.FC = () => {
                     <div key={idx} className="flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-950/50 border border-zinc-200 dark:border-zinc-800 rounded-xl group hover:border-emerald-500/30 transition-all">
                       <div>
                         <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{target.name}</p>
-                        <p className="text-xs text-zinc-500 font-mono mt-0.5">{target.host}</p>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 font-mono mt-0.5">{target.host}</p>
                       </div>
                       <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
@@ -464,7 +464,7 @@ const Settings: React.FC = () => {
             <h3 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">{t('security')}</h3>
           </div>
 
-          <p className="text-zinc-500 text-sm mb-8 leading-relaxed">
+          <p className="text-zinc-500 dark:text-zinc-400 text-sm mb-8 leading-relaxed">
             {t('security_desc')}
           </p>
 
@@ -475,7 +475,7 @@ const Settings: React.FC = () => {
                   {t('current_password')}
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-2.5 w-5 h-5 text-zinc-500 group-focus-within:text-emerald-400 transition-colors" />
+                  <Lock className="absolute left-3 top-2.5 w-5 h-5 text-zinc-500 dark:text-zinc-400 group-focus-within:text-emerald-400 transition-colors" />
                   <input
                     type="password"
                     value={currentPassword}
@@ -492,7 +492,7 @@ const Settings: React.FC = () => {
                     {t('new_password')}
                   </label>
                   <div className="relative">
-                    <KeyRound className="absolute left-3 top-2.5 w-5 h-5 text-zinc-500 group-focus-within:text-emerald-400 transition-colors" />
+                    <KeyRound className="absolute left-3 top-2.5 w-5 h-5 text-zinc-500 dark:text-zinc-400 group-focus-within:text-emerald-400 transition-colors" />
                     <input
                       type="password"
                       value={newPassword}
@@ -508,7 +508,7 @@ const Settings: React.FC = () => {
                     {t('confirm')}
                   </label>
                   <div className="relative">
-                    <CheckCircle2 className="absolute left-3 top-2.5 w-5 h-5 text-zinc-500 group-focus-within:text-emerald-400 transition-colors" />
+                    <CheckCircle2 className="absolute left-3 top-2.5 w-5 h-5 text-zinc-500 dark:text-zinc-400 group-focus-within:text-emerald-400 transition-colors" />
                     <input
                       type="password"
                       value={confirmNewPassword}
