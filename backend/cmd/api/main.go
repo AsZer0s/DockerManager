@@ -129,20 +129,18 @@ func initDB() *gorm.DB {
 	return db
 }
 
-func setupRouter(db *gorm.DB, cfg Config) *gin.Engine {
-	// Use gin.Default() but configure it carefully
-	r := gin.Default()
-
-	// Add CORS middleware
-	r.Use(middleware.CORSMiddleware())
+func setupRouter(db *gorm.DB, cfg Config) http.Handler {
+	// Create a Gin router for API routes
+	ginRouter := gin.Default()
+	ginRouter.Use(middleware.CORSMiddleware())
 
 	// API routes
-	public := r.Group("/api/v1")
+	public := ginRouter.Group("/api/v1")
 	{
 		public.POST("/login", handler.Login(db, cfg.JWTSecret))
 	}
 
-	auth := r.Group("/api/v1")
+	auth := ginRouter.Group("/api/v1")
 	auth.Use(middleware.AuthMiddleware(db, cfg.JWTSecret))
 	{
 		// Server Management
@@ -188,7 +186,7 @@ func setupRouter(db *gorm.DB, cfg Config) *gin.Engine {
 	}
 
 	// WebSocket routes
-	ws := r.Group("/ws")
+	ws := ginRouter.Group("/ws")
 	ws.Use(middleware.AuthMiddleware(db, cfg.JWTSecret))
 	{
 		ws.GET("/terminal", func(c *gin.Context) {
@@ -199,22 +197,39 @@ func setupRouter(db *gorm.DB, cfg Config) *gin.Engine {
 	// Static files and SPA routes
 	staticFS, _ := fs.Sub(staticFiles, "static")
 
-	// Serve index.html for root path
-	r.GET("/", func(c *gin.Context) {
-		c.FileFromFS("index.html", http.FS(staticFS))
-	})
+	// Create a custom http.Handler that handles all requests
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
 
-	// Serve index.html for all other routes (SPA fallback)
-	r.NoRoute(func(c *gin.Context) {
-		path := c.Request.URL.Path
-		if !strings.HasPrefix(path, "/api/") && !strings.HasPrefix(path, "/ws/") {
-			c.FileFromFS("index.html", http.FS(staticFS))
+		// Check if it's an API or WS request
+		if strings.HasPrefix(path, "/api/") || strings.HasPrefix(path, "/ws/") {
+			// Let Gin handle these
+			ginRouter.ServeHTTP(w, r)
 			return
 		}
-		c.JSON(404, gin.H{"error": "Not Found"})
-	})
 
-	return r
+		// For all other requests, serve index.html directly
+		log.Printf("Serving index.html for path: %s", path)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		
+		// Open index.html
+		f, err := staticFS.Open("index.html")
+		if err != nil {
+			log.Printf("Error opening index.html: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("Internal Server Error"))
+			return
+		}
+		defer f.Close()
+		
+		// Copy content to response
+		if _, err := io.Copy(w, f); err != nil {
+			log.Printf("Error copying index.html: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("Internal Server Error"))
+			return
+		}
+	})
 }
 
 func main() {
@@ -234,12 +249,12 @@ func main() {
 		log.Println("Telegram Bot Token not configured in DB. Skipping Telegram Bot initialization.")
 	}
 
-	r := setupRouter(db, cfg)
-	log.Printf("Gin API listening on %s", cfg.ListenAddr)
+	handler := setupRouter(db, cfg)
+	log.Printf("Server listening on %s", cfg.ListenAddr)
 
-	s := r.Run(cfg.ListenAddr)
+	s := http.ListenAndServe(cfg.ListenAddr, handler)
 	if s != nil {
-		log.Fatalf("Gin server failed to start: %v", s)
+		log.Fatalf("Server failed to start: %v", s)
 	}
 }
 
