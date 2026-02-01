@@ -224,6 +224,7 @@ func setupRouter(db *gorm.DB, cfg Config) *gin.Engine {
 }
 
 func main() {
+	log.Println("DockerManager | Verison 1.0.3")
 	db := initDB()
 	cfg := loadConfig(db)
 	stats.StartCollector(db)
