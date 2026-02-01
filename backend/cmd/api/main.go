@@ -202,21 +202,11 @@ func setupRouter(db *gorm.DB, cfg Config) *gin.Engine {
 
 	r.NoRoute(func(c *gin.Context) {
 		path := c.Request.URL.Path
-		// If the path starts with /api/ or /ws/, don't serve static files
 		if strings.HasPrefix(path, "/api/") || strings.HasPrefix(path, "/ws/") {
 			c.JSON(404, gin.H{"error": "Not Found"})
 			return
 		}
 
-		// Check if file exists in staticFS
-		f, err := staticFS.Open(strings.TrimPrefix(path, "/"))
-		if err == nil {
-			f.Close()
-			fileServer.ServeHTTP(c.Writer, c.Request)
-			return
-		}
-
-		// Otherwise serve index.html for SPA routing
 		c.FileFromFS("index.html", http.FS(staticFS))
 	})
 
@@ -224,7 +214,7 @@ func setupRouter(db *gorm.DB, cfg Config) *gin.Engine {
 }
 
 func main() {
-	log.Println("DockerManager | Verison 1.0.3")
+	log.Println("DockerManager | Verison 1.0.5")
 	db := initDB()
 	cfg := loadConfig(db)
 	stats.StartCollector(db)
