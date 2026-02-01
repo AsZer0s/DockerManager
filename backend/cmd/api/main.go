@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"io"
 	"log"
 	"os"
 	"time"
@@ -129,10 +130,13 @@ func initDB() *gorm.DB {
 }
 
 func setupRouter(db *gorm.DB, cfg Config) *gin.Engine {
+	// Use gin.Default() but configure it carefully
 	r := gin.Default()
 
+	// Add CORS middleware
 	r.Use(middleware.CORSMiddleware())
 
+	// API routes
 	public := r.Group("/api/v1")
 	{
 		public.POST("/login", handler.Login(db, cfg.JWTSecret))
@@ -183,6 +187,7 @@ func setupRouter(db *gorm.DB, cfg Config) *gin.Engine {
 		auth.PUT("/config/latency", middleware.RoleCheck("admin"), handler.UpdateLatencyConfig(db))
 	}
 
+	// WebSocket routes
 	ws := r.Group("/ws")
 	ws.Use(middleware.AuthMiddleware(db, cfg.JWTSecret))
 	{
@@ -191,29 +196,29 @@ func setupRouter(db *gorm.DB, cfg Config) *gin.Engine {
 		})
 	}
 
-	// Static files serving
+	// Static files and SPA routes
 	staticFS, _ := fs.Sub(staticFiles, "static")
 
-	// Handle root path directly to avoid 301 redirects
+	// Serve index.html for root path
 	r.GET("/", func(c *gin.Context) {
 		c.FileFromFS("index.html", http.FS(staticFS))
 	})
 
+	// Serve index.html for all other routes (SPA fallback)
 	r.NoRoute(func(c *gin.Context) {
 		path := c.Request.URL.Path
-		if strings.HasPrefix(path, "/api/") || strings.HasPrefix(path, "/ws/") {
-			c.JSON(404, gin.H{"error": "Not Found"})
+		if !strings.HasPrefix(path, "/api/") && !strings.HasPrefix(path, "/ws/") {
+			c.FileFromFS("index.html", http.FS(staticFS))
 			return
 		}
-
-		c.FileFromFS("index.html", http.FS(staticFS))
+		c.JSON(404, gin.H{"error": "Not Found"})
 	})
 
 	return r
 }
 
 func main() {
-	log.Println("DockerManager | Verison 1.0.6")
+	log.Println("DockerManager | Verison 1.0.7")
 	db := initDB()
 	cfg := loadConfig(db)
 	stats.StartCollector(db)
