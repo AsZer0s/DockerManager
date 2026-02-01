@@ -208,22 +208,50 @@ func setupRouter(db *gorm.DB, cfg Config) http.Handler {
 			return
 		}
 
-		// For all other requests, serve index.html directly
+		// Try to serve the requested file from staticFS
+		// Remove leading slash for fs.Open
+		fsPath := strings.TrimPrefix(path, "/")
+		f, err := staticFS.Open(fsPath)
+		if err == nil {
+			// File exists, serve it
+			defer f.Close()
+			
+			// Set appropriate content type based on file extension
+			if strings.HasSuffix(path, ".js") {
+				w.Header().Set("Content-Type", "application/javascript")
+			} else if strings.HasSuffix(path, ".css") {
+				w.Header().Set("Content-Type", "text/css")
+			} else if strings.HasSuffix(path, ".html") {
+				w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			} else if strings.HasSuffix(path, ".svg") {
+				w.Header().Set("Content-Type", "image/svg+xml")
+			}
+			
+			if _, err := io.Copy(w, f); err != nil {
+				log.Printf("Error copying file %s: %v", path, err)
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte("Internal Server Error"))
+				return
+			}
+			return
+		}
+
+		// File doesn't exist, serve index.html for SPA routing
 		log.Printf("Serving index.html for path: %s", path)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		
 		// Open index.html
-		f, err := staticFS.Open("index.html")
+		indexFile, err := staticFS.Open("index.html")
 		if err != nil {
 			log.Printf("Error opening index.html: %v", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte("Internal Server Error"))
 			return
 		}
-		defer f.Close()
+		defer indexFile.Close()
 		
 		// Copy content to response
-		if _, err := io.Copy(w, f); err != nil {
+		if _, err := io.Copy(w, indexFile); err != nil {
 			log.Printf("Error copying index.html: %v", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte("Internal Server Error"))
