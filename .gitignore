@@ -26,8 +26,6 @@ backend/app.exe
 backend/dockermanager
 backend/dockermanager.exe
 backend/static/
-backend/dockerpulse.db
-backend/.sk
 *.out
 *.test
 bin/
@@ -35,8 +33,6 @@ vendor/
 
 # App Specific Data
 data/
-*.db
-.sk
 
 # Docker
 .docker/

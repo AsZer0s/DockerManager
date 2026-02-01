@@ -29,7 +29,7 @@ import (
 var staticFiles embed.FS
 
 const (
-	jwtSecretFile = ".sk"
+	jwtSecretFile = "data/.sk"
 )
 
 type Config struct {
@@ -104,7 +104,7 @@ func initDB() *gorm.DB {
 		},
 	)
 
-	db, err := gorm.Open(sqlite.Open("dockerpulse.db"), &gorm.Config{
+	db, err := gorm.Open(sqlite.Open("data/dockerpulse.db"), &gorm.Config{
 		Logger: newLogger,
 	})
 	if err != nil {
