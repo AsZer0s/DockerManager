@@ -183,6 +183,16 @@ func setupRouter(db *gorm.DB, cfg Config) http.Handler {
 		auth.PUT("/config/telegram", middleware.RoleCheck("admin"), handler.UpdateTelegramConfig(db))
 		auth.GET("/config/latency", middleware.RoleCheck("admin"), handler.GetLatencyConfig(db))
 		auth.PUT("/config/latency", middleware.RoleCheck("admin"), handler.UpdateLatencyConfig(db))
+
+		// Telegram WebApp endpoints
+		telegram := auth.Group("/telegram")
+		{
+			telegram.GET("/info", handler.GetTelegramUserInfo(db))
+			telegram.GET("/servers", handler.GetTelegramServerList(db))
+			telegram.GET("/summary", handler.GetTelegramQuickSummary(db))
+			telegram.GET("/servers/:id/stats", handler.GetTelegramServerStats(db))
+			telegram.GET("/servers/:id/containers", handler.GetTelegramContainerStatus(db))
+		}
 	}
 
 	// WebSocket routes

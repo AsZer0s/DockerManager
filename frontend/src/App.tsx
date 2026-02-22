@@ -7,6 +7,7 @@ import Containers from './pages/Containers'; // Import the new Containers compon
 import Users from './pages/Users';
 import Settings from './pages/Settings';
 import Login from './pages/Login';
+import TelegramApp from './pages/TelegramApp';
 import { useAuth } from './hooks/useAuth.tsx';
 import { setUnauthorizedCallback } from './lib/api';
 
@@ -31,6 +32,7 @@ function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/telegram" element={<TelegramApp />} />
       <Route
         path="/"
         element={
